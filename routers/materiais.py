@@ -1,9 +1,10 @@
 # © Todos os direitos reservados – github.com/Wbad-02
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from database import get_db
 from auth import requer_editor_ou_admin, get_usuario_atual, registrar_log
 from email_service import disparar_notificacao
+from utils import sync_qty
 import models, schemas
 
 router = APIRouter(prefix="/api/materiais", tags=["materiais"])
@@ -22,7 +23,14 @@ def listar_materiais(
     db: Session = Depends(get_db),
     _: models.Usuario = Depends(get_usuario_atual),
 ):
-    q = db.query(models.Material).filter(models.Material.ativo == True)
+    q = (
+        db.query(models.Material)
+        .options(
+            joinedload(models.Material.grupo).joinedload(models.GrupoMaterial.categoria),
+            joinedload(models.Material.unidades),
+        )
+        .filter(models.Material.ativo == True)
+    )
 
     if grupo_id:
         q = q.filter(models.Material.grupo_id == grupo_id)
@@ -89,22 +97,19 @@ def criar_material(
 
     if payload.usa_patrimonio:
         if payload.codigo_patrimonio:
-            # Patrimonizado: cadastra exatamente 1 unidade com o código informado
             if db.query(models.UnidadePatrimonio).filter(
                 models.UnidadePatrimonio.material_id == mat.id,
                 models.UnidadePatrimonio.codigo == payload.codigo_patrimonio,
             ).first():
                 raise HTTPException(409, f"Código '{payload.codigo_patrimonio}' já cadastrado neste material")
-            unidade = models.UnidadePatrimonio(
+            db.add(models.UnidadePatrimonio(
                 material_id=mat.id,
                 codigo=payload.codigo_patrimonio,
                 status=models.StatusUnidade.ativo,
                 origem="manual",
                 valor_unitario=payload.valor_unitario,
                 tag="novo",
-            )
-            db.add(unidade)
-            mat.quantidade = 1
+            ))
         elif payload.quantidade >= 1:
             import math
             for _ in range(max(1, math.floor(payload.quantidade))):
@@ -116,6 +121,8 @@ def criar_material(
                     tag="novo",
                 ))
 
+    db.flush()
+    sync_qty(mat, db)
     db.commit()
     db.refresh(mat)
     registrar_log(db, atual.id, "criar", "material", mat.id, payload.nome)
@@ -191,7 +198,6 @@ def entrada_material(
         mat.usa_patrimonio = payload.usa_patrimonio
 
     if mat.usa_patrimonio and payload.codigo_patrimonio:
-        # Patrimonizado: 1 unidade com código, quantidade sempre +1
         dup = db.query(models.UnidadePatrimonio).filter(
             models.UnidadePatrimonio.material_id == mat_id,
             models.UnidadePatrimonio.codigo == payload.codigo_patrimonio,
@@ -206,11 +212,9 @@ def entrada_material(
             valor_unitario=payload.valor_unitario,
             tag="novo",
         ))
-        mat.quantidade += 1
     elif mat.usa_patrimonio:
         import math
-        qtd_int = max(1, math.floor(payload.quantidade))
-        for _ in range(qtd_int):
+        for _ in range(max(1, math.floor(payload.quantidade))):
             db.add(models.UnidadePatrimonio(
                 material_id=mat_id,
                 origem="manual",
@@ -218,7 +222,6 @@ def entrada_material(
                 valor_unitario=payload.valor_unitario,
                 tag="novo",
             ))
-        mat.quantidade += payload.quantidade
     else:
         mat.quantidade += payload.quantidade
 
@@ -232,6 +235,9 @@ def entrada_material(
         tag="novo",
     )
     db.add(mov)
+    db.flush()
+    if mat.usa_patrimonio:
+        sync_qty(mat, db)
     db.commit()
     db.refresh(mat)
     registrar_log(db, atual.id, "entrada", "material", mat_id,

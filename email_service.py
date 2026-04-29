@@ -5,6 +5,7 @@ Configuração lida de smtp_config.json (criado pela interface admin).
 Envios são disparados em thread daemon para não bloquear requisições.
 """
 import json
+import os
 import smtplib
 import threading
 from collections import defaultdict
@@ -16,10 +17,19 @@ from pathlib import Path
 CONFIG_PATH = Path("smtp_config.json")
 
 
+def _resolver_senha(senha: str) -> str:
+    """Suporta valor env:NOME_VAR — lê da variável de ambiente em vez do arquivo."""
+    if senha and senha.startswith("env:"):
+        return os.environ.get(senha[4:], "")
+    return senha
+
+
 def ler_config() -> dict:
     if CONFIG_PATH.exists():
         try:
-            return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+            cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+            cfg["senha"] = _resolver_senha(cfg.get("senha", ""))
+            return cfg
         except Exception:
             return {}
     return {}

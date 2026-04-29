@@ -188,13 +188,6 @@ class MaterialOut(BaseModel):
         data.usa_patrimonio  = bool(obj.usa_patrimonio)
         data.valor_unitario  = obj.valor_unitario
         data.tag             = obj.tag
-        if data.usa_patrimonio:
-            # Quantidade real = unidades disponíveis (ativo e não atribuídas)
-            disponiveis = sum(
-                1 for u in obj.unidades
-                if u.status == "ativo" and u.tag != "atribuido"
-            )
-            data.quantidade = float(disponiveis)
         return data
 
 

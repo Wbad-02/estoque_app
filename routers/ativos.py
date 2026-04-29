@@ -4,19 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database import get_db
 from auth import requer_editor_ou_admin, get_usuario_atual, registrar_log
+from utils import sync_qty
 import models, schemas
 
 router = APIRouter(prefix="/api/ativos", tags=["ativos"])
-
-
-def _sync_qty(mat: models.Material, db: Session) -> None:
-    """Sincroniza mat.quantidade com a contagem real de unidades disponíveis."""
-    disponiveis = db.query(models.UnidadePatrimonio).filter(
-        models.UnidadePatrimonio.material_id == mat.id,
-        models.UnidadePatrimonio.status == models.StatusUnidade.ativo,
-        models.UnidadePatrimonio.tag != "atribuido",
-    ).count()
-    mat.quantidade = float(disponiveis)
 
 
 def _ativo_out(a: models.Ativo) -> schemas.AtivoOut:
@@ -119,7 +110,7 @@ def remover(ativo_id: int, db: Session = Depends(get_db),
     for mat_id in mats_afetados:
         mat = db.query(models.Material).filter(models.Material.id == mat_id).first()
         if mat:
-            _sync_qty(mat, db)
+            sync_qty(mat, db)
 
     obj.ativo = False
     db.commit()
@@ -163,7 +154,7 @@ def atribuir_material(ativo_id: int, payload: schemas.AtribuirMaterialCreate,
 
     unidade.tag = "atribuido"
     db.flush()
-    _sync_qty(mat, db)
+    sync_qty(mat, db)
 
     item = models.AtivoItem(
         ativo_id=ativo_id,
@@ -204,7 +195,7 @@ def devolver_material(ativo_id: int, item_id: int,
     item.devolvido_em = datetime.utcnow()
     db.flush()
     if mat:
-        _sync_qty(mat, db)
+        sync_qty(mat, db)
     db.commit()
     registrar_log(db, atual.id, "devolver", "ativo_item", item_id,
                   mat.nome if mat else "")

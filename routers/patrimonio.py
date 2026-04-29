@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from auth import requer_editor_ou_admin, get_usuario_atual, registrar_log
+from utils import sync_qty
 import models, schemas
 
 router = APIRouter(prefix="/api/patrimonio", tags=["patrimonio"])
@@ -225,7 +226,8 @@ def adicionar_unidades(
         db.add(mov)
         criadas.append(unidade.id)
 
-    mat.quantidade += len(payload)
+    db.flush()
+    sync_qty(mat, db)
     db.commit()
 
     registrar_log(db, atual.id, "adicionar_unidades", "material", material_id,
@@ -272,7 +274,8 @@ def retirar_unidade_patrimonio(
     unidade.status = models.StatusUnidade.retirado
     unidade.retirado_em = datetime.utcnow()
     unidade.movimentacao_saida_id = mov.id
-    mat.quantidade = max(0, mat.quantidade - 1)
+    db.flush()
+    sync_qty(mat, db)
     db.commit(); db.refresh(mov)
 
     registrar_log(db, atual.id, "retirar_unidade", "material", material_id,

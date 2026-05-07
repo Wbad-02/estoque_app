@@ -1,4 +1,4 @@
-# © Todos os direitos reservados – github.com/Wbad-02
+# Todos os direitos reservados - github.com/Wbad-02
 # Registra o backup diario do banco no Agendador de Tarefas do Windows.
 # Execute como Administrador UMA UNICA VEZ apos instalar o sistema.
 
@@ -32,7 +32,7 @@ Register-ScheduledTask `
     -Trigger     $trigger `
     -Settings    $settings `
     -Principal   $principal `
-    -Description "Backup diario do Sistema de Estoque — retencao de 30 dias" `
+    -Description "Backup diario do Sistema de Estoque - retencao de 30 dias" `
     -Force | Out-Null
 
 Write-Host "============================================"
@@ -42,6 +42,6 @@ Write-Host " Retencao: 30 dias"
 Write-Host " Script: $SCRIPT_BACKUP"
 Write-Host ""
 Write-Host " Comandos uteis:"
-Write-Host "   Get-ScheduledTask -TaskName 'EstoqueBackupDiario'  -> status"
-Write-Host "   Start-ScheduledTask -TaskName 'EstoqueBackupDiario' -> rodar agora"
+Write-Host "   Get-ScheduledTask -TaskName EstoqueBackupDiario"
+Write-Host "   Start-ScheduledTask -TaskName EstoqueBackupDiario"
 Write-Host "============================================"

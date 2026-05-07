@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from database import get_db
-from auth import get_usuario_atual
+from auth import get_usuario_atual, requer_admin
 import models
 
 from reportlab.lib.pagesizes import A4
@@ -453,7 +453,7 @@ def exportar_ativos_pdf(
 @router.get("/notificacoes/excel")
 def exportar_notificacoes_excel(
     db: Session = Depends(get_db),
-    _: models.Usuario = Depends(get_usuario_atual),
+    _: models.Usuario = Depends(requer_admin),
 ):
     emails = db.query(models.NotificacaoEmail).filter(
         models.NotificacaoEmail.ativo == True

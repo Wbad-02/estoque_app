@@ -233,3 +233,17 @@ class NotificacaoTemplate(Base):
     assunto      = Column(String(200), nullable=False)
     corpo        = Column(Text, nullable=False)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class NfeImportada(Base):
+    """
+    Registro de NF-e já importadas.
+    A chave de acesso (44 dígitos) é o identificador único nacional de cada NF-e,
+    usado como chave primária para impedir importações duplicadas.
+    """
+    __tablename__ = "nfe_importadas"
+    chave        = Column(String(44), primary_key=True)   # chave de acesso SEFAZ
+    nf_numero    = Column(String(20),  nullable=True)
+    emitente     = Column(String(200), nullable=True)
+    usuario_id   = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    importado_em = Column(DateTime, default=datetime.utcnow)

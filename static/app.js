@@ -249,7 +249,8 @@ function filtrarMateriais(){
 }
 
 function renderizarMateriais(lista){
-  const canEdit=S.grupo==='admin'||S.grupo==='editor';
+  const canEdit=S.grupo==='admin'||S.grupo==='editor'||S.grupo==='mestre';
+  const canAdmin=S.grupo==='admin'||S.grupo==='mestre';
   const container=$('mat-lista');
   if(!lista.length){container.innerHTML='<div class="empty"><span>📭</span>Nenhum material</div>';return;}
 
@@ -297,9 +298,8 @@ function renderizarMateriais(lista){
             :'<span class="badge badge-ok">✓ OK</span>'}</td>
         <td style="white-space:nowrap" onclick="event.stopPropagation()">
           <button class="btn btn-secondary btn-sm" onclick="abrirDetalhes(${m.id})">Timeline</button>
-          ${canEdit?`
-          <button class="btn btn-secondary btn-sm" onclick="editarMaterial(${m.id})">Editar</button>
-          <button class="btn btn-danger btn-sm" onclick="removerMaterial(${m.id},'${m.nome.replace(/'/g,"\\'")}')">✕</button>`:''}
+          ${canEdit?`<button class="btn btn-secondary btn-sm" onclick="editarMaterial(${m.id})">Editar</button>`:''}
+          ${canAdmin?`<button class="btn btn-danger btn-sm" onclick="removerMaterial(${m.id},'${m.nome.replace(/'/g,"\\'")}')">✕</button>`:''}
         </td>
       </tr>
       <tr class="mat-detail-row" id="mat-detail-${m.id}">

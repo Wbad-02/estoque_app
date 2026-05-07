@@ -3,6 +3,10 @@
 Serviço de envio de e-mails via SMTP.
 Configuração lida de smtp_config.json (criado pela interface admin).
 Envios são disparados em thread daemon para não bloquear requisições.
+
+Notificações do tipo "entrada" são agrupadas em uma janela de 30 minutos:
+a primeira entrada inicia um timer; todas as entradas subsequentes dentro
+da janela são acumuladas e enviadas juntas em um único e-mail ao final.
 """
 import json
 import os
@@ -13,6 +17,16 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+
+# ── Batch de notificações de entrada ──────────────────────────────────────────
+_BATCH_WINDOW = 30 * 60          # 30 minutos em segundos
+
+_batch_lock         = threading.Lock()
+_batch_pending:     list[dict]  = []   # variáveis de cada entrada acumulada
+_batch_destinatarios: list[str] = []   # resolvidos na 1ª entrada da janela
+_batch_assunto_tpl: str         = ""   # assunto do template (sem substituição)
+_batch_corpo_tpl:   str         = ""   # corpo do template (sem substituição)
+_batch_timer:       threading.Timer | None = None
 
 CONFIG_PATH = Path("smtp_config.json")
 
@@ -84,11 +98,65 @@ def _preencher(template: str, variaveis: dict) -> str:
     return template.format_map(defaultdict(lambda: "—", variaveis))
 
 
+def _flush_batch():
+    """Disparado pelo timer: envia um único e-mail com todas as entradas acumuladas."""
+    global _batch_pending, _batch_destinatarios, _batch_assunto_tpl, _batch_corpo_tpl, _batch_timer
+
+    with _batch_lock:
+        pendentes      = _batch_pending[:]
+        destinatarios  = _batch_destinatarios[:]
+        assunto_tpl    = _batch_assunto_tpl
+        corpo_tpl      = _batch_corpo_tpl
+        _batch_pending       = []
+        _batch_destinatarios = []
+        _batch_assunto_tpl   = ""
+        _batch_corpo_tpl     = ""
+        _batch_timer         = None
+
+    if not pendentes or not destinatarios:
+        return
+
+    n    = len(pendentes)
+    agora = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    if n == 1:
+        # Apenas uma entrada: usa o template original normalmente
+        assunto = _preencher(assunto_tpl, pendentes[0])
+        corpo   = _preencher(corpo_tpl,   pendentes[0])
+    else:
+        assunto = f"Resumo de entradas de estoque — {n} movimentações"
+        linhas  = [
+            f"{n} entradas de estoque foram registradas.",
+            f"Gerado em: {agora}",
+            "=" * 52,
+        ]
+        for i, v in enumerate(pendentes, 1):
+            linhas.append(
+                f"\n{i}. Material:    {v.get('material', '—')}\n"
+                f"   Quantidade:  {v.get('quantidade', '—')} {v.get('unidade', '')}\n"
+                f"   Responsável: {v.get('usuario', '—')}\n"
+                f"   Data/hora:   {v.get('data', '—')}"
+            )
+            linhas.append("-" * 40)
+        corpo = "\n".join(linhas)
+
+    threading.Thread(
+        target=_enviar_seguro,
+        args=(destinatarios, assunto, corpo),
+        daemon=True,
+    ).start()
+
+
 def disparar_notificacao(db, tipo: str, variaveis: dict):
     """
-    Busca destinatários e template no banco, preenche variáveis
-    e dispara o envio em background (não bloqueia a requisição).
+    Busca destinatários e template no banco, preenche variáveis e agenda envio.
+
+    Notificações do tipo 'entrada' são agrupadas em uma janela de 30 minutos:
+    a primeira entrada inicia o timer; entradas seguintes acumulam na fila.
+    Todos os outros tipos são enviados imediatamente.
     """
+    global _batch_timer, _batch_assunto_tpl, _batch_corpo_tpl
+
     from models import NotificacaoEmail, NotificacaoTemplate
 
     emails = db.query(NotificacaoEmail).filter(
@@ -105,10 +173,28 @@ def disparar_notificacao(db, tipo: str, variaveis: dict):
     if not template:
         return
 
+    if tipo == "entrada":
+        with _batch_lock:
+            _batch_pending.append(variaveis)
+
+            # Armazena destinatários e template da 1ª entrada da janela
+            if not _batch_destinatarios:
+                _batch_destinatarios.extend(destinatarios)
+                _batch_assunto_tpl = template.assunto
+                _batch_corpo_tpl   = template.corpo
+
+            # Inicia timer apenas na 1ª entrada; as demais apenas acumulam
+            if _batch_timer is None:
+                t = threading.Timer(_BATCH_WINDOW, _flush_batch)
+                t.daemon = True
+                t.start()
+                _batch_timer = t
+        return
+
+    # Outros tipos (retirada, alerta): envio imediato
     assunto = _preencher(template.assunto, variaveis)
     corpo   = _preencher(template.corpo,   variaveis)
 
-    # Apenas strings passadas para a thread — seguro após fechar sessão
     threading.Thread(
         target=_enviar_seguro,
         args=(destinatarios, assunto, corpo),

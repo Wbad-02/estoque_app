@@ -1,5 +1,5 @@
-# ── Banco de dados (dados reais e backups) ───────────────────
-*.db
+# ── Banco de dados (backups excluídos, banco principal incluso) ──
+estoque_backup_*.db
 *.db-shm
 *.db-wal
 *.sqlite

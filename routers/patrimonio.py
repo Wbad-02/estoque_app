@@ -33,10 +33,10 @@ def _enriquecer_unidade(u: models.UnidadePatrimonio, db: Session) -> schemas.Uni
             models.AtivoItem.unidade_id == u.id,
             models.AtivoItem.devolvido_em == None,
         ).first()
-        if item and item.ativo:
-            out.ativo_nome = item.ativo.nome
-            if item.ativo.grupo and item.ativo.grupo.categoria:
-                out.ativo_categoria = item.ativo.grupo.categoria.nome
+        if item and item.ativo_obj:
+            out.ativo_nome = item.ativo_obj.nome
+            if item.ativo_obj.grupo and item.ativo_obj.grupo.categoria:
+                out.ativo_categoria = item.ativo_obj.grupo.categoria.nome
 
     return out
 
@@ -212,6 +212,7 @@ def adicionar_unidades(
             status=models.StatusUnidade.ativo,
             origem=item.origem,
             nf_numero=item.nf_numero,
+            tag=item.tag,
         )
         db.add(unidade); db.flush()
 

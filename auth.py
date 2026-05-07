@@ -31,7 +31,7 @@ if not _SECRET_ENV or len(_SECRET_ENV) < 32:
     # Isso invalida todos os tokens ao reiniciar o servidor — aceitável
     # em ambiente de desenvolvimento, mas defina a variável em produção.
     _SECRET_ENV = secrets.token_hex(32)
-    print("⚠️  ESTOQUE_SECRET_KEY não definida. Tokens são invalidados ao reiniciar.")
+    print("AVISO: ESTOQUE_SECRET_KEY nao definida. Tokens sao invalidados ao reiniciar.")
     print(f"   Defina no sistema: ESTOQUE_SECRET_KEY={_SECRET_ENV}")
 
 SECRET_KEY              = _SECRET_ENV

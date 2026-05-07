@@ -126,7 +126,7 @@
       <div class="page-header">
         <h2>Materiais</h2>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary editor-only" onclick="abrirModalAdicionarMaterial()">+ Adicionar Material</button>
+          <button class="btn btn-primary admin-only" onclick="abrirModalAdicionarMaterial()">+ Adicionar Material</button>
         </div>
       </div>
       <div class="table-wrap">
@@ -211,62 +211,62 @@
     <!-- RETIRADAS -->
     <section id="page-retiradas" class="page">
       <div class="page-header"><h2>Retiradas de estoque</h2></div>
-      <div style="display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:20px;align-items:start">
 
-        <!-- Formulário de retirada -->
-        <div class="table-wrap" style="padding:24px">
-          <h3 style="font-size:15px;color:var(--green);margin-bottom:20px">Registrar retirada</h3>
-          <div class="form-group"><label>Categoria</label>
+      <!-- Formulário compacto (horizontal) — visível só para editor+ -->
+      <div class="table-wrap editor-only" style="padding:20px;margin-bottom:20px">
+        <h3 style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:16px">Registrar retirada</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end">
+          <div class="form-group" style="margin:0"><label>Categoria</label>
             <select id="ret-cat" onchange="carregarGruposRet()">
               <option value="">Selecione…</option>
             </select></div>
-          <div class="form-group"><label>Grupo</label>
+          <div class="form-group" style="margin:0"><label>Grupo</label>
             <select id="ret-grp" onchange="carregarMateriaisRet()">
               <option value="">Selecione…</option>
             </select></div>
-          <div class="form-group"><label>Material</label>
+          <div class="form-group" style="margin:0"><label>Material</label>
             <select id="ret-mat" onchange="mostrarEstoqueAtual()">
               <option value="">Selecione…</option>
             </select></div>
-          <div id="ret-estoque-info" style="display:none;background:#F0F4F2;border-radius:8px;
-            padding:10px 12px;margin-bottom:16px;font-size:13px;color:var(--green)"></div>
-          <div class="form-group"><label>Unidade *</label>
-            <select id="ret-unidade"><option value="">Selecione o material primeiro…</option></select></div>
-          <div class="form-group">
+          <div class="form-group" style="margin:0"><label>Unidade *</label>
+            <select id="ret-unidade"><option value="">—</option></select></div>
+          <div class="form-group" style="margin:0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
               <label style="margin:0">Motivo *</label>
-              <button class="btn btn-secondary btn-sm editor-only" onclick="abrirModalMotivo()">+ Gerenciar motivos</button>
+              <button class="btn btn-secondary btn-sm" onclick="abrirModalMotivo()" style="font-size:11px;padding:2px 8px">+ Gerenciar</button>
             </div>
             <select id="ret-motivo">
               <option value="colaborador">Atribuído a colaborador</option>
               <option value="defeito">Defeito / Ruim</option>
             </select>
           </div>
-          <div class="form-group"><label>Observação</label>
-            <input type="text" id="ret-obs" placeholder="Nome do colaborador, número do chamado…"/></div>
-          <button class="btn btn-danger" style="width:100%" onclick="registrarRetirada()">
-            ↓ Confirmar retirada
-          </button>
-        </div>
-
-        <!-- Histórico -->
-        <div class="table-wrap">
-          <div class="table-toolbar">
-            <strong style="font-size:13px">Histórico de retiradas</strong>
-            <div class="filter-row" style="flex:1;margin-left:8px">
-              <select id="hist-motivo-filtro" onchange="filtrarHistorico()" style="max-width:200px">
-                <option value="">Todos os motivos</option>
-              </select>
-            </div>
+          <div class="form-group" style="margin:0"><label>Observação</label>
+            <input type="text" id="ret-obs" placeholder="Colaborador, chamado…"/></div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div id="ret-estoque-info" style="display:none;background:#F0F4F2;border-radius:8px;
+              padding:8px 10px;font-size:12px;color:var(--green)"></div>
+            <button class="btn btn-danger" style="width:100%" onclick="registrarRetirada()">↓ Confirmar retirada</button>
           </div>
-          <table>
-            <thead><tr>
-              <th>Data</th><th>Material</th><th class="hide-mobile">Grupo</th>
-              <th>Qtd.</th><th>Motivo</th><th class="hide-mobile">Obs.</th><th class="hide-mobile">Usuário</th>
-            </tr></thead>
-            <tbody id="hist-body"></tbody>
-          </table>
         </div>
+      </div>
+
+      <!-- Histórico (largura total) -->
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <strong style="font-size:13px">Histórico de retiradas</strong>
+          <div class="filter-row" style="flex:1;margin-left:8px">
+            <select id="hist-motivo-filtro" onchange="filtrarHistorico()" style="max-width:200px">
+              <option value="">Todos os motivos</option>
+            </select>
+          </div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Data</th><th>Material</th><th class="hide-mobile">Grupo</th>
+            <th>Qtd.</th><th>Motivo</th><th class="hide-mobile">Obs.</th><th class="hide-mobile">Usuário</th>
+          </tr></thead>
+          <tbody id="hist-body"></tbody>
+        </table>
       </div>
       <div class="copyright-footer">© Todos os direitos reservados – github.com/Wbad-02</div>
     </section>
@@ -495,30 +495,38 @@
     <!-- RELATÓRIOS -->
     <section id="page-relatorios" class="page">
       <div class="page-header"><h2>Relatórios</h2></div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px">
-        <div class="table-wrap" style="padding:24px">
-          <h3 style="margin-bottom:8px;color:var(--green)">📊 Estoque completo</h3>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Todos os materiais ativos com categorias, grupos e quantidades.</p>
+
+      <!-- Seção: Estoque -->
+      <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:12px">Estoque</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:28px">
+        <div class="table-wrap" style="padding:22px">
+          <h3 style="margin-bottom:6px;font-size:15px;color:var(--green)">Estoque completo</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:18px">Todos os materiais ativos com categorias, grupos e quantidades.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn btn-primary" onclick="exportar('excel',false)">⬇ Excel</button>
             <button class="btn btn-secondary" onclick="exportar('pdf',false)">⬇ PDF</button>
           </div>
         </div>
-        <div class="table-wrap" style="padding:24px">
-          <h3 style="margin-bottom:8px;color:var(--warn)">⚠ Apenas alertas</h3>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Itens abaixo ou igual ao mínimo do grupo.</p>
+        <div class="table-wrap" style="padding:22px">
+          <h3 style="margin-bottom:6px;font-size:15px;color:var(--warn)">Apenas alertas</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:18px">Itens abaixo ou igual ao mínimo do grupo.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn btn-gold" onclick="exportar('excel',true)">⬇ Excel</button>
             <button class="btn btn-secondary" onclick="exportar('pdf',true)">⬇ PDF</button>
           </div>
         </div>
-        <div class="table-wrap" style="padding:24px;grid-column:1/-1">
-          <h3 style="margin-bottom:8px;color:var(--green)">📤 Relatório de saídas</h3>
+      </div>
+
+      <!-- Seção: Movimentações -->
+      <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:12px">Movimentações</p>
+      <div style="margin-bottom:28px">
+        <div class="table-wrap" style="padding:22px">
+          <h3 style="margin-bottom:6px;font-size:15px;color:var(--green)">Saídas</h3>
           <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Histórico de retiradas com filtros por motivo e período.</p>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
             <div style="display:flex;flex-direction:column;gap:4px">
               <label style="font-size:11px;font-weight:600;color:var(--muted)">Motivo</label>
-              <select id="rel-saida-motivo" style="min-width:200px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px">
+              <select id="rel-saida-motivo" style="min-width:190px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px">
                 <option value="">Todos os motivos</option>
                 <option value="colaborador">Atribuído a colaborador</option>
                 <option value="defeito">Defeito / Ruim</option>
@@ -532,14 +540,21 @@
               <label style="font-size:11px;font-weight:600;color:var(--muted)">Data fim</label>
               <input type="date" id="rel-saida-fim" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px"/>
             </div>
-            <button class="btn btn-primary" onclick="exportarSaidas('excel')">⬇ Excel</button>
-            <button class="btn btn-secondary" onclick="exportarSaidas('pdf')">⬇ PDF</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary" onclick="exportarSaidas('excel')">⬇ Excel</button>
+              <button class="btn btn-secondary" onclick="exportarSaidas('pdf')">⬇ PDF</button>
+            </div>
           </div>
         </div>
-        <div class="table-wrap" style="padding:24px">
-          <h3 style="margin-bottom:8px;color:var(--green)">◉ Ativos</h3>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Lista de ativos com materiais atribuídos.</p>
-          <div style="margin-bottom:16px">
+      </div>
+
+      <!-- Seção: Cadastros -->
+      <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:12px">Cadastros</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:28px">
+        <div class="table-wrap" style="padding:22px">
+          <h3 style="margin-bottom:6px;font-size:15px;color:var(--green)">Ativos</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:14px">Lista de ativos com materiais atribuídos.</p>
+          <div style="margin-bottom:14px">
             <select id="rel-ativos-status" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;width:100%">
               <option value="ativo">Apenas ativos</option>
               <option value="inativo">Apenas inativos</option>
@@ -551,14 +566,15 @@
             <button class="btn btn-secondary" onclick="exportarAtivos('pdf')">⬇ PDF</button>
           </div>
         </div>
-        <div class="table-wrap" style="padding:24px">
-          <h3 style="margin-bottom:8px;color:var(--green)">🔔 Notificações</h3>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Lista de e-mails cadastrados para notificações por tipo.</p>
+        <div class="table-wrap admin-only" style="padding:22px">
+          <h3 style="margin-bottom:6px;font-size:15px;color:var(--green)">Notificações</h3>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:18px">Lista de e-mails cadastrados para notificações por tipo.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn btn-primary" onclick="exportarNotificacoes('excel')">⬇ Excel</button>
           </div>
         </div>
       </div>
+
       <div class="copyright-footer">© Todos os direitos reservados – github.com/Wbad-02</div>
     </section>
 

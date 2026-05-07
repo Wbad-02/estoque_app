@@ -53,7 +53,7 @@ class UsuarioUpdate(BaseModel):
 
 class UsuarioOut(BaseModel):
     id: int; nome: str; email: str
-    grupo: GrupoPermissao; ativo: bool; criado_em: datetime
+    grupo: GrupoPermissao; ativo: bool; criado_em: Optional[datetime] = None
     model_config = {"from_attributes": True}
 
 

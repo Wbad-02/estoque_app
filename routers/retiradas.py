@@ -1,7 +1,7 @@
 # © Todos os direitos reservados – github.com/Wbad-02
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, selectinload
 from database import get_db
 from auth import get_usuario_atual
 import models, schemas
@@ -21,10 +21,10 @@ def listar_retiradas(
     q = (
         db.query(models.Movimentacao)
         .options(
-            joinedload(models.Movimentacao.material)
-            .joinedload(models.Material.grupo)
-            .joinedload(models.GrupoMaterial.categoria),
-            joinedload(models.Movimentacao.usuario),
+            selectinload(models.Movimentacao.material)
+            .selectinload(models.Material.grupo)
+            .selectinload(models.GrupoMaterial.categoria),
+            selectinload(models.Movimentacao.usuario),
         )
         .filter(models.Movimentacao.tipo == "saida")
         .order_by(models.Movimentacao.criado_em.desc())

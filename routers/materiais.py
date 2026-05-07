@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from database import get_db
-from auth import requer_editor_ou_admin, get_usuario_atual, registrar_log
+from auth import requer_editor_ou_admin, requer_admin, get_usuario_atual, registrar_log
 from email_service import disparar_notificacao
 from utils import sync_qty
 import models, schemas
@@ -81,7 +81,7 @@ def obter_material(
 def criar_material(
     payload: schemas.MaterialCreate,
     db: Session = Depends(get_db),
-    atual: models.Usuario = Depends(requer_editor_ou_admin),
+    atual: models.Usuario = Depends(requer_admin),
 ):
     grupo = db.query(models.GrupoMaterial).filter(
         models.GrupoMaterial.id == payload.grupo_id
@@ -163,7 +163,7 @@ def atualizar_material(
 def remover_material(
     mat_id: int,
     db: Session = Depends(get_db),
-    atual: models.Usuario = Depends(requer_editor_ou_admin),
+    atual: models.Usuario = Depends(requer_admin),
 ):
     mat = db.query(models.Material).filter(
         models.Material.id == mat_id,

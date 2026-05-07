@@ -75,8 +75,8 @@ def _seed_admin(db: Session):
             grupo=models.GrupoPermissao.admin,
         ))
         db.commit()
-        print("✅ Admin criado  →  admin@estoque.local / admin123")
-        print("⚠️  Troque a senha após o primeiro login!")
+        print("Admin criado  ->  admin@estoque.local / admin123")
+        print("AVISO: Troque a senha apos o primeiro login!")
 
 
 @app.on_event("startup")
@@ -86,9 +86,9 @@ def startup():
         _seed_admin(db)
     finally:
         db.close()
-    print(f"🔒 Redes autorizadas: {', '.join(REDES_PERMITIDAS)}")
-    print("🔒 Rate limit: 60 req/min geral | 10 tentativas/5min no login")
-    print("🔒 Security headers HTTP ativos")
+    print(f"Redes autorizadas: {', '.join(REDES_PERMITIDAS)}")
+    print("Rate limit: 60 req/min geral | 10 tentativas/5min no login")
+    print("Security headers HTTP ativos")
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

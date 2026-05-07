@@ -5,9 +5,6 @@ estoque_backup_*.db
 *.sqlite
 *.sqlite3
 
-# ── Configuração SMTP (contém senha em texto puro) ───────────
-smtp_config.json
-
 # ── Variáveis de ambiente ─────────────────────────────────────
 .env
 .env.*

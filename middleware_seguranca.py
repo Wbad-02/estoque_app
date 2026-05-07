@@ -10,6 +10,7 @@ Camadas implementadas:
   4. Bloqueio de métodos HTTP não utilizados
   5. Ocultação de informações do servidor
 """
+import os
 import time
 import ipaddress
 from collections import defaultdict
@@ -28,12 +29,16 @@ from starlette.middleware.base import BaseHTTPMiddleware
 #   192.168.1.0/24  → 192.168.1.1 até 192.168.1.254
 #   10.0.0.0/8      → toda a faixa 10.x.x.x
 #   172.16.0.0/12   → 172.16.x.x até 172.31.x.x
+# Defina DESABILITAR_WHITELIST_IP=true para acesso via internet (ex: Cloudflare Tunnel).
+# A autenticação JWT continua ativa independente desta configuração.
+WHITELIST_IP_ATIVA: bool = os.environ.get("DESABILITAR_WHITELIST_IP", "").lower() != "true"
+
 REDES_PERMITIDAS: list[str] = [
-    "127.0.0.1/32",      # localhost (obrigatório — permite o próprio servidor)
+    "127.0.0.1/32",      # localhost
     "::1/128",           # localhost IPv6
-    "192.168.0.0/24",    # ← AJUSTE para sua sub-rede real
-    "192.168.1.0/24",    # ← adicione outras faixas se necessário
-    "10.0.0.0/8",        # faixa privada classe A (ampla — restrinja se possível)
+    "192.168.0.0/24",
+    "192.168.1.0/24",
+    "10.0.0.0/8",
 ]
 
 # Rate limiting — tentativas por janela de tempo
@@ -53,7 +58,8 @@ _contadores_login: dict[str, list[float]] = defaultdict(list)   # IP → timesta
 
 
 def _ip_permitido(ip: str) -> bool:
-    """Verifica se o IP está dentro de alguma rede autorizada."""
+    if not WHITELIST_IP_ATIVA:
+        return True
     try:
         addr = ipaddress.ip_address(ip)
         return any(

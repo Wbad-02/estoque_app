@@ -1,11 +1,12 @@
 # © Todos os direitos reservados – github.com/Wbad-02
+import os
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import engine, get_db, Base
 from auth import verificar_senha, criar_token, hash_senha, registrar_log
-from middleware_seguranca import MiddlewareSeguranca, REDES_PERMITIDAS
+from middleware_seguranca import MiddlewareSeguranca, REDES_PERMITIDAS, WHITELIST_IP_ATIVA
 from routers import usuarios, categorias, materiais, relatorios, grupos, importacao, retiradas, patrimonio, ativos, ativos_categorias, notificacoes, motivos
 import models, schemas
 
@@ -19,13 +20,15 @@ app = FastAPI(
     openapi_url=None,    # desabilita /openapi.json em produção
 )
 
-# ── Segurança: CORS restrito à rede interna ───────────────────
-# Permite apenas origens da própria máquina.
-# Em rede local os clientes acessam pelo IP do servidor — o CORS
-# aqui bloqueia tentativas de sites externos fazerem chamadas à API.
+# CORS_ORIGINS: domínios permitidos separados por vírgula.
+# Ex: https://meudominio.trycloudflare.com
+# Deixe vazio para permitir qualquer origem (menos seguro).
+_cors_env = os.environ.get("CORS_ORIGINS", "")
+_cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],           # wildcard necessário pois clientes usam IPs diferentes
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET","POST","PUT","PATCH","DELETE"],
     allow_headers=["Authorization","Content-Type"],
@@ -84,11 +87,27 @@ def startup():
     db = next(get_db())
     try:
         _seed_admin(db)
+        _checar_senha_padrao(db)
     finally:
         db.close()
-    print(f"Redes autorizadas: {', '.join(REDES_PERMITIDAS)}")
+    if WHITELIST_IP_ATIVA:
+        print(f"Redes autorizadas: {', '.join(REDES_PERMITIDAS)}")
+    else:
+        print("Whitelist de IP desativada — acesso liberado para qualquer origem (modo internet)")
+    print(f"CORS origins: {_cors_origins}")
     print("Rate limit: 60 req/min geral | 10 tentativas/5min no login")
     print("Security headers HTTP ativos")
+
+
+def _checar_senha_padrao(db: Session):
+    admin = db.query(models.Usuario).filter(
+        models.Usuario.email == "admin@estoque.local"
+    ).first()
+    if admin and verificar_senha("admin123", admin.senha_hash):
+        print("=" * 60)
+        print("AVISO CRITICO: Admin ainda usa a senha padrao 'admin123'.")
+        print("Troque imediatamente apos o primeiro login!")
+        print("=" * 60)
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

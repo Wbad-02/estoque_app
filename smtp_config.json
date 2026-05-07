@@ -1,0 +1,9 @@
+{
+  "host": "smtp.gmail.com",
+  "porta": 465,
+  "usuario": "suporte.upgradecontabil@gmail.com",
+  "senha": "awod yolj wvbv kwgu",
+  "remetente": "suporte.upgradecontabil@gmail.com",
+  "tls": false,
+  "ssl": true
+}

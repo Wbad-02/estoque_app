@@ -1,9 +1,13 @@
-# ── Banco de dados (backups excluídos, banco principal incluso) ──
+# ── Banco de dados ────────────────────────────────────────────
 estoque_backup_*.db
+backups/
 *.db-shm
 *.db-wal
 *.sqlite
 *.sqlite3
+
+# ── Cloudflare Tunnel (credenciais geradas localmente) ────────
+cloudflare/*.json
 
 # ── Variáveis de ambiente ─────────────────────────────────────
 .env

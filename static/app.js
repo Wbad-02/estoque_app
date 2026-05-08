@@ -100,6 +100,7 @@ async function fazerLogin(){
 function logout(){
   localStorage.clear(); S.token=S.grupo=S.nome='';
   $('app').style.display='none'; $('login-screen').style.display='flex';
+  $('topbar').style.display='none';
 }
 $('login-senha').addEventListener('keydown', e=>{ if(e.key==='Enter') fazerLogin(); });
 
@@ -108,6 +109,7 @@ $('login-senha').addEventListener('keydown', e=>{ if(e.key==='Enter') fazerLogin
 // ═══════════════════════════════════════════════════
 function iniciarApp(){
   $('login-screen').style.display='none'; $('app').style.display='block';
+  $('topbar').style.display='';
   $('sidebar-user').textContent=S.nome;
   const grupoLabel={mestre:'Mestre',admin:'Admin',editor:'Editor',viewer:'Viewer'};
   $('sidebar-grupo').textContent=grupoLabel[S.grupo]||'';

@@ -23,7 +23,11 @@ const fmt = d  => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
 const fmtDT = d => d ? new Date(d).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}) : '—';
 
 function fecharModal(id){ $(id).style.display='none'; }
-function fecharModalSe(e,id){ if(e.target.id===id) fecharModal(id); }
+// Fecha o modal apenas quando o clique/toque ocorre diretamente no overlay
+// (não em elementos filhos). Usa currentTarget para compatibilidade iOS/Android.
+function fecharModalSe(e,id){
+  if(e.target===e.currentTarget || e.target.id===id) fecharModal(id);
+}
 function toast(msg, tipo='success'){
   const el=$('toast'); el.textContent=msg; el.className=`show ${tipo}`;
   setTimeout(()=>{ el.className=''; },3200);

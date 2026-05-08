@@ -774,12 +774,13 @@ async function previewNFe(){
     $('nfe-numero').textContent=dados.nf_numero+' — '+(dados.nf_data||'');
     $('nfe-emitente').style.display='block';
     $('nfe-count').textContent=`${dados.itens.length} item(s)`;
-    $('nfe-preview-body').innerHTML=dados.itens.map(it=>`
+    $('nfe-preview-body').innerHTML=dados.itens.map((it,idx)=>`
       <tr>
         <td style="font-size:12px;color:var(--muted)">${it.codigo}</td>
         <td><strong>${esc(it.nome)}</strong></td>
         <td>${it.quantidade}</td><td>${it.unidade}</td>
         <td>R$ ${it.valor_unit.toFixed(2)}</td>
+        <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" title="Marcar como patrimônio individual"/></td>
       </tr>`).join('');
     $('nfe-grupo-wrap').style.display='block';
     $('nfe-btn-confirmar').style.display='block';
@@ -790,7 +791,10 @@ async function confirmarNFe(){
   if(!_nfeArquivo){toast('Selecione um XML','error');return;}
   const grupoId=$('nfe-grp-sel').value;
   if(!grupoId){toast('Selecione o grupo de destino','error');return;}
+  const patrimonioIndices=[...document.querySelectorAll('.nfe-patrimonio-cb:checked')]
+    .map(cb=>cb.dataset.idx).join(',');
   const form=new FormData(); form.append('arquivo',_nfeArquivo);
+  form.append('patrimonio_indices', patrimonioIndices);
   try{
     const r=await fetch(`/api/importacao/confirmar?grupo_id=${grupoId}`,
       {method:'POST',headers:{Authorization:`Bearer ${S.token}`},body:form});

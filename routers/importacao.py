@@ -1,6 +1,6 @@
 # © Todos os direitos reservados – github.com/Wbad-02
 import xml.etree.ElementTree as ET
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from database import get_db
 from auth import requer_admin, registrar_log
@@ -127,10 +127,11 @@ async def preview_xml(
 
 @router.post("/confirmar")
 async def confirmar_importacao(
-    arquivo:  UploadFile = File(...),
-    grupo_id: int = 0,
-    db:       Session = Depends(get_db),
-    atual:    models.Usuario = Depends(requer_admin),
+    arquivo:             UploadFile = File(...),
+    grupo_id:            int = 0,
+    patrimonio_indices:  str = Form(""),
+    db:                  Session = Depends(get_db),
+    atual:               models.Usuario = Depends(requer_admin),
 ):
     """
     Importa TODOS os itens do XML para o banco (suporta NF-e com múltiplos produtos).
@@ -163,10 +164,12 @@ async def confirmar_importacao(
             f"em: {ja_importada.importado_em.strftime('%d/%m/%Y %H:%M')})"
         )
 
+    indices_patrimonio = {int(i) for i in patrimonio_indices.split(",") if i.strip().isdigit()}
+
     criados     = []
     atualizados = []
 
-    for item in dados["itens"]:
+    for idx, item in enumerate(dados["itens"]):
         nome_norm = item["nome"].strip()
         qtd       = item["quantidade"]
 
@@ -176,12 +179,15 @@ async def confirmar_importacao(
             models.Material.nome.ilike(nome_norm),
         ).first()
 
-        valor_unit = item["valor_unit"]
+        valor_unit      = item["valor_unit"]
+        usar_patrimonio = idx in indices_patrimonio
 
         if existente:
             existente.quantidade += qtd
             if not existente.valor_unitario:
                 existente.valor_unitario = valor_unit
+            if usar_patrimonio:
+                existente.usa_patrimonio = True
             db.flush()
             mat = existente
             atualizados.append({"nome": mat.nome, "qtd_adicionada": qtd})
@@ -193,6 +199,7 @@ async def confirmar_importacao(
                 unidade=item["unidade"].lower() or "un",
                 grupo_id=grupo_id,
                 valor_unitario=valor_unit,
+                usa_patrimonio=usar_patrimonio,
             )
             db.add(mat)
             db.flush()

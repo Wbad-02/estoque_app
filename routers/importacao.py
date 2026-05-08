@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from database import get_db
-from auth import requer_admin, registrar_log
+from auth import requer_admin, requer_editor_ou_admin, registrar_log
 import models
 
 router = APIRouter(prefix="/api/importacao", tags=["importacao"])
@@ -104,7 +104,7 @@ def _parse_nfe(xml_bytes: bytes) -> dict:
 async def preview_xml(
     arquivo: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: models.Usuario = Depends(requer_admin),
+    _: models.Usuario = Depends(requer_editor_ou_admin),
 ):
     """
     Recebe o XML, faz o parse e devolve os itens para revisão.
@@ -131,7 +131,7 @@ async def confirmar_importacao(
     grupo_id:            int = 0,
     patrimonio_indices:  str = Form(""),
     db:                  Session = Depends(get_db),
-    atual:               models.Usuario = Depends(requer_admin),
+    atual:               models.Usuario = Depends(requer_editor_ou_admin),
 ):
     """
     Importa TODOS os itens do XML para o banco (suporta NF-e com múltiplos produtos).

@@ -91,7 +91,10 @@ class Material(Base):
     @property
     def alerta_minimo(self):
         minimo = self.quantidade_minima
-        return minimo > 0 and self.quantidade <= minimo
+        if not minimo:
+            return False
+        total_grupo = sum(m.quantidade for m in self.grupo.materiais if m.ativo)
+        return total_grupo <= minimo
 
     valor_unitario = Column(Float, nullable=True)
     tag            = Column(String(10), nullable=True)  # 'novo', 'usado'

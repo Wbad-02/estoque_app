@@ -76,6 +76,7 @@ tr.row-alert td{background:var(--warn-bg)}
 .badge-defeito{background:#FCE4EC;color:#880E4F}
 .badge-novo   {background:#E3F2FD;color:#1565C0}
 .badge-usado  {background:#FFF3E0;color:#E65100}
+.badge-saida  {background:#FCE4EC;color:#C62828}
 .badge-em-uso {background:#F3E5F5;color:#6A1B9A}
 
 /* ── Inputs ── */

@@ -784,7 +784,7 @@ async function previewNFe(){
         <td><strong>${esc(it.nome)}</strong></td>
         <td>${it.quantidade}</td><td>${it.unidade}</td>
         <td>R$ ${it.valor_unit.toFixed(2)}</td>
-        <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" title="Marcar como patrimônio individual"/></td>
+        <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" checked title="Marcar como patrimônio individual"/></td>
       </tr>`).join('');
     $('nfe-grupo-wrap').style.display='block';
     $('nfe-btn-confirmar').style.display='block';
@@ -906,7 +906,7 @@ async function _carregarCardsUnidades(){
       </div>
       <div style="font-size:11px;color:var(--muted)">
         ${new Date(u.criado_em).toLocaleDateString('pt-BR')} ·
-        ${u.status==='ativo'?'Em estoque':'Retirado'}
+        ${u.status==='ativo'?'Em estoque':'<span class="badge badge-saida" style="font-size:10px">Saída</span>'}
       </div>
     </div>`).join('');
 }
@@ -1492,7 +1492,9 @@ async function toggleMatDetail(id, tr, forceReload){
       ? '<span class="badge badge-usado">Usado</span>'
       : t==='atribuido'
         ? '<span class="badge" style="background:#e0e0e0;color:#888">Atribuído</span>'
-        : '<span style="color:var(--muted);font-size:11px">—</span>';
+        : t==='saida'
+          ? '<span class="badge badge-saida">Saída</span>'
+          : '<span style="color:var(--muted);font-size:11px">—</span>';
 
   const tblStyle = 'width:100%;border-collapse:collapse;font-size:12px';
   const thStyle  = 'text-align:left;padding:5px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:1px solid var(--border)';
@@ -1529,8 +1531,8 @@ async function toggleMatDetail(id, tr, forceReload){
           ${unidades.map((u,i)=>{
             const val = u.valor_unitario!=null ? 'R$ '+u.valor_unitario.toFixed(2)
                       : mat.valor_unitario!=null ? 'R$ '+mat.valor_unitario.toFixed(2) : '—';
-            const tagAtual = u.tag || mat.tag;
             const isAtrib = u.tag==='atribuido';
+            const tagAtual = u.status==='retirado' ? 'saida' : (u.tag || mat.tag);
             const cor = u.status==='retirado' ? 'color:var(--muted)' : isAtrib ? 'opacity:.6' : '';
             const statusLabel = isAtrib ? '<span class="badge" style="background:#e0e0e0;color:#888;font-size:10px">Atribuído</span>'
                               : u.status==='ativo' ? '<span class="badge badge-ok" style="font-size:10px">Em estoque</span>'

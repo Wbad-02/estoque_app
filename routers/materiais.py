@@ -27,6 +27,7 @@ def listar_materiais(
         db.query(models.Material)
         .options(
             joinedload(models.Material.grupo).joinedload(models.GrupoMaterial.categoria),
+            joinedload(models.Material.grupo).joinedload(models.GrupoMaterial.materiais),
             joinedload(models.Material.unidades),
         )
         .filter(models.Material.ativo == True)

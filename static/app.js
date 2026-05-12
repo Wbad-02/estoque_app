@@ -39,10 +39,14 @@ function toast(msg, tipo='success'){
 function withBtn(btn, fn) {
   if (!btn || btn.disabled) return;
   btn.disabled = true;
-  btn.style.opacity = '.55';
+  btn.style.opacity = '.7';
+  const sp = document.createElement('span');
+  sp.className = 'btn-spinner';
+  btn.prepend(sp);
   Promise.resolve(fn()).finally(() => {
     btn.disabled = false;
     btn.style.opacity = '';
+    sp.remove();
   });
 }
 

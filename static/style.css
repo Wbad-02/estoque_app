@@ -100,6 +100,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--green)}
 .btn-gold     {background:var(--gold);color:#fff}
 .btn-gold:hover{opacity:.9}
 .btn-sm{padding:5px 11px;font-size:12px;border-radius:6px}
+@keyframes _spin{to{transform:rotate(360deg)}}
+.btn-spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:currentColor;border-radius:50%;animation:_spin .55s linear infinite;flex-shrink:0}
+.btn-secondary .btn-spinner,.btn-danger .btn-spinner{border-color:rgba(0,0,0,.12);border-top-color:currentColor}
 
 /* ── Modal ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);

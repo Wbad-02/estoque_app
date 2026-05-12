@@ -34,6 +34,19 @@ function toast(msg, tipo='success'){
 }
 
 // ═══════════════════════════════════════════════════
+// Utilitário: desabilita botão durante requisição
+// ═══════════════════════════════════════════════════
+function withBtn(btn, fn) {
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.style.opacity = '.55';
+  Promise.resolve(fn()).finally(() => {
+    btn.disabled = false;
+    btn.style.opacity = '';
+  });
+}
+
+// ═══════════════════════════════════════════════════
 // API
 // ═══════════════════════════════════════════════════
 async function api(method, path, body){
@@ -600,7 +613,7 @@ function renderizarCategorias(){
         <div class="novo-grupo-form" id="form-grp-${c.id}">
           <input type="text" id="novo-grp-nome-${c.id}" placeholder="Nome do grupo" style="flex:2"/>
           <input type="number" id="novo-grp-min-${c.id}" placeholder="Mínimo (0=sem alerta)" min="0" step="0.01" value="0" style="flex:1"/>
-          <button class="btn btn-primary btn-sm" onclick="criarGrupoInline(${c.id})">Criar</button>
+          <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>criarGrupoInline(${c.id}))">Criar</button>
         </div>`
       );
     }

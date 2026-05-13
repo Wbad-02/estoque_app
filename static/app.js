@@ -191,6 +191,7 @@ function navegar(p){
     ativos:carregarAtivos, 'categ-ativos':carregarCategoriasAtivo,
     usuarios:carregarUsuarios, importacao:carregarImportacao,
     notificacoes:carregarNotificacoes,
+    requerimentos:carregarRequerimentos,
     perfil:carregarPerfil,
     relatorios:()=>{}})[p]?.();
 }
@@ -2164,14 +2165,14 @@ async function carregarNotificacoes(){
   if(!emails||!tpls) return;
 
   // Preencher listas de emails
-  ['retirada','entrada','alerta'].forEach(tipo=>{
+  ['retirada','entrada','alerta','requerimento'].forEach(tipo=>{
     const lista=emails.filter(e=>e.tipo===tipo);
     _renderizarEmailsNotif(tipo, lista);
   });
 
   // Preencher templates
   tpls.forEach(t=>{
-    const tipoMap={retirada:'retirada',entrada:'entrada',alerta:'alerta'};
+    const tipoMap={retirada:'retirada',entrada:'entrada',alerta:'alerta',requerimento:'requerimento'};
     const k=tipoMap[t.tipo]; if(!k) return;
     const assuntoEl=$(`notif-tpl-${k}-assunto`);
     const corpoEl=$(`notif-tpl-${k}-corpo`);
@@ -2238,12 +2239,27 @@ function trocarAbaNotif(aba){
   _notifAbaAtiva=aba;
   const section=$('page-notificacoes');
   section?.querySelectorAll('.inner-tab').forEach((el,i)=>{
-    const abas=['retiradas','entradas','alertas','smtp'];
+    const abas=['retiradas','entradas','alertas','requerimento','smtp'];
     el.classList.toggle('active', abas[i]===aba);
   });
   section?.querySelectorAll('.inner-tab-pane').forEach(el=>el.classList.remove('active'));
   $(`notif-pane-${aba}`)?.classList.add('active');
   if(aba==='smtp') carregarSmtp();
+  if(aba==='requerimento') _carregarEmailsRequerimento();
+}
+
+async function _carregarEmailsRequerimento(){
+  const emails = await api('GET', '/notificacoes/emails?tipo=requerimento');
+  _renderizarEmailsNotif('requerimento', emails||[]);
+  const tpls = await api('GET', '/notificacoes/templates');
+  if(!tpls) return;
+  const tpl = tpls.find(t=>t.tipo==='requerimento');
+  if(tpl){
+    const assuntoEl = $('notif-tpl-requerimento-assunto');
+    const corpoEl   = $('notif-tpl-requerimento-corpo');
+    if(assuntoEl) assuntoEl.value = tpl.assunto;
+    if(corpoEl)   corpoEl.value   = tpl.corpo;
+  }
 }
 
 async function carregarSmtp(){
@@ -2320,6 +2336,193 @@ async function removerMotivoCustom(id){
   if(!confirm('Remover este motivo?')) return;
   const r=await api('DELETE',`/motivos/${id}`);
   if(r!==null){toast('Motivo removido');await _carregarListaMotivos();}
+}
+
+// ═══════════════════════════════════════════════════
+// Requerimentos de Compra
+// ═══════════════════════════════════════════════════
+let _reqDetalheId = null;
+
+async function carregarRequerimentos(){
+  const lista = await api('GET', '/requerimentos/');
+  if(!lista) return;
+  _renderRequerimentos(lista);
+}
+
+function _badgeReq(status){
+  if(status === 'aprovado')   return '<span class="badge badge-ok">Aprovado</span>';
+  if(status === 'rejeitado')  return '<span class="badge badge-alert" style="background:#FDECEA;color:var(--danger)">Rejeitado</span>';
+  return '<span class="badge" style="background:#FFF3CD;color:#856404;font-weight:600">Aguardando</span>';
+}
+
+function _renderRequerimentos(lista){
+  const tbody = $('req-body');
+  if(!lista.length){
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><span>📋</span>Nenhum requerimento cadastrado</div></td></tr>';
+    return;
+  }
+  const isAdmin = S.grupo === 'admin' || S.grupo === 'mestre';
+  tbody.innerHTML = lista.map(r => {
+    const acoes = `
+      <button class="btn btn-secondary btn-sm" onclick="verRequerimento(${r.id})">Ver</button>
+      ${isAdmin && r.status === 'aguardando'
+        ? `<button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>_abrirDetalheEAprovar(${r.id}))">Aprovar</button>
+           <button class="btn btn-danger btn-sm" onclick="withBtn(this,()=>_abrirDetalheERejeitar(${r.id}))">Rejeitar</button>`
+        : ''}
+      <button class="btn btn-secondary btn-sm" onclick="downloadExcelReq(${r.id})" title="Download Excel">⬇</button>`;
+    return `<tr>
+      <td><strong>${esc(r.titulo)}</strong></td>
+      <td style="white-space:nowrap">R$ ${Number(r.total).toFixed(2)}</td>
+      <td class="hide-mobile" style="font-size:12px;color:var(--muted)">${esc(r.criador_nome||'—')}</td>
+      <td class="hide-mobile" style="font-size:12px;color:var(--muted)">${fmtDT(r.criado_em)}</td>
+      <td>${_badgeReq(r.status)}</td>
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">${acoes}</td>
+    </tr>`;
+  }).join('');
+}
+
+function abrirNovoRequerimento(){
+  $('req-titulo').value = '';
+  $('req-itens-body').innerHTML = '';
+  $('req-total-preview').textContent = 'R$ 0,00';
+  $('req-itens-vazio').style.display = 'none';
+  addItemReq();
+  abrirModal('modal-novo-req');
+}
+
+function abrirModal(id){ $(id).style.display = 'flex'; }
+
+function addItemReq(){
+  const tbody = $('req-itens-body');
+  $('req-itens-vazio').style.display = 'none';
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td style="padding:4px 4px 4px 0">
+      <input type="text" placeholder="Nome do item" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px"/>
+    </td>
+    <td style="padding:4px 4px">
+      <input type="number" min="0" step="0.01" placeholder="0,00"
+        style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px"
+        oninput="_atualizarTotalReq()"/>
+    </td>
+    <td style="padding:4px 0 4px 4px;text-align:center">
+      <button class="btn btn-danger btn-sm" style="padding:5px 8px"
+        onclick="this.closest('tr').remove();_atualizarTotalReq()">✕</button>
+    </td>`;
+  tbody.appendChild(tr);
+}
+
+function _atualizarTotalReq(){
+  const inputs = document.querySelectorAll('#req-itens-body tr td:nth-child(2) input');
+  let total = 0;
+  inputs.forEach(inp => { total += parseFloat(inp.value) || 0; });
+  $('req-total-preview').textContent = 'R$ ' + total.toFixed(2);
+}
+
+async function criarRequerimento(){
+  const titulo = $('req-titulo').value.trim();
+  if(!titulo){ toast('Título obrigatório', 'error'); return; }
+
+  const rows = document.querySelectorAll('#req-itens-body tr');
+  if(!rows.length){ toast('Adicione ao menos um item', 'error'); return; }
+
+  const itens = [];
+  let valido = true;
+  rows.forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    const nome   = inputs[0].value.trim();
+    const valor  = parseFloat(inputs[1].value) || 0;
+    if(!nome){ valido = false; return; }
+    itens.push({ nome, valor });
+  });
+
+  if(!valido){ toast('Preencha o nome de todos os itens', 'error'); return; }
+  if(!itens.length){ toast('Adicione ao menos um item', 'error'); return; }
+
+  const r = await api('POST', '/requerimentos/', { titulo, itens });
+  if(r){
+    fecharModal('modal-novo-req');
+    toast('Requerimento criado!');
+    carregarRequerimentos();
+  }
+}
+
+async function verRequerimento(id){
+  _reqDetalheId = id;
+  const r = await api('GET', `/requerimentos/${id}`);
+  if(!r) return;
+
+  $('det-req-titulo').textContent     = r.titulo;
+  $('det-req-badge').innerHTML        = _badgeReq(r.status);
+  $('det-req-criador').textContent    = 'Por: ' + (r.criador_nome || '—');
+  $('det-req-data').textContent       = fmtDT(r.criado_em);
+  $('det-req-total').textContent      = 'R$ ' + Number(r.total).toFixed(2);
+
+  // Itens
+  $('det-req-itens').innerHTML = (r.itens||[]).map(it => `
+    <tr>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border)">${esc(it.nome)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">R$ ${Number(it.valor).toFixed(2)}</td>
+    </tr>`).join('');
+
+  // Observação de rejeição
+  const obsWrap = $('det-req-obs-wrap');
+  if(r.status === 'rejeitado' && r.observacao){
+    $('det-req-obs').textContent = r.observacao;
+    obsWrap.style.display = 'block';
+  } else {
+    obsWrap.style.display = 'none';
+  }
+
+  // Área de aprovação/rejeição
+  const acaoWrap = $('det-req-acao-wrap');
+  const isAdmin  = S.grupo === 'admin' || S.grupo === 'mestre';
+  if(isAdmin && r.status === 'aguardando'){
+    $('det-req-obs-input').value = '';
+    acaoWrap.style.display = 'block';
+  } else {
+    acaoWrap.style.display = 'none';
+  }
+
+  abrirModal('modal-detalhe-req');
+}
+
+// Atalhos internos para abrir detalhe já na ação
+async function _abrirDetalheEAprovar(id){ await verRequerimento(id); }
+async function _abrirDetalheERejeitar(id){ await verRequerimento(id); }
+
+async function aprovarRequerimento(id){
+  const obs = $('det-req-obs-input')?.value.trim() || '';
+  const body = obs ? { observacao: obs } : {};
+  const r = await api('POST', `/requerimentos/${id}/aprovar`, body);
+  if(r){
+    fecharModal('modal-detalhe-req');
+    toast('Requerimento aprovado!');
+    carregarRequerimentos();
+  }
+}
+
+async function rejeitarRequerimento(id){
+  const obs = $('det-req-obs-input')?.value.trim();
+  if(!obs){ toast('Informe o motivo da rejeição', 'error'); return; }
+  const r = await api('POST', `/requerimentos/${id}/rejeitar`, { observacao: obs });
+  if(r){
+    fecharModal('modal-detalhe-req');
+    toast('Requerimento rejeitado');
+    carregarRequerimentos();
+  }
+}
+
+function downloadExcelReq(id){
+  fetch(`/api/requerimentos/${id}/excel`, {
+    headers: { Authorization: `Bearer ${S.token}` }
+  }).then(r => r.blob()).then(blob => {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `requerimento_${id}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }).catch(() => toast('Erro ao baixar Excel', 'error'));
 }
 
 // ═══════════════════════════════════════════════════

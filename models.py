@@ -238,6 +238,36 @@ class NotificacaoTemplate(Base):
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class StatusRequerimento(str, enum.Enum):
+    aguardando = "aguardando"
+    aprovado   = "aprovado"
+    rejeitado  = "rejeitado"
+
+
+class Requerimento(Base):
+    __tablename__ = "requerimentos"
+    id            = Column(Integer, primary_key=True, index=True)
+    titulo        = Column(String(200), nullable=False)
+    status        = Column(Enum(StatusRequerimento), default=StatusRequerimento.aguardando)
+    criado_por    = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    aprovado_por  = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    observacao    = Column(Text, nullable=True)
+    criado_em     = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    criador   = relationship("Usuario", foreign_keys=[criado_por])
+    aprovador = relationship("Usuario", foreign_keys=[aprovado_por])
+    itens     = relationship("ItemRequerimento", back_populates="requerimento", cascade="all, delete-orphan")
+
+
+class ItemRequerimento(Base):
+    __tablename__ = "requerimentos_itens"
+    id              = Column(Integer, primary_key=True, index=True)
+    requerimento_id = Column(Integer, ForeignKey("requerimentos.id", ondelete="CASCADE"), nullable=False)
+    nome            = Column(String(200), nullable=False)
+    valor           = Column(Float, nullable=False)
+    requerimento    = relationship("Requerimento", back_populates="itens")
+
+
 class NfeImportada(Base):
     """
     Registro de NF-e já importadas.

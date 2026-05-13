@@ -74,6 +74,8 @@
       <span class="nav-icon">◎</span> Usuários</div>
     <div class="nav-item editor-only" onclick="navegar('importacao')" data-page="importacao">
       <span class="nav-icon">⊕</span> Importar NF-e</div>
+    <div class="nav-item editor-only" onclick="navegar('requerimentos')" data-page="requerimentos">
+      <span class="nav-icon">📋</span> Requerimentos</div>
     <div class="nav-item" onclick="navegar('relatorios')" data-page="relatorios">
       <span class="nav-icon">◧</span> Relatórios</div>
     <div class="nav-item" onclick="navegar('perfil')" data-page="perfil">
@@ -381,6 +383,7 @@
         <div class="inner-tab active" onclick="trocarAbaNotif('retiradas')">Retiradas</div>
         <div class="inner-tab" onclick="trocarAbaNotif('entradas')">Entradas</div>
         <div class="inner-tab" onclick="trocarAbaNotif('alertas')">Alertas</div>
+        <div class="inner-tab" onclick="trocarAbaNotif('requerimento')">Requerimento</div>
         <div class="inner-tab" onclick="trocarAbaNotif('smtp')">Config. SMTP</div>
       </div>
 
@@ -453,6 +456,29 @@
             <div class="form-group"><label>Corpo</label>
               <textarea id="notif-tpl-alerta-corpo" rows="6" style="resize:vertical"></textarea></div>
             <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('alerta'))">Salvar template</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aba: Requerimento -->
+      <div class="inner-tab-pane" id="notif-pane-requerimento">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+          <div class="table-wrap" style="padding:20px">
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:16px">E-mails — Requerimentos</h3>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <input type="email" id="notif-email-requerimento" placeholder="email@empresa.local" style="flex:1"/>
+              <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('requerimento'))">Adicionar</button>
+            </div>
+            <div id="notif-list-requerimento"></div>
+          </div>
+          <div class="table-wrap" style="padding:20px">
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Requerimentos</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Use {titulo}, {criador}, {total}, {status}, {data}, {observacao}</p>
+            <div class="form-group"><label>Assunto</label>
+              <input type="text" id="notif-tpl-requerimento-assunto"/></div>
+            <div class="form-group"><label>Corpo</label>
+              <textarea id="notif-tpl-requerimento-corpo" rows="6" style="resize:vertical"></textarea></div>
+            <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('requerimento'))">Salvar template</button>
           </div>
         </div>
       </div>
@@ -590,6 +616,33 @@
       <div class="copyright-footer">© Todos os direitos reservados – github.com/Wbad-02</div>
     </section>
 
+
+    <!-- REQUERIMENTOS DE COMPRA -->
+    <section id="page-requerimentos" class="page">
+      <div class="page-header">
+        <h2>Requerimentos de Compra</h2>
+        <button class="btn btn-primary editor-only" onclick="abrirNovoRequerimento()">+ Novo requerimento</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <strong style="font-size:13px">Lista de requerimentos</strong>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Título</th>
+            <th>Total</th>
+            <th class="hide-mobile">Criado por</th>
+            <th class="hide-mobile">Data</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr></thead>
+          <tbody id="req-body">
+            <tr><td colspan="6"><div class="empty"><span>📋</span>Carregando…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="copyright-footer">© Todos os direitos reservados – github.com/Wbad-02</div>
+    </section>
 
     <!-- PERFIL -->
     <section id="page-perfil" class="page">
@@ -959,6 +1012,98 @@
 
     <div class="modal-actions" style="margin-top:16px">
       <button class="btn btn-secondary" onclick="fecharModal('modal-unidades')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVO REQUERIMENTO -->
+<div id="modal-novo-req" class="modal-overlay" style="display:none" onclick="fecharModalSe(event,'modal-novo-req')">
+  <div class="modal" style="max-width:620px">
+    <h3>Novo Requerimento de Compra</h3>
+    <div class="form-group">
+      <label>Título *</label>
+      <input type="text" id="req-titulo" placeholder="Ex: Compra de material de escritório"/>
+    </div>
+    <div style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <label style="font-size:12px;font-weight:600;color:var(--muted)">Itens</label>
+        <button class="btn btn-secondary btn-sm" onclick="addItemReq()">+ Adicionar item</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:6px 8px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border)">Nome do item</th>
+              <th style="text-align:left;padding:6px 8px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);width:140px">Valor R$</th>
+              <th style="width:36px;border-bottom:1px solid var(--border)"></th>
+            </tr>
+          </thead>
+          <tbody id="req-itens-body"></tbody>
+        </table>
+      </div>
+      <div id="req-itens-vazio" style="display:none;font-size:13px;color:var(--muted);padding:12px 0 4px">
+        Nenhum item adicionado. Clique em "+ Adicionar item".
+      </div>
+    </div>
+    <div style="text-align:right;font-size:14px;font-weight:600;color:var(--green);padding:8px 0;border-top:1px solid var(--border);margin-bottom:4px">
+      Total: <span id="req-total-preview">R$ 0,00</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="fecharModal('modal-novo-req')">Cancelar</button>
+      <button class="btn btn-primary" onclick="withBtn(this,criarRequerimento)">Criar requerimento</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE REQUERIMENTO -->
+<div id="modal-detalhe-req" class="modal-overlay" style="display:none" onclick="fecharModalSe(event,'modal-detalhe-req')">
+  <div class="modal" style="max-width:640px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:12px">
+      <div style="flex:1">
+        <h3 id="det-req-titulo" style="margin-bottom:6px">Requerimento</h3>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span id="det-req-badge"></span>
+          <span id="det-req-criador" style="font-size:12px;color:var(--muted)"></span>
+          <span id="det-req-data" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+      </div>
+      <div style="font-size:18px;font-weight:700;color:var(--green);white-space:nowrap" id="det-req-total"></div>
+    </div>
+
+    <!-- Tabela de itens somente leitura -->
+    <div style="overflow-x:auto;margin-bottom:16px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border)">Item</th>
+            <th style="text-align:right;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:120px">Valor</th>
+          </tr>
+        </thead>
+        <tbody id="det-req-itens"></tbody>
+      </table>
+    </div>
+
+    <!-- Observação se rejeitado -->
+    <div id="det-req-obs-wrap" style="display:none;background:#FDECEA;border:1px solid #F5C6C3;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px">
+      <strong style="color:var(--danger)">Motivo da rejeição:</strong>
+      <span id="det-req-obs" style="margin-left:6px"></span>
+    </div>
+
+    <!-- Formulário de aprovação/rejeição (admin + status aguardando) -->
+    <div id="det-req-acao-wrap" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Observação <span style="font-weight:400;color:var(--muted)">(obrigatória para rejeitar)</span></label>
+        <textarea id="det-req-obs-input" rows="2" placeholder="Informe o motivo da decisão…" style="resize:vertical"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="withBtn(this,()=>aprovarRequerimento(_reqDetalheId))">Aprovar</button>
+        <button class="btn btn-danger" onclick="withBtn(this,()=>rejeitarRequerimento(_reqDetalheId))">Rejeitar</button>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn btn-secondary btn-sm" onclick="downloadExcelReq(_reqDetalheId)">⬇ Excel</button>
+      <button class="btn btn-secondary" onclick="fecharModal('modal-detalhe-req')">Fechar</button>
     </div>
   </div>
 </div>

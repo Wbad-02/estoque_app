@@ -433,3 +433,33 @@ class NotificacaoTemplateCreate(BaseModel):
 class NotificacaoTemplateOut(BaseModel):
     id: int; tipo: str; assunto: str; corpo: str; atualizado_em: datetime
     model_config = {"from_attributes": True}
+
+
+# ── Requerimento de Compra ─────────────────────────────
+class ItemRequerimentoCreate(BaseModel):
+    nome:  str
+    valor: float
+
+class RequerimentoCreate(BaseModel):
+    titulo: str
+    itens:  list[ItemRequerimentoCreate]
+
+class AprovarRequerimentoBody(BaseModel):
+    observacao: Optional[str] = None
+
+class RejeitarRequerimentoBody(BaseModel):
+    observacao: str
+
+class ItemRequerimentoOut(BaseModel):
+    id: int; nome: str; valor: float
+    model_config = {"from_attributes": True}
+
+class RequerimentoOut(BaseModel):
+    id: int; titulo: str; status: str
+    criado_em: datetime; atualizado_em: datetime
+    observacao: Optional[str] = None
+    criador_nome:  str = ""
+    aprovador_nome: str = ""
+    total: float = 0.0
+    itens: list[ItemRequerimentoOut] = []
+    model_config = {"from_attributes": True}

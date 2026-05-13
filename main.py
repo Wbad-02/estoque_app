@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from database import engine, get_db, Base
 from auth import verificar_senha, criar_token, hash_senha, registrar_log
 from middleware_seguranca import MiddlewareSeguranca, REDES_PERMITIDAS, WHITELIST_IP_ATIVA
-from routers import usuarios, categorias, materiais, relatorios, grupos, importacao, retiradas, patrimonio, ativos, ativos_categorias, notificacoes, motivos
+from routers import usuarios, categorias, materiais, relatorios, grupos, importacao, retiradas, patrimonio, ativos, ativos_categorias, notificacoes, motivos, requerimentos
 import models, schemas
 
 Base.metadata.create_all(bind=engine)
@@ -15,12 +15,12 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Sistema de Controle de Estoque",
     version="3.1.0",
-    docs_url=None,       # desabilita /docs em produção
-    redoc_url=None,      # desabilita /redoc em produção
-    openapi_url=None,    # desabilita /openapi.json em produção
+    docs_url=None,       # desabilita /docs em producao
+    redoc_url=None,      # desabilita /redoc em producao
+    openapi_url=None,    # desabilita /openapi.json em producao
 )
 
-# CORS_ORIGINS: domínios permitidos separados por vírgula.
+# CORS_ORIGINS: dominios permitidos separados por virgula.
 # Ex: https://meudominio.trycloudflare.com
 # Deixe vazio para permitir qualquer origem (menos seguro).
 _cors_env = os.environ.get("CORS_ORIGINS", "")
@@ -35,7 +35,7 @@ app.add_middleware(
     max_age=600,
 )
 
-# ── Middleware de segurança principal (IP whitelist + rate limit + headers) ──
+# ── Middleware de seguranca principal (IP whitelist + rate limit + headers) ──
 app.add_middleware(MiddlewareSeguranca)
 
 # ── Routers ───────────────────────────────────────────────────
@@ -51,6 +51,7 @@ app.include_router(ativos_categorias.router)
 app.include_router(ativos.router)
 app.include_router(notificacoes.router)
 app.include_router(motivos.router)
+app.include_router(requerimentos.router)
 
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
@@ -60,7 +61,7 @@ def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
         models.Usuario.ativo == True,
     ).first()
     if not usuario or not verificar_senha(payload.senha, usuario.senha_hash):
-        raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
+        raise HTTPException(status_code=401, detail="E-mail ou senha invalidos")
     token = criar_token({"sub": str(usuario.id)})
     registrar_log(db, usuario.id, "login", "usuario", usuario.id)
     return schemas.TokenResponse(
@@ -82,21 +83,40 @@ def _seed_admin(db: Session):
         print("AVISO: Troque a senha apos o primeiro login!")
 
 
-@app.on_event("startup")
-def startup():
-    db = next(get_db())
-    try:
-        _seed_admin(db)
-        _checar_senha_padrao(db)
-    finally:
-        db.close()
-    if WHITELIST_IP_ATIVA:
-        print(f"Redes autorizadas: {', '.join(REDES_PERMITIDAS)}")
-    else:
-        print("Whitelist de IP desativada — acesso liberado para qualquer origem (modo internet)")
-    print(f"CORS origins: {_cors_origins}")
-    print("Rate limit: 60 req/min geral | 10 tentativas/5min no login")
-    print("Security headers HTTP ativos")
+def _seed_templates_requerimento(db: Session):
+    """Garante que existam templates de e-mail para requerimentos."""
+    defaults = [
+        {
+            "tipo":    "requerimento",
+            "assunto": "Novo requerimento de compra: {titulo}",
+            "corpo": (
+                "Um novo requerimento de compra foi criado.\n\n"
+                "Titulo:     {titulo}\n"
+                "Criado por: {criador}\n"
+                "Itens:      {itens_count}\n"
+                "Total:      {total}\n\n"
+                "Acesse para aprovar ou rejeitar: {link}"
+            ),
+        },
+        {
+            "tipo":    "requerimento_decisao",
+            "assunto": "Requerimento '{titulo}' foi {status}",
+            "corpo": (
+                "O requerimento de compra abaixo teve uma decisao registrada.\n\n"
+                "Titulo:      {titulo}\n"
+                "Status:      {status}\n"
+                "Decisao por: {aprovador}\n"
+                "Observacao:  {observacao}"
+            ),
+        },
+    ]
+    for d in defaults:
+        existe = db.query(models.NotificacaoTemplate).filter(
+            models.NotificacaoTemplate.tipo == d["tipo"]
+        ).first()
+        if not existe:
+            db.add(models.NotificacaoTemplate(**d))
+    db.commit()
 
 
 def _checar_senha_padrao(db: Session):
@@ -108,6 +128,24 @@ def _checar_senha_padrao(db: Session):
         print("AVISO CRITICO: Admin ainda usa a senha padrao 'admin123'.")
         print("Troque imediatamente apos o primeiro login!")
         print("=" * 60)
+
+
+@app.on_event("startup")
+def startup():
+    db = next(get_db())
+    try:
+        _seed_admin(db)
+        _checar_senha_padrao(db)
+        _seed_templates_requerimento(db)
+    finally:
+        db.close()
+    if WHITELIST_IP_ATIVA:
+        print(f"Redes autorizadas: {', '.join(REDES_PERMITIDAS)}")
+    else:
+        print("Whitelist de IP desativada — acesso liberado para qualquer origem (modo internet)")
+    print(f"CORS origins: {_cors_origins}")
+    print("Rate limit: 60 req/min geral | 10 tentativas/5min no login")
+    print("Security headers HTTP ativos")
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

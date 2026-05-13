@@ -359,6 +359,18 @@
         <div class="table-toolbar"><strong style="font-size:13px;color:var(--green)">✓ Importação concluída</strong></div>
         <div style="padding:20px;font-size:13px" id="nfe-resultado-detalhe"></div>
       </div>
+      <div class="table-wrap admin-only" style="margin-top:20px" id="nfe-historico-wrap">
+        <div class="table-toolbar">
+          <strong style="font-size:13px">Histórico de importações</strong>
+          <span style="font-size:12px;color:var(--muted);margin-left:8px">Remova o registro para permitir reimportação</span>
+        </div>
+        <table>
+          <thead><tr><th>NF-e nº</th><th>Emitente</th><th>Importado em</th><th>Ação</th></tr></thead>
+          <tbody id="nfe-historico-body">
+            <tr><td colspan="4"><div class="empty"><span>📋</span>Carregando…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
       <div class="copyright-footer">© Todos os direitos reservados – github.com/Wbad-02</div>
     </section>
 

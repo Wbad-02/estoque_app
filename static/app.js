@@ -772,6 +772,30 @@ async function carregarImportacao(){
   $('nfe-resultado').style.display='none';
   $('nfe-preview-body').innerHTML='<tr><td colspan="5"><div class="empty"><span>📄</span>Carregue um XML</div></td></tr>';
   $('nfe-count').textContent='';
+  if(S.grupo==='admin'||S.grupo==='mestre') _carregarHistoricoNfe();
+}
+
+async function _carregarHistoricoNfe(){
+  const dados=await api('GET','/importacao/historico');
+  const tbody=$('nfe-historico-body');
+  if(!tbody) return;
+  if(!dados||!dados.length){
+    tbody.innerHTML='<tr><td colspan="4"><div class="empty"><span>📋</span>Nenhuma NF-e importada</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML=dados.map(r=>`
+    <tr>
+      <td><strong>${esc(r.nf_numero||'—')}</strong></td>
+      <td style="font-size:12px">${esc(r.emitente||'—')}</td>
+      <td style="font-size:12px;color:var(--muted)">${r.importado_em}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="withBtn(this,()=>liberarReimportacao('${r.chave}'))">Liberar reimportação</button></td>
+    </tr>`).join('');
+}
+
+async function liberarReimportacao(chave){
+  if(!confirm('Remover registro? A nota poderá ser reimportada.')) return;
+  const r=await api('DELETE',`/importacao/${chave}`);
+  if(r!==null) { toast('Registro removido. Agora você pode reimportar a nota.'); _carregarHistoricoNfe(); }
 }
 
 async function carregarGruposNfe(){
@@ -833,6 +857,7 @@ async function confirmarNFe(){
       ${res.criados.length?`<ul style="margin-top:8px;padding-left:20px;font-size:12px;color:var(--muted)">${res.criados.map(n=>`<li>+ ${n}</li>`).join('')}</ul>`:''}
       ${res.atualizados.length?`<ul style="padding-left:20px;font-size:12px;color:var(--muted)">${res.atualizados.map(n=>`<li>↑ ${n}</li>`).join('')}</ul>`:''}`;
     toast(`Importação concluída! ${res.total} item(s)`);
+    if(S.grupo==='admin'||S.grupo==='mestre') _carregarHistoricoNfe();
   }catch{toast('Falha ao confirmar','error');}
 }
 

@@ -259,6 +259,25 @@ async def confirmar_importacao(
     }
 
 
+@router.delete("/{chave}", status_code=204)
+def liberar_reimportacao(
+    chave: str,
+    db:    Session = Depends(get_db),
+    atual: models.Usuario = Depends(requer_admin),
+):
+    """Remove o registro de importação, permitindo que a NF-e seja reimportada."""
+    registro = db.query(models.NfeImportada).filter(
+        models.NfeImportada.chave == chave
+    ).first()
+    if not registro:
+        raise HTTPException(404, "NF-e não encontrada no histórico")
+    nf_num = registro.nf_numero
+    db.delete(registro)
+    db.commit()
+    registrar_log(db, atual.id, "liberar_reimportacao", "nfe", None,
+                  f"chave={chave} nf_numero={nf_num}")
+
+
 @router.get("/historico")
 def historico_nfe(
     db:   Session = Depends(get_db),

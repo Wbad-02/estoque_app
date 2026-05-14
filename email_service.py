@@ -13,7 +13,10 @@ import os
 import smtplib
 import threading
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+_BR = timezone(timedelta(hours=-3))
+def _agora_br(): return datetime.now(_BR).replace(tzinfo=None)
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -117,7 +120,7 @@ def _flush_batch():
         return
 
     n    = len(pendentes)
-    agora = datetime.now().strftime("%d/%m/%Y %H:%M")
+    agora = _agora_br().strftime("%d/%m/%Y %H:%M")
 
     if n == 1:
         # Apenas uma entrada: usa o template original normalmente
@@ -218,7 +221,7 @@ def disparar_alerta_consolidado(db, mats_alerta: list):
         return
 
     n = len(mats_alerta)
-    agora = datetime.now().strftime("%d/%m/%Y %H:%M")
+    agora = _agora_br().strftime("%d/%m/%Y %H:%M")
     assunto = f"Alerta de estoque minimo — {n} material(is) abaixo do minimo"
 
     linhas = [

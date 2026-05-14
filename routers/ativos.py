@@ -1,5 +1,5 @@
 # © Todos os direitos reservados – github.com/Wbad-02
-from datetime import datetime
+from models import agora
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database import get_db
@@ -103,7 +103,7 @@ def remover(ativo_id: int, db: Session = Depends(get_db),
                 ).first()
                 if unidade:
                     unidade.tag = "usado"
-            item.devolvido_em = datetime.utcnow()
+            item.devolvido_em = agora()
             mats_afetados.add(item.material_id)
 
     db.flush()
@@ -192,7 +192,7 @@ def devolver_material(ativo_id: int, item_id: int,
         if unidade:
             unidade.tag = "usado"
 
-    item.devolvido_em = datetime.utcnow()
+    item.devolvido_em = agora()
     db.flush()
     if mat:
         sync_qty(mat, db)

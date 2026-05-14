@@ -1,6 +1,6 @@
 # © Todos os direitos reservados – github.com/Wbad-02
 import io
-from datetime import datetime
+from models import agora as _agora_br
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -81,7 +81,7 @@ def exportar_excel(
     wb.save(output)
     output.seek(0)
 
-    filename = f"estoque_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    filename = f"estoque_{_agora_br().strftime('%Y%m%d_%H%M')}.xlsx"
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -114,7 +114,7 @@ def exportar_pdf(
     titulo = "Relatório de Estoque" + (" – Itens em Alerta" if apenas_alertas else "")
     elements.append(Paragraph(titulo, title_style))
     elements.append(Paragraph(
-        f"Gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}",
+        f"Gerado em {_agora_br().strftime('%d/%m/%Y às %H:%M')}",
         sub_style,
     ))
     elements.append(Spacer(1, 0.5*cm))
@@ -163,7 +163,7 @@ def exportar_pdf(
     doc.build(elements)
     output.seek(0)
 
-    filename = f"estoque_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    filename = f"estoque_{_agora_br().strftime('%Y%m%d_%H%M')}.pdf"
     return StreamingResponse(
         output,
         media_type="application/pdf",
@@ -240,7 +240,7 @@ def exportar_saidas_excel(
     ws.cell(row=len(rows)+4, column=1, value="© Todos os direitos reservados – github.com/Wbad-02")
 
     output = io.BytesIO(); wb.save(output); output.seek(0)
-    filename = f"saidas_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    filename = f"saidas_{_agora_br().strftime('%Y%m%d_%H%M')}.xlsx"
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -277,7 +277,7 @@ def exportar_saidas_pdf(
     if motivo:
         titulo += f" — {{'colaborador':'Colaborador','defeito':'Defeito'}}.get(motivo, motivo)"
     elements.append(Paragraph(titulo, title_style))
-    elements.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}", sub_style))
+    elements.append(Paragraph(f"Gerado em {_agora_br().strftime('%d/%m/%Y às %H:%M')}", sub_style))
     elements.append(Spacer(1, 0.4*cm))
 
     motivo_label = {"colaborador": "Colaborador", "defeito": "Defeito"}
@@ -317,7 +317,7 @@ def exportar_saidas_pdf(
     doc.build(elements)
     output.seek(0)
 
-    filename = f"saidas_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    filename = f"saidas_{_agora_br().strftime('%Y%m%d_%H%M')}.pdf"
     return StreamingResponse(
         output, media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
@@ -373,7 +373,7 @@ def exportar_ativos_excel(
 
     ws.freeze_panes = "A2"
     output = io.BytesIO(); wb.save(output); output.seek(0)
-    filename = f"ativos_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    filename = f"ativos_{_agora_br().strftime('%Y%m%d_%H%M')}.xlsx"
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -405,7 +405,7 @@ def exportar_ativos_pdf(
     if status == "ativo":   titulo += " — Somente Ativos"
     elif status == "inativo": titulo += " — Somente Inativos"
     elements.append(Paragraph(titulo, title_style))
-    elements.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}", sub_style))
+    elements.append(Paragraph(f"Gerado em {_agora_br().strftime('%d/%m/%Y às %H:%M')}", sub_style))
     elements.append(Spacer(1, 0.4*cm))
 
     table_data = [["Nome", "Categoria", "Grupo", "Status", "Materiais em uso"]]
@@ -441,7 +441,7 @@ def exportar_ativos_pdf(
     doc.build(elements)
     output.seek(0)
 
-    filename = f"ativos_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    filename = f"ativos_{_agora_br().strftime('%Y%m%d_%H%M')}.pdf"
     return StreamingResponse(
         output, media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
@@ -495,7 +495,7 @@ def exportar_notificacoes_excel(
 
     ws.freeze_panes = "A2"
     output = io.BytesIO(); wb.save(output); output.seek(0)
-    filename = f"notificacoes_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    filename = f"notificacoes_{_agora_br().strftime('%Y%m%d_%H%M')}.xlsx"
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

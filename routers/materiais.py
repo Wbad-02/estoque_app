@@ -244,12 +244,12 @@ def entrada_material(
     registrar_log(db, atual.id, "entrada", "material", mat_id,
                   f"+{payload.quantidade} {mat.unidade}")
 
-    from datetime import datetime
+    from models import agora as _agora_br
     disparar_notificacao(db, "entrada", {
         "material":   mat.nome,
         "quantidade": str(mov.quantidade),
         "unidade":    mat.unidade,
         "usuario":    atual.nome,
-        "data":       datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "data":       _agora_br().strftime("%d/%m/%Y %H:%M"),
     })
     return _out(mat)

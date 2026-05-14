@@ -4,7 +4,7 @@ Router de patrimônio — gerencia unidades individuais de materiais.
 Cada unidade rastreia: origem (manual/xml), código de patrimônio,
 data de cadastro, data de retirada e histórico completo.
 """
-from datetime import datetime
+from models import agora
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
@@ -273,7 +273,7 @@ def retirar_unidade_patrimonio(
     db.add(mov); db.flush()
 
     unidade.status = models.StatusUnidade.retirado
-    unidade.retirado_em = datetime.utcnow()
+    unidade.retirado_em = agora()
     unidade.movimentacao_saida_id = mov.id
     db.flush()
     sync_qty(mat, db)

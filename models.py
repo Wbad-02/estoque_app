@@ -1,5 +1,5 @@
 # © Todos os direitos reservados – github.com/Wbad-02
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean,
     DateTime, ForeignKey, Text, Enum
@@ -7,6 +7,11 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from database import Base
 import enum
+
+_BR = timezone(timedelta(hours=-3))
+
+def agora() -> datetime:
+    return datetime.now(_BR).replace(tzinfo=None)
 
 
 class GrupoPermissao(str, enum.Enum):
@@ -26,7 +31,7 @@ class MotivoPersonalizado(Base):
     id        = Column(Integer, primary_key=True, index=True)
     nome      = Column(String(100), nullable=False, unique=True)
     ativo     = Column(Boolean, default=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=agora)
 
 
 class Usuario(Base):
@@ -37,7 +42,7 @@ class Usuario(Base):
     senha_hash = Column(String(200), nullable=False)
     grupo      = Column(Enum(GrupoPermissao), nullable=False, default=GrupoPermissao.viewer)
     ativo      = Column(Boolean, default=True)
-    criado_em  = Column(DateTime, default=datetime.utcnow)
+    criado_em  = Column(DateTime, default=agora)
     logs          = relationship("LogAuditoria", back_populates="usuario")
     movimentacoes = relationship("Movimentacao", back_populates="usuario")
 
@@ -47,7 +52,7 @@ class Categoria(Base):
     id        = Column(Integer, primary_key=True, index=True)
     nome      = Column(String(100), unique=True, nullable=False)
     descricao = Column(Text, nullable=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=agora)
     grupos = relationship("GrupoMaterial", back_populates="categoria", cascade="all, delete-orphan")
 
 
@@ -58,7 +63,7 @@ class GrupoMaterial(Base):
     descricao         = Column(Text, nullable=True)
     quantidade_minima = Column(Float, default=0.0)
     categoria_id      = Column(Integer, ForeignKey("categorias.id"), nullable=False)
-    criado_em         = Column(DateTime, default=datetime.utcnow)
+    criado_em         = Column(DateTime, default=agora)
     categoria = relationship("Categoria", back_populates="grupos")
     materiais = relationship("Material", back_populates="grupo", cascade="all, delete-orphan")
 
@@ -72,8 +77,8 @@ class Material(Base):
     unidade       = Column(String(30), default="un")
     grupo_id      = Column(Integer, ForeignKey("grupos_material.id", ondelete="CASCADE"), nullable=False)
     ativo         = Column(Boolean, default=True)
-    criado_em     = Column(DateTime, default=datetime.utcnow)
-    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    criado_em     = Column(DateTime, default=agora)
+    atualizado_em = Column(DateTime, default=agora, onupdate=agora)
     usa_patrimonio = Column(Boolean, default=False)
 
     grupo         = relationship("GrupoMaterial", back_populates="materiais")
@@ -130,7 +135,7 @@ class UnidadePatrimonio(Base):
     nf_numero     = Column(String(50), nullable=True)     # NF-e de origem quando vim de XML
     valor_unitario = Column(Float, nullable=True)
     tag            = Column(String(10), nullable=True)    # "novo" | "usado"
-    criado_em     = Column(DateTime, default=datetime.utcnow)
+    criado_em     = Column(DateTime, default=agora)
     retirado_em   = Column(DateTime, nullable=True)
 
     # FK para a movimentação de saída que retirou esta unidade
@@ -152,7 +157,7 @@ class Movimentacao(Base):
     observacao     = Column(Text, nullable=True)
     valor_unitario = Column(Float, nullable=True)                 # valor na época da entrada
     tag            = Column(String(10), nullable=True)            # "novo" | "usado" (lotes)
-    criado_em      = Column(DateTime, default=datetime.utcnow)
+    criado_em      = Column(DateTime, default=agora)
     material = relationship("Material", back_populates="movimentacoes")
     usuario  = relationship("Usuario",  back_populates="movimentacoes")
 
@@ -162,7 +167,7 @@ class AtivoCategoria(Base):
     id        = Column(Integer, primary_key=True, index=True)
     nome      = Column(String(100), unique=True, nullable=False)
     descricao = Column(Text, nullable=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=agora)
     grupos    = relationship("AtivoGrupo", back_populates="categoria", cascade="all, delete-orphan")
 
 
@@ -172,7 +177,7 @@ class AtivoGrupo(Base):
     nome         = Column(String(100), nullable=False)
     descricao    = Column(Text, nullable=True)
     categoria_id = Column(Integer, ForeignKey("ativos_categorias.id"), nullable=False)
-    criado_em    = Column(DateTime, default=datetime.utcnow)
+    criado_em    = Column(DateTime, default=agora)
     categoria    = relationship("AtivoCategoria", back_populates="grupos")
     ativos       = relationship("Ativo", back_populates="grupo", cascade="all, delete-orphan")
 
@@ -184,7 +189,7 @@ class Ativo(Base):
     descricao = Column(Text, nullable=True)
     grupo_id  = Column(Integer, ForeignKey("ativos_grupos.id"), nullable=False)
     ativo     = Column(Boolean, default=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=agora)
     grupo     = relationship("AtivoGrupo", back_populates="ativos")
     itens     = relationship("AtivoItem", back_populates="ativo_obj", cascade="all, delete-orphan")
 
@@ -198,7 +203,7 @@ class AtivoItem(Base):
     unidade_id   = Column(Integer, ForeignKey("unidades_patrimonio.id", ondelete="SET NULL"), nullable=True)
     quantidade   = Column(Float, default=1.0)
     observacao   = Column(Text, nullable=True)
-    atribuido_em = Column(DateTime, default=datetime.utcnow)
+    atribuido_em = Column(DateTime, default=agora)
     devolvido_em = Column(DateTime, nullable=True)
     ativo_obj    = relationship("Ativo", back_populates="itens")
     material     = relationship("Material")
@@ -213,7 +218,7 @@ class LogAuditoria(Base):
     entidade    = Column(String(50), nullable=False)
     entidade_id = Column(Integer, nullable=True)
     detalhe     = Column(Text, nullable=True)
-    criado_em   = Column(DateTime, default=datetime.utcnow)
+    criado_em   = Column(DateTime, default=agora)
     usuario = relationship("Usuario", back_populates="logs")
 
 
@@ -225,7 +230,7 @@ class NotificacaoEmail(Base):
     tipo           = Column(String(20), nullable=False)  # "retirada" | "entrada" | "alerta"
     ativo          = Column(Boolean, default=True)
     intervalo_dias = Column(Integer, nullable=True)      # periodicidade de envio automático (alertas)
-    criado_em      = Column(DateTime, default=datetime.utcnow)
+    criado_em      = Column(DateTime, default=agora)
 
 
 class NotificacaoTemplate(Base):
@@ -235,7 +240,7 @@ class NotificacaoTemplate(Base):
     tipo         = Column(String(20), nullable=False, unique=True)  # "retirada" | "entrada" | "alerta"
     assunto      = Column(String(200), nullable=False)
     corpo        = Column(Text, nullable=False)
-    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=agora, onupdate=agora)
 
 
 class StatusRequerimento(str, enum.Enum):
@@ -252,8 +257,8 @@ class Requerimento(Base):
     criado_por    = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     aprovado_por  = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     observacao    = Column(Text, nullable=True)
-    criado_em     = Column(DateTime, default=datetime.utcnow)
-    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    criado_em     = Column(DateTime, default=agora)
+    atualizado_em = Column(DateTime, default=agora, onupdate=agora)
     criador   = relationship("Usuario", foreign_keys=[criado_por])
     aprovador = relationship("Usuario", foreign_keys=[aprovado_por])
     itens     = relationship("ItemRequerimento", back_populates="requerimento", cascade="all, delete-orphan")
@@ -279,4 +284,4 @@ class NfeImportada(Base):
     nf_numero    = Column(String(20),  nullable=True)
     emitente     = Column(String(200), nullable=True)
     usuario_id   = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
-    importado_em = Column(DateTime, default=datetime.utcnow)
+    importado_em = Column(DateTime, default=agora)

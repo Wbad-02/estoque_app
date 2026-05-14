@@ -472,13 +472,32 @@
             <div id="notif-list-requerimento"></div>
           </div>
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Requerimentos</h3>
-            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Use {titulo}, {criador}, {total}, {status}, {data}, {observacao}</p>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Novo requerimento</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Variáveis: {titulo}, {criador}, {total}, {itens_count}, {link}</p>
             <div class="form-group"><label>Assunto</label>
               <input type="text" id="notif-tpl-requerimento-assunto"/></div>
             <div class="form-group"><label>Corpo</label>
               <textarea id="notif-tpl-requerimento-corpo" rows="6" style="resize:vertical"></textarea></div>
             <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('requerimento'))">Salvar template</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;margin-top:20px">
+          <div class="table-wrap" style="padding:20px">
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:16px">E-mails — Decisão (aprovação/rejeição)</h3>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <input type="email" id="notif-email-requerimento_decisao" placeholder="email@empresa.local" style="flex:1"/>
+              <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('requerimento_decisao'))">Adicionar</button>
+            </div>
+            <div id="notif-list-requerimento_decisao"></div>
+          </div>
+          <div class="table-wrap" style="padding:20px">
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Decisão</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Variáveis: {titulo}, {status}, {aprovador}, {observacao}</p>
+            <div class="form-group"><label>Assunto</label>
+              <input type="text" id="notif-tpl-requerimento_decisao-assunto"/></div>
+            <div class="form-group"><label>Corpo</label>
+              <textarea id="notif-tpl-requerimento_decisao-corpo" rows="6" style="resize:vertical"></textarea></div>
+            <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('requerimento_decisao'))">Salvar template</button>
           </div>
         </div>
       </div>

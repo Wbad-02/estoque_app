@@ -1,8 +1,8 @@
 # © Todos os direitos reservados – github.com/Wbad-02
 import io
+import os
 import re
 import unicodedata
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -16,7 +16,8 @@ from email_service import disparar_notificacao
 
 router = APIRouter(prefix="/api/requerimentos", tags=["requerimentos"])
 
-_URL_BASE = "http://localhost:8000"
+_origins = os.environ.get("CORS_ORIGINS", "http://localhost:8000")
+_URL_BASE = _origins.split(",")[0].strip().rstrip("/")
 
 
 def _slugify(texto: str) -> str:

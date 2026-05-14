@@ -2165,14 +2165,14 @@ async function carregarNotificacoes(){
   if(!emails||!tpls) return;
 
   // Preencher listas de emails
-  ['retirada','entrada','alerta','requerimento'].forEach(tipo=>{
+  ['retirada','entrada','alerta','requerimento','requerimento_decisao'].forEach(tipo=>{
     const lista=emails.filter(e=>e.tipo===tipo);
     _renderizarEmailsNotif(tipo, lista);
   });
 
   // Preencher templates
   tpls.forEach(t=>{
-    const tipoMap={retirada:'retirada',entrada:'entrada',alerta:'alerta',requerimento:'requerimento'};
+    const tipoMap={retirada:'retirada',entrada:'entrada',alerta:'alerta',requerimento:'requerimento',requerimento_decisao:'requerimento_decisao'};
     const k=tipoMap[t.tipo]; if(!k) return;
     const assuntoEl=$(`notif-tpl-${k}-assunto`);
     const corpoEl=$(`notif-tpl-${k}-corpo`);
@@ -2249,17 +2249,22 @@ function trocarAbaNotif(aba){
 }
 
 async function _carregarEmailsRequerimento(){
-  const emails = await api('GET', '/notificacoes/emails?tipo=requerimento');
-  _renderizarEmailsNotif('requerimento', emails||[]);
-  const tpls = await api('GET', '/notificacoes/templates');
+  const [emails, tpls] = await Promise.all([
+    api('GET', '/notificacoes/emails'),
+    api('GET', '/notificacoes/templates'),
+  ]);
+  _renderizarEmailsNotif('requerimento',          (emails||[]).filter(e=>e.tipo==='requerimento'));
+  _renderizarEmailsNotif('requerimento_decisao',  (emails||[]).filter(e=>e.tipo==='requerimento_decisao'));
   if(!tpls) return;
-  const tpl = tpls.find(t=>t.tipo==='requerimento');
-  if(tpl){
-    const assuntoEl = $('notif-tpl-requerimento-assunto');
-    const corpoEl   = $('notif-tpl-requerimento-corpo');
+  ['requerimento','requerimento_decisao'].forEach(tipo=>{
+    const tpl = tpls.find(t=>t.tipo===tipo);
+    if(!tpl) return;
+    const k = tipo.replace('_decisao','-decisao');
+    const assuntoEl = $(`notif-tpl-${tipo}-assunto`);
+    const corpoEl   = $(`notif-tpl-${tipo}-corpo`);
     if(assuntoEl) assuntoEl.value = tpl.assunto;
     if(corpoEl)   corpoEl.value   = tpl.corpo;
-  }
+  });
 }
 
 async function carregarSmtp(){
@@ -2433,10 +2438,11 @@ async function criarRequerimento(){
     const nome   = inputs[0].value.trim();
     const valor  = parseFloat(inputs[1].value) || 0;
     if(!nome){ valido = false; return; }
+    if(valor <= 0){ valido = false; toast('Valor de todos os itens deve ser maior que zero','error'); return; }
     itens.push({ nome, valor });
   });
 
-  if(!valido){ toast('Preencha o nome de todos os itens', 'error'); return; }
+  if(!valido){ toast('Preencha todos os campos dos itens corretamente', 'error'); return; }
   if(!itens.length){ toast('Adicione ao menos um item', 'error'); return; }
 
   const r = await api('POST', '/requerimentos/', { titulo, itens });

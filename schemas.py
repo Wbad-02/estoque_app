@@ -440,9 +440,24 @@ class ItemRequerimentoCreate(BaseModel):
     nome:  str
     valor: float
 
+    @field_validator("valor")
+    @classmethod
+    def valor_positivo(cls, v):
+        if v <= 0:
+            raise ValueError("Valor do item deve ser maior que zero")
+        return v
+
 class RequerimentoCreate(BaseModel):
     titulo: str
     itens:  list[ItemRequerimentoCreate]
+
+    @field_validator("titulo")
+    @classmethod
+    def titulo_nao_vazio(cls, v):
+        v = v.strip()
+        if not v:
+            raise ValueError("Título não pode ser vazio")
+        return v
 
 class AprovarRequerimentoBody(BaseModel):
     observacao: Optional[str] = None

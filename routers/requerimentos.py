@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 
 import models
 import schemas
-from auth import get_usuario_atual, requer_admin, requer_editor_ou_admin, registrar_log
+from auth import get_usuario_atual, requer_editor_ou_admin, registrar_log
 from database import get_db
 from email_service import disparar_notificacao
 
@@ -18,6 +18,42 @@ router = APIRouter(prefix="/api/requerimentos", tags=["requerimentos"])
 
 _origins = os.environ.get("CORS_ORIGINS", "http://localhost:8000")
 _URL_BASE = _origins.split(",")[0].strip().rstrip("/")
+
+
+def _requer_criador_req(
+    db:    Session        = Depends(get_db),
+    atual: models.Usuario = Depends(get_usuario_atual),
+) -> models.Usuario:
+    """Admin+ passa sempre. Editor só passa se o seu e-mail está cadastrado em 'requerimento'."""
+    if atual.grupo in (models.GrupoPermissao.admin, models.GrupoPermissao.mestre):
+        return atual
+    if atual.grupo == models.GrupoPermissao.editor:
+        existe = db.query(models.NotificacaoEmail).filter(
+            models.NotificacaoEmail.tipo  == "requerimento",
+            models.NotificacaoEmail.ativo == True,
+            models.NotificacaoEmail.email == atual.email,
+        ).first()
+        if existe:
+            return atual
+    raise HTTPException(403, "Acesso restrito: seu e-mail não está autorizado a criar requerimentos")
+
+
+def _requer_aprovador_req(
+    db:    Session        = Depends(get_db),
+    atual: models.Usuario = Depends(get_usuario_atual),
+) -> models.Usuario:
+    """Admin+ passa sempre. Editor só passa se o seu e-mail está em 'requerimento_decisao'."""
+    if atual.grupo in (models.GrupoPermissao.admin, models.GrupoPermissao.mestre):
+        return atual
+    if atual.grupo == models.GrupoPermissao.editor:
+        existe = db.query(models.NotificacaoEmail).filter(
+            models.NotificacaoEmail.tipo  == "requerimento_decisao",
+            models.NotificacaoEmail.ativo == True,
+            models.NotificacaoEmail.email == atual.email,
+        ).first()
+        if existe:
+            return atual
+    raise HTTPException(403, "Acesso restrito: seu e-mail não está autorizado a aprovar/rejeitar requerimentos")
 
 
 def _slugify(texto: str) -> str:
@@ -68,7 +104,7 @@ def _load(req_id: int, db: Session) -> models.Requerimento:
 def criar_requerimento(
     payload: schemas.RequerimentoCreate,
     db: Session = Depends(get_db),
-    atual: models.Usuario = Depends(requer_editor_ou_admin),
+    atual: models.Usuario = Depends(_requer_criador_req),
 ):
     if not payload.itens:
         raise HTTPException(422, "O requerimento deve ter ao menos um item")
@@ -142,7 +178,7 @@ def aprovar_requerimento(
     req_id: int,
     body: schemas.AprovarRequerimentoBody = schemas.AprovarRequerimentoBody(),
     db: Session = Depends(get_db),
-    atual: models.Usuario = Depends(requer_admin),
+    atual: models.Usuario = Depends(_requer_aprovador_req),
 ):
     req = _load(req_id, db)
     if req.status != models.StatusRequerimento.aguardando:
@@ -173,7 +209,7 @@ def rejeitar_requerimento(
     req_id: int,
     body: schemas.RejeitarRequerimentoBody,
     db: Session = Depends(get_db),
-    atual: models.Usuario = Depends(requer_admin),
+    atual: models.Usuario = Depends(_requer_aprovador_req),
 ):
     req = _load(req_id, db)
     if req.status != models.StatusRequerimento.aguardando:

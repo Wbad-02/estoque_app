@@ -15,6 +15,7 @@ const S = {
   token: localStorage.getItem('token') || '',
   grupo: localStorage.getItem('grupo') || '',
   nome:  localStorage.getItem('nome')  || '',
+  email: localStorage.getItem('email') || '',
   materiais:[], categorias:[], grupos:[], usuarios:[], historico:[],
 };
 
@@ -113,13 +114,13 @@ async function fazerLogin(){
     });
     if(!r.ok){const e=await r.json(); $('login-error').textContent=e.detail||'Inválido'; $('login-error').style.display='block'; return;}
     const d=await r.json();
-    S.token=d.access_token; S.grupo=d.grupo; S.nome=d.nome;
-    localStorage.setItem('token',S.token); localStorage.setItem('grupo',S.grupo); localStorage.setItem('nome',S.nome);
+    S.token=d.access_token; S.grupo=d.grupo; S.nome=d.nome; S.email=d.email||'';
+    localStorage.setItem('token',S.token); localStorage.setItem('grupo',S.grupo); localStorage.setItem('nome',S.nome); localStorage.setItem('email',S.email);
     iniciarApp();
   }catch{ toast('Servidor inacessível','error'); }
 }
 function logout(){
-  localStorage.clear(); S.token=S.grupo=S.nome='';
+  localStorage.clear(); S.token=S.grupo=S.nome=S.email='';
   $('app').style.display='none'; $('login-screen').style.display='flex';
   $('topbar').style.display='none';
 }
@@ -2346,11 +2347,28 @@ async function removerMotivoCustom(id){
 // ═══════════════════════════════════════════════════
 // Requerimentos de Compra
 // ═══════════════════════════════════════════════════
-let _reqDetalheId = null;
+let _reqDetalheId  = null;
+let _podeCriarReq  = false;
+let _podeAprovarReq = false;
 
 async function carregarRequerimentos(){
-  const lista = await api('GET', '/requerimentos/');
+  const isAdmin = S.grupo === 'admin' || S.grupo === 'mestre';
+  if(isAdmin){
+    _podeCriarReq = _podeAprovarReq = true;
+    const lista = await api('GET', '/requerimentos/');
+    if(!lista) return;
+    _renderRequerimentos(lista);
+    return;
+  }
+  const [lista, emails] = await Promise.all([
+    api('GET', '/requerimentos/'),
+    api('GET', '/notificacoes/emails'),
+  ]);
   if(!lista) return;
+  const emailsAtivos = (emails||[]).filter(e=>e.ativo);
+  _podeCriarReq   = emailsAtivos.some(e=>e.tipo==='requerimento'         && e.email===S.email);
+  _podeAprovarReq = emailsAtivos.some(e=>e.tipo==='requerimento_decisao' && e.email===S.email);
+  $('btn-novo-req')&&($('btn-novo-req').style.display = _podeCriarReq ? '' : 'none');
   _renderRequerimentos(lista);
 }
 
@@ -2366,11 +2384,10 @@ function _renderRequerimentos(lista){
     tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><span>📋</span>Nenhum requerimento cadastrado</div></td></tr>';
     return;
   }
-  const isAdmin = S.grupo === 'admin' || S.grupo === 'mestre';
   tbody.innerHTML = lista.map(r => {
     const acoes = `
       <button class="btn btn-secondary btn-sm" onclick="verRequerimento(${r.id})">Ver</button>
-      ${isAdmin && r.status === 'aguardando'
+      ${_podeAprovarReq && r.status === 'aguardando'
         ? `<button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>_abrirDetalheEAprovar(${r.id}))">Aprovar</button>
            <button class="btn btn-danger btn-sm" onclick="withBtn(this,()=>_abrirDetalheERejeitar(${r.id}))">Rejeitar</button>`
         : ''}
@@ -2482,8 +2499,7 @@ async function verRequerimento(id){
 
   // Área de aprovação/rejeição
   const acaoWrap = $('det-req-acao-wrap');
-  const isAdmin  = S.grupo === 'admin' || S.grupo === 'mestre';
-  if(isAdmin && r.status === 'aguardando'){
+  if(_podeAprovarReq && r.status === 'aguardando'){
     $('det-req-obs-input').value = '';
     acaoWrap.style.display = 'block';
   } else {

@@ -65,7 +65,7 @@ def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
     token = criar_token({"sub": str(usuario.id)})
     registrar_log(db, usuario.id, "login", "usuario", usuario.id)
     return schemas.TokenResponse(
-        access_token=token, grupo=usuario.grupo.value, nome=usuario.nome,
+        access_token=token, grupo=usuario.grupo.value, nome=usuario.nome, email=usuario.email,
     )
 
 

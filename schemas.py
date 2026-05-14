@@ -27,6 +27,7 @@ class TokenResponse(BaseModel):
     token_type:   str = "bearer"
     grupo:        str
     nome:         str
+    email:        str
 
 
 # ── Usuário ───────────────────────────────────────────

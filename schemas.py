@@ -390,8 +390,8 @@ class NotificacaoEmailCreate(BaseModel):
     @field_validator("tipo")
     @classmethod
     def tipo_valido(cls, v):
-        if v not in ("retirada", "entrada", "alerta"):
-            raise ValueError("Tipo deve ser: retirada, entrada ou alerta")
+        if v not in ("retirada", "entrada", "alerta", "requerimento", "requerimento_decisao"):
+            raise ValueError("Tipo deve ser: retirada, entrada, alerta ou requerimento")
         return v
 
 class NotificacaoEmailOut(BaseModel):
@@ -426,8 +426,8 @@ class NotificacaoTemplateCreate(BaseModel):
     @field_validator("tipo")
     @classmethod
     def tipo_valido(cls, v):
-        if v not in ("retirada", "entrada", "alerta"):
-            raise ValueError("Tipo deve ser: retirada, entrada ou alerta")
+        if v not in ("retirada", "entrada", "alerta", "requerimento", "requerimento_decisao"):
+            raise ValueError("Tipo deve ser: retirada, entrada, alerta ou requerimento")
         return v
 
 class NotificacaoTemplateOut(BaseModel):

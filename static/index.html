@@ -1038,23 +1038,32 @@
 
 <!-- MODAL NOVO REQUERIMENTO -->
 <div id="modal-novo-req" class="modal-overlay" style="display:none" onclick="fecharModalSe(event,'modal-novo-req')">
-  <div class="modal" style="max-width:620px">
+  <div class="modal" style="max-width:720px">
     <h3>Novo Requerimento de Compra</h3>
     <div class="form-group">
       <label>Título *</label>
       <input type="text" id="req-titulo" placeholder="Ex: Compra de material de escritório"/>
     </div>
     <div style="margin-bottom:8px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap">
         <label style="font-size:12px;font-weight:600;color:var(--muted)">Itens</label>
-        <button class="btn btn-secondary btn-sm" onclick="addItemReq()">+ Adicionar item</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="baixarModeloReq()" title="Baixar planilha modelo para preenchimento">⬇ Modelo Excel</button>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0" title="Importar itens de uma planilha Excel">
+            ⊕ Importar Excel
+            <input type="file" id="req-import-file" accept=".xlsx,.xls" style="display:none" onchange="importarExcelReq(this)"/>
+          </label>
+          <button class="btn btn-secondary btn-sm" onclick="addItemReq()">+ Adicionar item</button>
+        </div>
       </div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead>
             <tr>
               <th style="text-align:left;padding:6px 8px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border)">Nome do item</th>
-              <th style="text-align:left;padding:6px 8px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);width:140px">Valor R$</th>
+              <th style="padding:6px 8px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);width:90px;text-align:center">Qtd</th>
+              <th style="padding:6px 8px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);width:120px;text-align:center">Valor unit. R$</th>
+              <th style="padding:6px 8px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);width:110px;text-align:right">Subtotal</th>
               <th style="width:36px;border-bottom:1px solid var(--border)"></th>
             </tr>
           </thead>
@@ -1062,7 +1071,7 @@
         </table>
       </div>
       <div id="req-itens-vazio" style="display:none;font-size:13px;color:var(--muted);padding:12px 0 4px">
-        Nenhum item adicionado. Clique em "+ Adicionar item".
+        Nenhum item adicionado. Clique em "+ Adicionar item" ou importe uma planilha.
       </div>
     </div>
     <div style="text-align:right;font-size:14px;font-weight:600;color:var(--green);padding:8px 0;border-top:1px solid var(--border);margin-bottom:4px">
@@ -1096,7 +1105,9 @@
         <thead>
           <tr>
             <th style="text-align:left;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border)">Item</th>
-            <th style="text-align:right;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:120px">Valor</th>
+            <th style="text-align:right;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:70px">Qtd</th>
+            <th style="text-align:right;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:110px">Valor unit.</th>
+            <th style="text-align:right;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:110px">Subtotal</th>
           </tr>
         </thead>
         <tbody id="det-req-itens"></tbody>

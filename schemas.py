@@ -438,8 +438,16 @@ class NotificacaoTemplateOut(BaseModel):
 
 # ── Requerimento de Compra ─────────────────────────────
 class ItemRequerimentoCreate(BaseModel):
-    nome:  str
-    valor: float
+    nome:       str
+    quantidade: float = 1.0
+    valor:      float
+
+    @field_validator("quantidade")
+    @classmethod
+    def qtd_positiva(cls, v):
+        if v <= 0:
+            raise ValueError("Quantidade deve ser maior que zero")
+        return v
 
     @field_validator("valor")
     @classmethod
@@ -467,8 +475,12 @@ class RejeitarRequerimentoBody(BaseModel):
     observacao: str
 
 class ItemRequerimentoOut(BaseModel):
-    id: int; nome: str; valor: float
+    id: int; nome: str; quantidade: float = 1.0; valor: float
     model_config = {"from_attributes": True}
+
+    @property
+    def subtotal(self) -> float:
+        return round(self.quantidade * self.valor, 2)
 
 class RequerimentoOut(BaseModel):
     id: int; titulo: str; status: str

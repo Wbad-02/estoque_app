@@ -2428,39 +2428,57 @@ function _renderRequerimentos(lista){
 function abrirNovoRequerimento(){
   $('req-titulo').value = '';
   $('req-itens-body').innerHTML = '';
-  $('req-total-preview').textContent = 'R$ 0,00';
+  $('req-total-preview').textContent = _fmtBRL(0);
   $('req-itens-vazio').style.display = 'none';
+  const fi = $('req-import-file'); if(fi) fi.value='';
   addItemReq();
   abrirModal('modal-novo-req');
 }
 
 function abrirModal(id){ $(id).style.display = 'flex'; }
 
-function addItemReq(){
+function _fmtBRL(v){ return 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function _addItemReqRow(nome='', qtd='', valor=''){
   const tbody = $('req-itens-body');
   $('req-itens-vazio').style.display = 'none';
+  const inp = 'padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;width:100%';
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td style="padding:4px 4px 4px 0">
-      <input type="text" placeholder="Nome do item" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px"/>
+    <td style="padding:3px 4px 3px 0">
+      <input type="text" placeholder="Nome do item" value="${esc(nome)}" style="${inp}"/>
     </td>
-    <td style="padding:4px 4px">
-      <input type="number" min="0" step="0.01" placeholder="0,00"
-        style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px"
-        oninput="_atualizarTotalReq()"/>
+    <td style="padding:3px 4px;width:90px">
+      <input type="number" min="0.01" step="0.01" placeholder="1" value="${qtd}"
+        style="${inp};text-align:right" oninput="_atualizarTotalReq(this)"/>
     </td>
-    <td style="padding:4px 0 4px 4px;text-align:center">
-      <button class="btn btn-danger btn-sm" style="padding:5px 8px"
+    <td style="padding:3px 4px;width:120px">
+      <input type="number" min="0.01" step="0.01" placeholder="0,00" value="${valor}"
+        style="${inp};text-align:right" oninput="_atualizarTotalReq(this)"/>
+    </td>
+    <td style="padding:3px 4px;width:110px;text-align:right;font-size:13px;font-weight:600;color:var(--green)" class="req-subtotal">—</td>
+    <td style="padding:3px 0 3px 4px;text-align:center">
+      <button class="btn btn-danger btn-sm" style="padding:4px 8px"
         onclick="this.closest('tr').remove();_atualizarTotalReq()">✕</button>
     </td>`;
   tbody.appendChild(tr);
+  _atualizarTotalReq();
 }
 
+function addItemReq(){ _addItemReqRow(); }
+
 function _atualizarTotalReq(){
-  const inputs = document.querySelectorAll('#req-itens-body tr td:nth-child(2) input');
   let total = 0;
-  inputs.forEach(inp => { total += parseFloat(inp.value) || 0; });
-  $('req-total-preview').textContent = 'R$ ' + total.toFixed(2);
+  document.querySelectorAll('#req-itens-body tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input[type="number"]');
+    const qtd  = parseFloat(inputs[0]?.value) || 0;
+    const val  = parseFloat(inputs[1]?.value) || 0;
+    const sub  = qtd * val;
+    const celSub = tr.querySelector('.req-subtotal');
+    if(celSub) celSub.textContent = sub > 0 ? _fmtBRL(sub) : '—';
+    total += sub;
+  });
+  $('req-total-preview').textContent = _fmtBRL(total);
 }
 
 async function criarRequerimento(){
@@ -2473,12 +2491,14 @@ async function criarRequerimento(){
   const itens = [];
   let valido = true;
   rows.forEach(tr => {
-    const inputs = tr.querySelectorAll('input');
-    const nome   = inputs[0].value.trim();
-    const valor  = parseFloat(inputs[1].value) || 0;
+    const inputs = tr.querySelectorAll('input[type="text"],input[type="number"]');
+    const nome       = inputs[0]?.value.trim();
+    const quantidade = parseFloat(inputs[1]?.value) || 0;
+    const valor      = parseFloat(inputs[2]?.value) || 0;
     if(!nome){ valido = false; return; }
-    if(valor <= 0){ valido = false; toast('Valor de todos os itens deve ser maior que zero','error'); return; }
-    itens.push({ nome, valor });
+    if(quantidade <= 0){ valido = false; toast('Quantidade deve ser maior que zero em todos os itens','error'); return; }
+    if(valor <= 0){ valido = false; toast('Valor deve ser maior que zero em todos os itens','error'); return; }
+    itens.push({ nome, quantidade, valor });
   });
 
   if(!valido){ toast('Preencha todos os campos dos itens corretamente', 'error'); return; }
@@ -2501,14 +2521,19 @@ async function verRequerimento(id){
   $('det-req-badge').innerHTML        = _badgeReq(r.status);
   $('det-req-criador').textContent    = 'Por: ' + (r.criador_nome || '—');
   $('det-req-data').textContent       = fmtDT(r.criado_em);
-  $('det-req-total').textContent      = 'R$ ' + Number(r.total).toFixed(2);
+  $('det-req-total').textContent      = _fmtBRL(r.total);
 
   // Itens
-  $('det-req-itens').innerHTML = (r.itens||[]).map(it => `
-    <tr>
+  $('det-req-itens').innerHTML = (r.itens||[]).map(it => {
+    const qtd = it.quantidade || 1;
+    const sub = qtd * it.valor;
+    return `<tr>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border)">${esc(it.nome)}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">R$ ${Number(it.valor).toFixed(2)}</td>
-    </tr>`).join('');
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">${Number(qtd).toLocaleString('pt-BR',{maximumFractionDigits:2})}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">${_fmtBRL(it.valor)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;font-weight:600">${_fmtBRL(sub)}</td>
+    </tr>`;
+  }).join('');
 
   // Observação de rejeição
   const obsWrap = $('det-req-obs-wrap');
@@ -2557,16 +2582,52 @@ async function rejeitarRequerimento(id){
   }
 }
 
-function downloadExcelReq(id){
-  fetch(`/api/requerimentos/${id}/excel`, {
-    headers: { Authorization: `Bearer ${S.token}` }
-  }).then(r => r.blob()).then(blob => {
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `requerimento_${id}.xlsx`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  }).catch(() => toast('Erro ao baixar Excel', 'error'));
+function _baixarBlob(url, nomeArquivo){
+  fetch(url, { headers: { Authorization: `Bearer ${S.token}` } })
+    .then(r => { if(!r.ok) throw new Error(); return r.blob(); })
+    .then(blob => {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = nomeArquivo;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }).catch(() => toast('Erro ao baixar arquivo', 'error'));
+}
+
+function downloadExcelReq(id){ _baixarBlob(`/api/requerimentos/${id}/excel`, `requerimento_${id}.xlsx`); }
+
+function baixarModeloReq(){ _baixarBlob('/api/requerimentos/modelo-excel', 'modelo_requerimento.xlsx'); }
+
+async function importarExcelReq(input){
+  const file = input.files[0];
+  if(!file) return;
+  input.value = '';   // permite reimportar o mesmo arquivo
+
+  const titulo = $('req-titulo').value.trim();
+  if(!titulo){ toast('Preencha o título antes de importar', 'error'); return; }
+
+  const fd = new FormData();
+  fd.append('arquivo', file);
+
+  toast('Importando planilha…');
+  try {
+    const resp = await fetch(`/api/requerimentos/importar-excel?titulo=${encodeURIComponent(titulo)}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${S.token}` },
+      body: fd,
+    });
+    if(!resp.ok){
+      const err = await resp.json().catch(()=>({}));
+      toast(err.detail || 'Erro ao importar planilha', 'error');
+      return;
+    }
+    const req = await resp.json();
+    fecharModal('modal-novo-req');
+    toast('Requerimento importado com sucesso!');
+    carregarRequerimentos();
+  } catch {
+    toast('Erro ao importar planilha', 'error');
+  }
 }
 
 // ═══════════════════════════════════════════════════

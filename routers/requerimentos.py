@@ -4,7 +4,7 @@ import os
 import re
 import unicodedata
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
@@ -65,7 +65,7 @@ def _slugify(texto: str) -> str:
 
 
 def _build_out(req: models.Requerimento) -> schemas.RequerimentoOut:
-    total = sum(i.valor for i in req.itens)
+    total = sum((i.quantidade or 1.0) * i.valor for i in req.itens)
     return schemas.RequerimentoOut(
         id=req.id,
         titulo=req.titulo,
@@ -77,7 +77,7 @@ def _build_out(req: models.Requerimento) -> schemas.RequerimentoOut:
         aprovador_nome=req.aprovador.nome if req.aprovador else "",
         total=total,
         itens=[
-            schemas.ItemRequerimentoOut(id=i.id, nome=i.nome, valor=i.valor)
+            schemas.ItemRequerimentoOut(id=i.id, nome=i.nome, quantidade=i.quantidade or 1.0, valor=i.valor)
             for i in req.itens
         ],
     )
@@ -121,6 +121,7 @@ def criar_requerimento(
         db.add(models.ItemRequerimento(
             requerimento_id=req.id,
             nome=item.nome.strip(),
+            quantidade=item.quantidade,
             valor=item.valor,
         ))
 
@@ -266,8 +267,8 @@ def exportar_excel(
     font_total   = Font(bold=True, size=11)
     font_normal  = Font(size=11)
 
-    # ── Linha 1: titulo (A1:B1 merged) ────────────────────────────────────────
-    ws.merge_cells("A1:B1")
+    # ── Linha 1: titulo (A1:D1 merged) ────────────────────────────────────────
+    ws.merge_cells("A1:D1")
     ws["A1"] = req.titulo
     ws["A1"].font      = font_titulo
     ws["A1"].fill      = fill_verde
@@ -275,40 +276,43 @@ def exportar_excel(
     ws.row_dimensions[1].height = 22
 
     # ── Linha 2: cabecalho ─────────────────────────────────────────────────────
-    ws["A2"] = "Nome"
-    ws["B2"] = "Valor (R$)"
-    for col in ("A2", "B2"):
-        ws[col].font      = font_header
-        ws[col].fill      = fill_dourado
-        ws[col].alignment = Alignment(horizontal="center", vertical="center")
+    cabecalhos = {"A2": "Nome", "B2": "Quantidade", "C2": "Valor Unit. (R$)", "D2": "Subtotal (R$)"}
+    for cel, texto in cabecalhos.items():
+        ws[cel] = texto
+        ws[cel].font      = font_header
+        ws[cel].fill      = fill_dourado
+        ws[cel].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[2].height = 18
 
     # ── Linhas dos itens ───────────────────────────────────────────────────────
     for linha, item in enumerate(req.itens, start=3):
+        qtd      = item.quantidade or 1.0
+        subtotal = qtd * item.valor
         ws.cell(row=linha, column=1, value=item.nome).font = font_normal
-        cel_valor = ws.cell(row=linha, column=2, value=item.valor)
-        cel_valor.font       = font_normal
-        cel_valor.number_format = "#,##0.00"
-        cel_valor.alignment  = Alignment(horizontal="right")
+        c_qtd = ws.cell(row=linha, column=2, value=qtd)
+        c_qtd.font = font_normal; c_qtd.number_format = "#,##0.##"; c_qtd.alignment = Alignment(horizontal="right")
+        c_val = ws.cell(row=linha, column=3, value=item.valor)
+        c_val.font = font_normal; c_val.number_format = "#,##0.00"; c_val.alignment = Alignment(horizontal="right")
+        c_sub = ws.cell(row=linha, column=4, value=subtotal)
+        c_sub.font = font_normal; c_sub.number_format = "#,##0.00"; c_sub.alignment = Alignment(horizontal="right")
 
     # ── Linha de total ─────────────────────────────────────────────────────────
     linha_total = 3 + len(req.itens)
-    total = sum(i.valor for i in req.itens)
+    total = sum((i.quantidade or 1.0) * i.valor for i in req.itens)
 
+    ws.merge_cells(f"A{linha_total}:C{linha_total}")
     cel_label = ws.cell(row=linha_total, column=1, value="TOTAL")
-    cel_label.font      = font_total
-    cel_label.fill      = fill_total
-    cel_label.alignment = Alignment(horizontal="right")
+    cel_label.font = font_total; cel_label.fill = fill_total; cel_label.alignment = Alignment(horizontal="right")
 
-    cel_total = ws.cell(row=linha_total, column=2, value=total)
-    cel_total.font          = font_total
-    cel_total.fill          = fill_total
-    cel_total.number_format = "#,##0.00"
-    cel_total.alignment     = Alignment(horizontal="right")
+    cel_total = ws.cell(row=linha_total, column=4, value=total)
+    cel_total.font = font_total; cel_total.fill = fill_total
+    cel_total.number_format = "#,##0.00"; cel_total.alignment = Alignment(horizontal="right")
 
     # Larguras das colunas
-    ws.column_dimensions[get_column_letter(1)].width = 50
-    ws.column_dimensions[get_column_letter(2)].width = 18
+    ws.column_dimensions[get_column_letter(1)].width = 44
+    ws.column_dimensions[get_column_letter(2)].width = 14
+    ws.column_dimensions[get_column_letter(3)].width = 18
+    ws.column_dimensions[get_column_letter(4)].width = 18
 
     # Serializar em memoria
     buffer = io.BytesIO()
@@ -323,3 +327,140 @@ def exportar_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ── GET /modelo-excel — template em branco ────────────────────────────────────
+@router.get("/modelo-excel")
+def baixar_modelo_excel(
+    _: models.Usuario = Depends(requer_editor_ou_admin),
+):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Requerimento"
+
+    fill_verde   = PatternFill("solid", fgColor="1B3A2D")
+    fill_dourado = PatternFill("solid", fgColor="C9A84C")
+
+    ws.merge_cells("A1:D1")
+    ws["A1"] = "MODELO — Requerimento de Compra"
+    ws["A1"].font      = Font(bold=True, color="FFFFFF", size=13)
+    ws["A1"].fill      = fill_verde
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 22
+
+    cabecalhos = ["Nome do Item", "Quantidade", "Valor Unitário (R$)", "Subtotal (R$)"]
+    for col, texto in enumerate(cabecalhos, start=1):
+        c = ws.cell(row=2, column=col, value=texto)
+        c.font      = Font(bold=True, size=11)
+        c.fill      = fill_dourado
+        c.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[2].height = 18
+
+    # Três linhas de exemplo
+    exemplos = [
+        ("Caneta esferográfica azul", 10, 2.50),
+        ("Resma de papel A4", 5, 24.90),
+        ("Pasta arquivo AZ", 3, 18.00),
+    ]
+    for linha, (nome, qtd, val) in enumerate(exemplos, start=3):
+        ws.cell(row=linha, column=1, value=nome)
+        c_qtd = ws.cell(row=linha, column=2, value=qtd)
+        c_qtd.number_format = "#,##0.##"; c_qtd.alignment = Alignment(horizontal="right")
+        c_val = ws.cell(row=linha, column=3, value=val)
+        c_val.number_format = "#,##0.00"; c_val.alignment = Alignment(horizontal="right")
+        c_sub = ws.cell(row=linha, column=4, value=f"=B{linha}*C{linha}")
+        c_sub.number_format = "#,##0.00"; c_sub.alignment = Alignment(horizontal="right")
+
+    ws.column_dimensions[get_column_letter(1)].width = 44
+    ws.column_dimensions[get_column_letter(2)].width = 14
+    ws.column_dimensions[get_column_letter(3)].width = 20
+    ws.column_dimensions[get_column_letter(4)].width = 18
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="modelo_requerimento.xlsx"'},
+    )
+
+
+# ── POST /importar-excel — cria requerimento a partir de planilha ─────────────
+@router.post("/importar-excel", response_model=schemas.RequerimentoOut, status_code=201)
+def importar_excel(
+    titulo: str,
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    atual: models.Usuario = Depends(_requer_criador_req),
+):
+    from openpyxl import load_workbook
+
+    if not arquivo.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(422, "Envie um arquivo .xlsx")
+
+    try:
+        conteudo = arquivo.file.read()
+        wb = load_workbook(io.BytesIO(conteudo), data_only=True)
+        ws = wb.active
+    except Exception:
+        raise HTTPException(422, "Arquivo Excel inválido ou corrompido")
+
+    itens_raw = []
+    for row in ws.iter_rows(min_row=3, values_only=True):
+        nome = str(row[0]).strip() if row[0] not in (None, "") else ""
+        if not nome or nome.upper() in ("TOTAL", "NOME DO ITEM"):
+            continue
+        try:
+            qtd = float(row[1]) if row[1] not in (None, "") else 1.0
+            val = float(row[2]) if row[2] not in (None, "") else 0.0
+        except (TypeError, ValueError):
+            continue
+        if qtd <= 0 or val <= 0:
+            continue
+        itens_raw.append({"nome": nome, "quantidade": qtd, "valor": val})
+
+    if not itens_raw:
+        raise HTTPException(422, "Nenhum item válido encontrado na planilha (verifique o modelo)")
+
+    titulo = titulo.strip()
+    if not titulo:
+        raise HTTPException(422, "Informe o título do requerimento")
+
+    req = models.Requerimento(
+        titulo=titulo,
+        status=models.StatusRequerimento.aguardando,
+        criado_por=atual.id,
+    )
+    db.add(req)
+    db.flush()
+
+    for item in itens_raw:
+        db.add(models.ItemRequerimento(
+            requerimento_id=req.id,
+            nome=item["nome"],
+            quantidade=item["quantidade"],
+            valor=item["valor"],
+        ))
+
+    db.commit()
+    db.refresh(req)
+    req = _load(req.id, db)
+    total = sum((i.quantidade or 1.0) * i.valor for i in req.itens)
+
+    registrar_log(db, atual.id, "criar", "requerimento", req.id, titulo)
+
+    disparar_notificacao(db, "requerimento", {
+        "titulo":      req.titulo,
+        "total":       f"R$ {total:,.2f}",
+        "itens_count": str(len(req.itens)),
+        "criador":     atual.nome,
+        "link":        f"{_URL_BASE}/#requerimentos",
+    })
+
+    return _build_out(req)

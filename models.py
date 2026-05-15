@@ -269,6 +269,7 @@ class ItemRequerimento(Base):
     id              = Column(Integer, primary_key=True, index=True)
     requerimento_id = Column(Integer, ForeignKey("requerimentos.id", ondelete="CASCADE"), nullable=False)
     nome            = Column(String(200), nullable=False)
+    quantidade      = Column(Float, nullable=False, default=1.0)
     valor           = Column(Float, nullable=False)
     requerimento    = relationship("Requerimento", back_populates="itens")
 

@@ -145,6 +145,14 @@ def migrar():
     else:
         print("   ativos_itens.unidade_id ja existe -- ok")
 
+    # ── 14. requerimentos_itens.quantidade ───────────────────────
+    if not coluna_existe("requerimentos_itens", "quantidade"):
+        cur.execute("ALTER TABLE requerimentos_itens ADD COLUMN quantidade REAL NOT NULL DEFAULT 1.0")
+        print("✅ Coluna adicionada: requerimentos_itens.quantidade (padrão: 1.0)")
+        migracoes += 1
+    else:
+        print("   requerimentos_itens.quantidade ja existe -- ok")
+
     conn.commit()
     conn.close()
 

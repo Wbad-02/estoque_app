@@ -4,17 +4,20 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from database import engine, get_db, Base
-from auth import verificar_senha, criar_token, hash_senha, registrar_log
+from auth import verificar_senha, criar_token, hash_senha, registrar_log, get_usuario_atual
 from middleware_seguranca import MiddlewareSeguranca, REDES_PERMITIDAS, WHITELIST_IP_ATIVA
 from routers import usuarios, categorias, materiais, relatorios, grupos, importacao, retiradas, patrimonio, ativos, ativos_categorias, notificacoes, motivos, requerimentos
 import models, schemas
+
+APP_VERSION = "3.2.0"
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Sistema de Controle de Estoque",
-    version="3.1.0",
+    version=APP_VERSION,
     docs_url=None,       # desabilita /docs em producao
     redoc_url=None,      # desabilita /redoc em producao
     openapi_url=None,    # desabilita /openapi.json em producao
@@ -146,6 +149,26 @@ def startup():
     print(f"CORS origins: {_cors_origins}")
     print("Rate limit: 60 req/min geral | 10 tentativas/5min no login")
     print("Security headers HTTP ativos")
+
+
+@app.get("/api/poll")
+def poll_estado(
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(get_usuario_atual),
+):
+    """Endpoint leve para polling de mudanças. Retorna o timestamp máximo de cada entidade
+    e a versão do app — o frontend recarrega apenas a seção afetada quando algo muda."""
+    def max_ts(col):
+        r = db.query(func.max(col)).scalar()
+        return r.isoformat() if r else ""
+
+    return {
+        "versao":        APP_VERSION,
+        "materiais":     max_ts(models.Material.atualizado_em),
+        "movimentacoes": max_ts(models.Movimentacao.criado_em),
+        "requerimentos": max_ts(models.Requerimento.atualizado_em),
+        "ativos":        max_ts(models.AtivoItem.atribuido_em),
+    }
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

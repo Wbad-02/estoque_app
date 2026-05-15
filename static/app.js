@@ -173,12 +173,15 @@ function iniciarApp(){
   if(S.grupo !== 'viewer'){
     api('GET', '/requerimentos/').then(lista => { if(lista) _atualizarBadgeReq(lista); });
   }
+
+  _startPolling();
 }
 
 // ═══════════════════════════════════════════════════
 // Navegação
 // ═══════════════════════════════════════════════════
 function navegar(p){
+  _paginaAtual = p;
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.nav-item,.nav-sub-item').forEach(x=>x.classList.remove('active'));
   $('page-'+p).classList.add('active');
@@ -2629,6 +2632,77 @@ async function importarExcelReq(input){
     toast('Erro ao importar planilha', 'error');
   }
 }
+
+// ═══════════════════════════════════════════════════
+// Polling — sincronização entre abas/usuários
+// ═══════════════════════════════════════════════════
+let _paginaAtual  = 'dashboard';
+let _pollState    = null;
+let _pollTimer    = null;
+const _POLL_MS    = 20_000;
+
+// Quais entidades cada página monitora, e qual função recarrega
+const _pollCfg = {
+  dashboard:    { watch: ['materiais','movimentacoes'], fn: ()=> carregarDashboard() },
+  materiais:    { watch: ['materiais'],                 fn: ()=> carregarMateriais() },
+  retiradas:    { watch: ['movimentacoes'],             fn: ()=> carregarRetiradas() },
+  requerimentos:{ watch: ['requerimentos'],             fn: ()=> carregarRequerimentos() },
+  ativos:       { watch: ['ativos'],                    fn: ()=> carregarAtivos() },
+};
+
+async function _doPoll(){
+  if(!S.token) return;
+  const data = await api('GET', '/poll');
+  if(!data) return;
+
+  // ── Controle de versão ──────────────────────────────────────
+  if(_pollState && data.versao && data.versao !== _pollState.versao){
+    _mostrarBannerAtualizacao(data.versao);
+  }
+  if(!_pollState){
+    // Primeira chamada: apenas registra o estado inicial
+    _pollState = data;
+    const el = $('sidebar-versao');
+    if(el) el.textContent = 'v' + data.versao;
+    return;
+  }
+
+  // ── Recarrega a página atual se alguma entidade mudou ───────
+  const cfg = _pollCfg[_paginaAtual];
+  if(cfg){
+    const mudou = cfg.watch.some(ent => data[ent] && data[ent] !== _pollState[ent]);
+    if(mudou) cfg.fn();
+  }
+
+  // ── Badge de requerimentos: atualiza sempre ─────────────────
+  if(data.requerimentos !== _pollState.requerimentos && _paginaAtual !== 'requerimentos'){
+    api('GET', '/requerimentos/').then(lista => { if(lista) _atualizarBadgeReq(lista); });
+  }
+
+  _pollState = data;
+}
+
+function _mostrarBannerAtualizacao(novaVersao){
+  if($('banner-atualizacao')) return;
+  const b = document.createElement('div');
+  b.id = 'banner-atualizacao';
+  b.innerHTML = `
+    <span>Nova versão disponível (v${novaVersao}) — recarregue para atualizar.</span>
+    <button onclick="location.reload()">Atualizar agora</button>`;
+  document.body.prepend(b);
+}
+
+function _startPolling(){
+  _doPoll();   // chamada inicial: registra estado base e exibe versão
+  _pollTimer = setInterval(()=>{
+    if(document.visibilityState !== 'hidden') _doPoll();
+  }, _POLL_MS);
+  // Poll imediato ao voltar para a aba
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible') _doPoll();
+  });
+}
+
 
 // ═══════════════════════════════════════════════════
 // Auto-login

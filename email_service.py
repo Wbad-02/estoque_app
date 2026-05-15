@@ -150,9 +150,11 @@ def _flush_batch():
     ).start()
 
 
-def disparar_notificacao(db, tipo: str, variaveis: dict):
+def disparar_notificacao(db, tipo: str, variaveis: dict, extras: list[str] | None = None):
     """
     Busca destinatários e template no banco, preenche variáveis e agenda envio.
+    `extras` permite incluir endereços adicionais (ex: criador do requerimento)
+    sem duplicá-los caso já estejam na lista cadastrada.
 
     Notificações do tipo 'entrada' são agrupadas em uma janela de 30 minutos:
     a primeira entrada inicia o timer; entradas seguintes acumulam na fila.
@@ -167,6 +169,13 @@ def disparar_notificacao(db, tipo: str, variaveis: dict):
         NotificacaoEmail.ativo == True,
     ).all()
     destinatarios = [e.email for e in emails]
+
+    # Adiciona extras sem duplicar
+    if extras:
+        for e in extras:
+            if e and e not in destinatarios:
+                destinatarios.append(e)
+
     if not destinatarios:
         return
 

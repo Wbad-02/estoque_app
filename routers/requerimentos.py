@@ -194,12 +194,13 @@ def aprovar_requerimento(
     req = _load(req_id, db)
     registrar_log(db, atual.id, "aprovar", "requerimento", req_id)
 
+    criador_email = req.criador.email if req.criador else None
     disparar_notificacao(db, "requerimento_decisao", {
         "titulo":     req.titulo,
         "status":     "aprovado",
         "observacao": body.observacao or "—",
         "aprovador":  atual.nome,
-    })
+    }, extras=[criador_email] if criador_email else None)
 
     return _build_out(req)
 
@@ -225,12 +226,13 @@ def rejeitar_requerimento(
     req = _load(req_id, db)
     registrar_log(db, atual.id, "rejeitar", "requerimento", req_id, body.observacao)
 
+    criador_email = req.criador.email if req.criador else None
     disparar_notificacao(db, "requerimento_decisao", {
         "titulo":     req.titulo,
         "status":     "rejeitado",
         "observacao": body.observacao,
         "aprovador":  atual.nome,
-    })
+    }, extras=[criador_email] if criador_email else None)
 
     return _build_out(req)
 

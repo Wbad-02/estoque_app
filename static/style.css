@@ -27,6 +27,9 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);fon
 .nav-item:hover{opacity:1;background:rgba(255,255,255,.07)}
 .nav-item.active{opacity:1;background:rgba(255,255,255,.1);border-left-color:var(--gold)}
 .nav-icon{width:18px;text-align:center}
+.nav-badge{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:9px;
+  background:var(--gold);color:#1B3A2D;font-size:10px;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;line-height:1}
 .sidebar-footer{margin-top:auto;padding:16px 20px;font-size:12px;opacity:.5}
 .btn-logout{width:100%;padding:9px;background:rgba(255,255,255,.1);border:none;
   border-radius:8px;color:#fff;cursor:pointer;font-size:13px;margin-top:8px;transition:background .15s;

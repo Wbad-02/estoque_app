@@ -160,6 +160,11 @@ function iniciarApp(){
   }
 
   carregarDashboard();
+
+  // Badge de requerimentos: busca em background para exibir antes de navegar até a aba
+  if(S.grupo !== 'viewer'){
+    api('GET', '/requerimentos/').then(lista => { if(lista) _atualizarBadgeReq(lista); });
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -2351,6 +2356,14 @@ let _reqDetalheId  = null;
 let _podeCriarReq  = false;
 let _podeAprovarReq = false;
 
+function _atualizarBadgeReq(lista){
+  const n = (lista||[]).filter(r=>r.status==='aguardando').length;
+  const el = $('nav-badge-req');
+  if(!el) return;
+  if(n > 0){ el.textContent = n > 99 ? '99+' : n; el.style.display=''; }
+  else { el.style.display='none'; }
+}
+
 async function carregarRequerimentos(){
   const isAdmin = S.grupo === 'admin' || S.grupo === 'mestre';
   if(isAdmin){
@@ -2379,6 +2392,7 @@ function _badgeReq(status){
 }
 
 function _renderRequerimentos(lista){
+  _atualizarBadgeReq(lista);
   const tbody = $('req-body');
   if(!lista.length){
     tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><span>📋</span>Nenhum requerimento cadastrado</div></td></tr>';

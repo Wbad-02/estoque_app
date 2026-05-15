@@ -338,7 +338,6 @@ function renderizarMateriais(lista){
             ?'<span class="badge badge-alert">⚠ Alerta</span>'
             :'<span class="badge badge-ok">✓ OK</span>'}</td>
         <td style="white-space:nowrap" onclick="event.stopPropagation()">
-          <button class="btn btn-secondary btn-sm" onclick="abrirDetalhes(${m.id})">Timeline</button>
           ${canEdit?`<button class="btn btn-secondary btn-sm" onclick="editarMaterial(${m.id})">Editar</button>`:''}
           ${canAdmin?`<button class="btn btn-danger btn-sm" onclick="removerMaterial(${m.id},'${m.nome.replace(/'/g,"\\'")}')">✕</button>`:''}
         </td>

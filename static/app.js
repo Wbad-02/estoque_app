@@ -159,7 +159,15 @@ function iniciarApp(){
     }
   }
 
-  carregarDashboard();
+  // Navega direto para a página indicada no hash (ex: link de e-mail /#requerimentos)
+  const hashPage = window.location.hash.replace('#', '').trim();
+  const paginasValidas = ['dashboard','materiais','retiradas','categorias','ativos',
+    'categ-ativos','usuarios','importacao','notificacoes','requerimentos','perfil','relatorios'];
+  if(hashPage && paginasValidas.includes(hashPage)){
+    navegar(hashPage);
+  } else {
+    carregarDashboard();
+  }
 
   // Badge de requerimentos: busca em background para exibir antes de navegar até a aba
   if(S.grupo !== 'viewer'){

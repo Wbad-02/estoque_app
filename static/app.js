@@ -150,16 +150,25 @@ function tornarPesquisavel(selectId) {
   }
 
   // ── Eventos ────────────────────────────────────
+  // Abre ao clicar. blur fecha após 150ms (permite mousedown do dropdown primeiro).
+  // Não usamos 'focus' para abrir pois dispara antes do 'click', causando
+  // abrir+fechar imediato quando o campo ainda não estava focado.
+  let _justMousedDown = false;
+  input.addEventListener('mousedown', () => { _justMousedDown = true; });
   input.addEventListener('click', () => {
-    if (dropdown.style.display === 'block') {
-      fecharDropdown();
-    } else {
-      abrirDropdown();
+    if (_justMousedDown) {
+      _justMousedDown = false;
+      if (dropdown.style.display === 'block') {
+        fecharDropdown();
+      } else {
+        abrirDropdown();
+      }
     }
   });
 
+  // Tab-focus abre o dropdown
   input.addEventListener('focus', () => {
-    abrirDropdown();
+    if (!_justMousedDown) abrirDropdown();
   });
 
   input.addEventListener('input', () => {
@@ -168,11 +177,24 @@ function tornarPesquisavel(selectId) {
   });
 
   input.addEventListener('blur', () => {
-    // Pequeno delay para permitir mousedown no dropdown ser processado
     setTimeout(fecharDropdown, 150);
   });
 
   // Navegação por teclado
+  function _focusarItem(items, idx) {
+    items.forEach(it => {
+      it.classList.remove('ss-focused');
+      it.style.background = it.classList.contains('ss-selected') ? 'rgba(27,58,45,.08)' : '';
+      it.style.color = '';
+    });
+    if (items[idx]) {
+      items[idx].classList.add('ss-focused');
+      items[idx].style.background = 'var(--verde-escuro)';
+      items[idx].style.color = 'var(--branco)';
+      items[idx].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
   input.addEventListener('keydown', e => {
     const items = Array.from(dropdown.querySelectorAll('.ss-item:not(.ss-empty)'));
     const active = dropdown.querySelector('.ss-item.ss-focused');
@@ -180,18 +202,12 @@ function tornarPesquisavel(selectId) {
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (active) active.classList.remove('ss-focused');
-      idx = (idx + 1) % items.length;
-      items[idx] && items[idx].classList.add('ss-focused');
-      items[idx] && (items[idx].style.background = 'var(--verde-escuro)', items[idx].style.color = 'var(--branco)');
-      items[idx] && items[idx].scrollIntoView({ block: 'nearest' });
+      if (dropdown.style.display === 'none') { abrirDropdown(); return; }
+      _focusarItem(items, (idx + 1) % items.length);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (active) active.classList.remove('ss-focused');
-      idx = (idx - 1 + items.length) % items.length;
-      items[idx] && items[idx].classList.add('ss-focused');
-      items[idx] && (items[idx].style.background = 'var(--verde-escuro)', items[idx].style.color = 'var(--branco)');
-      items[idx] && items[idx].scrollIntoView({ block: 'nearest' });
+      if (dropdown.style.display === 'none') { abrirDropdown(); return; }
+      _focusarItem(items, (idx - 1 + items.length) % items.length);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       const focused = dropdown.querySelector('.ss-item.ss-focused');

@@ -9,6 +9,266 @@ function esc(str){
 }
 
 // ═══════════════════════════════════════════════════
+// Searchable Select — componente reutilizável
+// ═══════════════════════════════════════════════════
+/**
+ * tornarPesquisavel(selectId)
+ * Transforma um <select> nativo em um componente com campo de busca.
+ * Idempotente: se chamado duas vezes no mesmo select, não duplica.
+ * Observa mudanças nas <option> via MutationObserver.
+ */
+function tornarPesquisavel(selectId) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  // Idempotência: se já foi transformado, apenas sincroniza o label
+  if (select._searchableInit) {
+    _syncSearchableLabel(select);
+    return;
+  }
+  select._searchableInit = true;
+
+  // Esconde o select original mas mantém no DOM (valor acessível)
+  select.style.display = 'none';
+
+  // Wrapper posicionado (para o dropdown absoluto funcionar)
+  const wrapper = document.createElement('div');
+  wrapper.className = 'ss-wrapper';
+  wrapper.style.cssText = 'position:relative;display:block;';
+  select.parentNode.insertBefore(wrapper, select);
+  wrapper.appendChild(select);
+
+  // Input visível
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'ss-input';
+  input.autocomplete = 'off';
+  input.setAttribute('aria-autocomplete', 'list');
+  input.setAttribute('role', 'combobox');
+  input.setAttribute('aria-expanded', 'false');
+  // Herda aria-label do select se houver
+  if (select.getAttribute('aria-label')) {
+    input.setAttribute('aria-label', select.getAttribute('aria-label'));
+  }
+  // Seta indicadora (▼) via padding-right — injetada via CSS abaixo
+  input.style.cssText = 'padding-right:28px;cursor:pointer;';
+  wrapper.insertBefore(input, select);
+
+  // Dropdown
+  const dropdown = document.createElement('div');
+  dropdown.className = 'ss-dropdown';
+  dropdown.style.cssText = [
+    'position:absolute;top:calc(100% + 3px);left:0;right:0;',
+    'background:var(--branco);border:1.5px solid var(--verde-escuro);',
+    'border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.14);',
+    'z-index:999;max-height:220px;overflow-y:auto;display:none;',
+  ].join('');
+  wrapper.appendChild(dropdown);
+
+  // ── Helpers internos ────────────────────────────
+  function getOptions() {
+    return Array.from(select.options);
+  }
+
+  function labelDaOpcao(opt) {
+    return opt ? opt.textContent.trim() : '';
+  }
+
+  function renderDropdown(filtro) {
+    const termo = (filtro || '').toLowerCase();
+    const opts = getOptions();
+    const matches = opts.filter(o =>
+      o.value !== '' && labelDaOpcao(o).toLowerCase().includes(termo)
+    );
+    if (!matches.length) {
+      dropdown.innerHTML =
+        '<div class="ss-item ss-empty" style="padding:10px 12px;font-size:13px;color:var(--muted)">Nenhum resultado</div>';
+      return;
+    }
+    dropdown.innerHTML = matches.map(o => {
+      const sel = o.value === select.value ? ' ss-selected' : '';
+      return `<div class="ss-item${sel}" data-value="${_escAttr(o.value)}"
+        style="padding:9px 12px;font-size:13.5px;cursor:pointer;"
+        >${esc(labelDaOpcao(o))}</div>`;
+    }).join('');
+
+    // Eventos de clique nas opções
+    dropdown.querySelectorAll('.ss-item:not(.ss-empty)').forEach(item => {
+      item.addEventListener('mousedown', e => {
+        e.preventDefault(); // evita blur do input
+        selecionar(item.dataset.value);
+      });
+    });
+
+    // Hover style
+    dropdown.querySelectorAll('.ss-item:not(.ss-empty)').forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        item.style.background = 'var(--verde-escuro)';
+        item.style.color = 'var(--branco)';
+      });
+      item.addEventListener('mouseleave', () => {
+        if (item.classList.contains('ss-selected')) {
+          item.style.background = 'rgba(27,58,45,.08)';
+          item.style.color = '';
+        } else {
+          item.style.background = '';
+          item.style.color = '';
+        }
+      });
+    });
+
+    // Destaque no item selecionado
+    dropdown.querySelectorAll('.ss-item.ss-selected').forEach(item => {
+      item.style.background = 'rgba(27,58,45,.08)';
+    });
+  }
+
+  function _escAttr(str) {
+    return String(str || '').replace(/"/g, '&quot;');
+  }
+
+  function abrirDropdown() {
+    input.value = '';
+    input.placeholder = 'Buscar...';
+    renderDropdown('');
+    dropdown.style.display = 'block';
+    input.setAttribute('aria-expanded', 'true');
+  }
+
+  function fecharDropdown() {
+    dropdown.style.display = 'none';
+    input.setAttribute('aria-expanded', 'false');
+    // Restaura label da opção selecionada
+    _syncSearchableLabel(select);
+  }
+
+  function selecionar(value) {
+    select.value = value;
+    // Dispara change no select original (mantém onchange do HTML funcionando)
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    fecharDropdown();
+  }
+
+  // ── Eventos ────────────────────────────────────
+  input.addEventListener('click', () => {
+    if (dropdown.style.display === 'block') {
+      fecharDropdown();
+    } else {
+      abrirDropdown();
+    }
+  });
+
+  input.addEventListener('focus', () => {
+    abrirDropdown();
+  });
+
+  input.addEventListener('input', () => {
+    renderDropdown(input.value);
+    dropdown.style.display = 'block';
+  });
+
+  input.addEventListener('blur', () => {
+    // Pequeno delay para permitir mousedown no dropdown ser processado
+    setTimeout(fecharDropdown, 150);
+  });
+
+  // Navegação por teclado
+  input.addEventListener('keydown', e => {
+    const items = Array.from(dropdown.querySelectorAll('.ss-item:not(.ss-empty)'));
+    const active = dropdown.querySelector('.ss-item.ss-focused');
+    let idx = items.indexOf(active);
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (active) active.classList.remove('ss-focused');
+      idx = (idx + 1) % items.length;
+      items[idx] && items[idx].classList.add('ss-focused');
+      items[idx] && (items[idx].style.background = 'var(--verde-escuro)', items[idx].style.color = 'var(--branco)');
+      items[idx] && items[idx].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (active) active.classList.remove('ss-focused');
+      idx = (idx - 1 + items.length) % items.length;
+      items[idx] && items[idx].classList.add('ss-focused');
+      items[idx] && (items[idx].style.background = 'var(--verde-escuro)', items[idx].style.color = 'var(--branco)');
+      items[idx] && items[idx].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const focused = dropdown.querySelector('.ss-item.ss-focused');
+      if (focused) selecionar(focused.dataset.value);
+      else fecharDropdown();
+    } else if (e.key === 'Escape') {
+      fecharDropdown();
+    }
+  });
+
+  // ── MutationObserver: detecta troca de options ──
+  const observer = new MutationObserver(() => {
+    if (dropdown.style.display === 'block') {
+      renderDropdown(input.value);
+    }
+    _syncSearchableLabel(select);
+  });
+  observer.observe(select, { childList: true, subtree: false });
+
+  // Inicializa label
+  _syncSearchableLabel(select);
+}
+
+/**
+ * Sincroniza o texto do input visível com a opção selecionada no select original.
+ * Chamada após seleção e após MutationObserver.
+ */
+function _syncSearchableLabel(select) {
+  const wrapper = select.parentNode;
+  if (!wrapper || !wrapper.classList.contains('ss-wrapper')) return;
+  const input = wrapper.querySelector('.ss-input');
+  if (!input) return;
+  const opt = select.options[select.selectedIndex];
+  const label = opt ? opt.textContent.trim() : '';
+  // Só mostra se não for o placeholder (value vazio)
+  if (opt && opt.value !== '') {
+    input.value = label;
+    input.placeholder = '';
+  } else {
+    input.value = '';
+    input.placeholder = label || 'Selecione...';
+  }
+}
+
+// CSS do componente: injetado uma vez no <head>
+(function _injectSearchableCSS() {
+  if (document.getElementById('_ss-style')) return;
+  const style = document.createElement('style');
+  style.id = '_ss-style';
+  style.textContent = `
+    .ss-wrapper { position: relative; display: block; }
+    .ss-input {
+      width: 100%;
+      padding: 9px 28px 9px 12px !important;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235A716B' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center;
+      background-size: 12px 8px;
+      color: var(--text);
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+    .ss-input:focus {
+      border-color: var(--verde-escuro);
+      box-shadow: 0 0 0 3px rgba(27,58,45,.1);
+      cursor: text;
+    }
+    .ss-dropdown { font-family: system-ui, sans-serif; }
+    .ss-item { transition: background .1s, color .1s; }
+  `;
+  document.head.appendChild(style);
+})();
+
+// ═══════════════════════════════════════════════════
 // Estado
 // ═══════════════════════════════════════════════════
 const S = {
@@ -2121,6 +2381,9 @@ async function abrirModalAtribuir(ativoId, ativoNome){
   $('atribuir-grp').innerHTML='<option value="">Selecione…</option>';
   $('atribuir-mat').innerHTML='<option value="">Selecione…</option>';
   $('modal-atribuir').style.display='flex';
+
+  // Searchable selects
+  ['atribuir-cat','atribuir-grp','atribuir-mat','atribuir-unidade'].forEach(tornarPesquisavel);
 }
 
 async function carregarGruposAtribuir(){
@@ -2194,6 +2457,9 @@ async function abrirModalAdicionarMaterial(){
   $('add-mat-cat').innerHTML=S.categorias.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
   await carregarGruposAddMat();
   $('modal-add-mat').style.display='flex';
+
+  // Searchable selects
+  ['add-mat-cat','add-mat-grp','add-mat-sel'].forEach(tornarPesquisavel);
 }
 
 async function carregarGruposAddMat(){
@@ -2864,6 +3130,9 @@ async function abrirNovaSolicitacao(){
   $('sol-quantidade-wrap').style.display = 'none';
   $('sol-unidade-wrap').style.display    = 'none';
   abrirModal('modal-nova-sol');
+
+  // Searchable selects — aplicar após o modal abrir e os selects serem populados
+  ['sol-cat','sol-grp','sol-material-id','sol-unidade-id','sol-ativo-id'].forEach(tornarPesquisavel);
 }
 
 async function solCarregarGrupos(){

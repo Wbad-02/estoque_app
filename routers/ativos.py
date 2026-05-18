@@ -48,8 +48,9 @@ def valor_imobilizado(
     )
     q = (
         db.query(func.coalesce(func.sum(valor_item), 0.0))
+        .join(models.Ativo, models.AtivoItem.ativo_id == models.Ativo.id)
+        .join(models.AtivoGrupo, models.Ativo.grupo_id == models.AtivoGrupo.id)
         .join(models.Material, models.AtivoItem.material_id == models.Material.id)
-        .join(models.GrupoMaterial, models.Material.grupo_id == models.GrupoMaterial.id)
         .outerjoin(
             models.UnidadePatrimonio,
             models.AtivoItem.unidade_id == models.UnidadePatrimonio.id,
@@ -57,9 +58,9 @@ def valor_imobilizado(
         .filter(models.AtivoItem.devolvido_em == None)
     )
     if categoria_id:
-        q = q.filter(models.GrupoMaterial.categoria_id == categoria_id)
+        q = q.filter(models.AtivoGrupo.categoria_id == categoria_id)
     if grupo_id:
-        q = q.filter(models.GrupoMaterial.id == grupo_id)
+        q = q.filter(models.AtivoGrupo.id == grupo_id)
 
     total = q.scalar() or 0.0
     return {"valor_total": round(float(total), 2)}

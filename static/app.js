@@ -2175,15 +2175,15 @@ async function removerGrupoAtivo(id,nome){
 // Ativos
 // ═══════════════════════════════════════════════════
 const SAT = { lista:[], cats:[], grupos:[], selecionado:null, tabAtual:'ativos', inativos:[] };
-const VIM = { cats:[], grupos:[] };
 
 // ── Valor Imobilizado ──────────────────────────────
 async function carregarValorImobilizado(){
-  if(!VIM.cats.length){
-    const [cats,grps]=await Promise.all([api('GET','/categorias/'),api('GET','/grupos/')]);
-    VIM.cats=cats||[]; VIM.grupos=grps||[];
+  // Usa categorias/grupos de ATIVOS (SAT já os carrega em carregarAtivos)
+  if(SAT.cats.length && $('vim-cat').options.length<=1){
     $('vim-cat').innerHTML='<option value="">Todas as categorias</option>'+
-      VIM.cats.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+      SAT.cats.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+    $('vim-grp').innerHTML='<option value="">Todos os grupos</option>'+
+      SAT.grupos.map(g=>`<option value="${g.id}">${esc(g.nome)}</option>`).join('');
   }
   const catId=$('vim-cat').value, grpId=$('vim-grp').value;
   let url='/ativos/valor-imobilizado';
@@ -2200,7 +2200,7 @@ async function carregarValorImobilizado(){
 
 function vimMudarCat(){
   const catId=$('vim-cat').value;
-  const grps=catId?VIM.grupos.filter(g=>g.categoria_id==catId):VIM.grupos;
+  const grps=catId?SAT.grupos.filter(g=>g.categoria_id==catId):SAT.grupos;
   $('vim-grp').innerHTML='<option value="">Todos os grupos</option>'+
     grps.map(g=>`<option value="${g.id}">${esc(g.nome)}</option>`).join('');
   carregarValorImobilizado();

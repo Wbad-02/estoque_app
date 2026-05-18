@@ -2175,6 +2175,36 @@ async function removerGrupoAtivo(id,nome){
 // Ativos
 // ═══════════════════════════════════════════════════
 const SAT = { lista:[], cats:[], grupos:[], selecionado:null, tabAtual:'ativos', inativos:[] };
+const VIM = { cats:[], grupos:[] };
+
+// ── Valor Imobilizado ──────────────────────────────
+async function carregarValorImobilizado(){
+  if(!VIM.cats.length){
+    const [cats,grps]=await Promise.all([api('GET','/categorias/'),api('GET','/grupos/')]);
+    VIM.cats=cats||[]; VIM.grupos=grps||[];
+    $('vim-cat').innerHTML='<option value="">Todas as categorias</option>'+
+      VIM.cats.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+  }
+  const catId=$('vim-cat').value, grpId=$('vim-grp').value;
+  let url='/ativos/valor-imobilizado';
+  const p=[];
+  if(catId) p.push('categoria_id='+catId);
+  if(grpId) p.push('grupo_id='+grpId);
+  if(p.length) url+='?'+p.join('&');
+  const r=await api('GET',url);
+  if(r!==null){
+    const v=r.valor_total||0;
+    $('vim-valor').textContent=v>0?'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'R$ —';
+  }
+}
+
+function vimMudarCat(){
+  const catId=$('vim-cat').value;
+  const grps=catId?VIM.grupos.filter(g=>g.categoria_id==catId):VIM.grupos;
+  $('vim-grp').innerHTML='<option value="">Todos os grupos</option>'+
+    grps.map(g=>`<option value="${g.id}">${esc(g.nome)}</option>`).join('');
+  carregarValorImobilizado();
+}
 
 async function carregarAtivos(){
   const [ativos,cats,grps]=await Promise.all([
@@ -2192,6 +2222,7 @@ async function carregarAtivos(){
   renderizarAtivos(ativos);
   trocarTabAtivos('ativos');
   if(SAT.selecionado) selecionarAtivo(SAT.selecionado);
+  carregarValorImobilizado();
 }
 
 function mudarCatFiltroAtivo(){

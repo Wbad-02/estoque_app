@@ -165,6 +165,21 @@
         <div class="inner-tab" id="atv-tab-inativos" onclick="trocarTabAtivos('inativos')">Inativos</div>
       </div>
 
+      <!-- Indicador: Valor Imobilizado -->
+      <div id="vim-card" style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:14px 18px;margin:10px 0 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Valor imobilizado</span>
+        <select id="vim-cat" onchange="vimMudarCat()" style="font-size:13px;min-width:150px;max-width:220px">
+          <option value="">Todas as categorias</option>
+        </select>
+        <select id="vim-grp" onchange="carregarValorImobilizado()" style="font-size:13px;min-width:150px;max-width:220px">
+          <option value="">Todos os grupos</option>
+        </select>
+        <div style="margin-left:auto;text-align:right;white-space:nowrap">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Total</div>
+          <div id="vim-valor" style="font-size:22px;font-weight:700;color:#1B3A2D;font-variant-numeric:tabular-nums">R$ —</div>
+        </div>
+      </div>
+
       <!-- Sub-aba: Ativos -->
       <div id="atv-pane-ativos">
         <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start">

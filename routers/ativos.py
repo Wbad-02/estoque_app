@@ -1,6 +1,7 @@
 # © Todos os direitos reservados – github.com/Wbad-02
 from models import agora
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 from database import get_db
 from auth import requer_editor_ou_admin, get_usuario_atual, registrar_log
@@ -26,6 +27,42 @@ def _item_out(i: models.AtivoItem) -> schemas.AtivoItemOut:
     if i.unidade_patr:
         out.unidade_codigo = i.unidade_patr.codigo
     return out
+
+
+# ── Valor Imobilizado ─────────────────────────────────
+
+@router.get("/valor-imobilizado")
+def valor_imobilizado(
+    categoria_id: int | None = Query(None),
+    grupo_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+    _=Depends(get_usuario_atual),
+):
+    """Soma o valor dos materiais atribuídos a ativos (devolvido_em IS NULL)."""
+    valor_item = case(
+        (
+            models.AtivoItem.unidade_id != None,
+            func.coalesce(models.UnidadePatrimonio.valor_unitario, 0.0),
+        ),
+        else_=func.coalesce(models.Material.valor_unitario, 0.0) * models.AtivoItem.quantidade,
+    )
+    q = (
+        db.query(func.coalesce(func.sum(valor_item), 0.0))
+        .join(models.Material, models.AtivoItem.material_id == models.Material.id)
+        .join(models.GrupoMaterial, models.Material.grupo_id == models.GrupoMaterial.id)
+        .outerjoin(
+            models.UnidadePatrimonio,
+            models.AtivoItem.unidade_id == models.UnidadePatrimonio.id,
+        )
+        .filter(models.AtivoItem.devolvido_em == None)
+    )
+    if categoria_id:
+        q = q.filter(models.GrupoMaterial.categoria_id == categoria_id)
+    if grupo_id:
+        q = q.filter(models.GrupoMaterial.id == grupo_id)
+
+    total = q.scalar() or 0.0
+    return {"valor_total": round(float(total), 2)}
 
 
 # ── CRUD Ativos ───────────────────────────────────────
@@ -103,7 +140,6 @@ def remover(ativo_id: int, db: Session = Depends(get_db),
                 ).first()
                 if unidade:
                     unidade.tag = "usado"
-                    unidade.valor_unitario = 0.0  # perde o valor ao retornar ao estoque como usado
             else:
                 # Material sem patrimônio: sync_qty não restaura — deve somar manualmente
                 mat_sem_pat = db.query(models.Material).filter(
@@ -200,7 +236,6 @@ def devolver_material(ativo_id: int, item_id: int,
         ).first()
         if unidade:
             unidade.tag = "usado"
-            unidade.valor_unitario = 0.0  # perde o valor ao retornar ao estoque como usado
     elif mat and not mat.usa_patrimonio:
         # Material sem patrimônio: sync_qty não restaura — soma a quantidade devolvida
         mat.quantidade += item.quantidade

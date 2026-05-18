@@ -143,6 +143,13 @@ function iniciarApp(){
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isAdmin?'':'none');
   document.querySelectorAll('.editor-only').forEach(el=>el.style.display=isEditor?'':'none');
 
+  // Reset tab state to defaults
+  _reqTabAtual = 'req';
+  $('tab-panel-req') && ($('tab-panel-req').style.display='');
+  $('tab-panel-sol') && ($('tab-panel-sol').style.display='none');
+  $('tab-btn-req')   && ($('tab-btn-req').classList.add('active'));
+  $('tab-btn-sol')   && ($('tab-btn-sol').classList.remove('active'));
+
   // Mestre: mostra as opções admin e mestre no select de usuários
   if(isMestre){
     const selGrupo=$('usr-grupo');
@@ -210,7 +217,7 @@ function navegar(p){
     notificacoes:carregarNotificacoes,
     requerimentos:carregarRequerimentos,
     perfil:carregarPerfil,
-    relatorios:()=>{}})[p]?.();
+    relatorios:carregarRelatorios})[p]?.();
 }
 
 function toggleNavGroup(grupo){
@@ -230,7 +237,7 @@ async function carregarDashboard(){
   const totalAlertas=mats.filter(m=>m.alerta_minimo).length;
   const cats=new Set(mats.map(m=>m.grupo.categoria.nome)).size;
 
-  const totalValorEstoque = mats.reduce((acc,m)=>acc+(m.valor_unitario!=null?m.valor_unitario*m.quantidade:0),0);
+  const totalValorEstoque = mats.reduce((acc,m)=>acc+(m.valor_total||0),0);
   const valorStr = totalValorEstoque>0 ? 'R$ '+totalValorEstoque.toFixed(2) : '—';
 
   $('dash-summary').innerHTML=`
@@ -351,9 +358,9 @@ function renderizarMateriais(lista){
               <span class="lbl">Valor unitário</span>
               <span class="val">${m.valor_unitario!=null?'R$ '+m.valor_unitario.toFixed(2):'—'}</span>
             </div>
-            ${m.valor_unitario!=null&&m.quantidade?`<div class="mat-detail-item">
+            ${m.valor_total>0?`<div class="mat-detail-item">
               <span class="lbl">Valor total estimado</span>
-              <span class="val">R$ ${(m.valor_unitario*m.quantidade).toFixed(2)}</span>
+              <span class="val">R$ ${m.valor_total.toFixed(2)}</span>
             </div>`:''}
             <div class="mat-detail-item">
               <span class="lbl">Tag</span>
@@ -865,14 +872,14 @@ async function confirmarNFe(){
     $('nfe-btn-confirmar').style.display='none';
     $('nfe-resultado').style.display='block';
     $('nfe-resultado-detalhe').innerHTML=`
-      <p><strong>Emitente:</strong> ${res.emitente}</p>
-      <p style="margin-top:6px"><strong>NF-e nº:</strong> ${res.nf_numero}</p>
+      <p><strong>Emitente:</strong> ${esc(res.emitente)}</p>
+      <p style="margin-top:6px"><strong>NF-e nº:</strong> ${esc(res.nf_numero)}</p>
       <p style="margin-top:12px;color:var(--green)">
         <strong>${res.criados.length}</strong> criado(s) &nbsp;·&nbsp;
         <strong>${res.atualizados.length}</strong> atualizado(s)
       </p>
-      ${res.criados.length?`<ul style="margin-top:8px;padding-left:20px;font-size:12px;color:var(--muted)">${res.criados.map(n=>`<li>+ ${n}</li>`).join('')}</ul>`:''}
-      ${res.atualizados.length?`<ul style="padding-left:20px;font-size:12px;color:var(--muted)">${res.atualizados.map(n=>`<li>↑ ${n}</li>`).join('')}</ul>`:''}`;
+      ${res.criados.length?`<ul style="margin-top:8px;padding-left:20px;font-size:12px;color:var(--muted)">${res.criados.map(n=>`<li>+ ${esc(n)}</li>`).join('')}</ul>`:''}
+      ${res.atualizados.length?`<ul style="padding-left:20px;font-size:12px;color:var(--muted)">${res.atualizados.map(n=>`<li>↑ ${esc(n)}</li>`).join('')}</ul>`:''}`;
     toast(`Importação concluída! ${res.total} item(s)`);
     if(S.grupo==='admin'||S.grupo==='mestre') _carregarHistoricoNfe();
   }catch{toast('Falha ao confirmar','error');}
@@ -1237,7 +1244,7 @@ function _renderizarTimeline(eventos, usaPatrimonio, qtdAtual, canEdit){
               <div class="tl-data">${data}</div>
               <div class="tl-titulo">↓ Retirada — ${motivo_label[e.motivo]||e.motivo}</div>
               <div class="tl-detalhe">
-                ${e.observacao?e.observacao+' · ':''} por ${e.usuario||'Sistema'}
+                ${e.observacao?esc(e.observacao)+' · ':''} por ${esc(e.usuario||'Sistema')}
               </div>
             </div>
           </div>`;
@@ -1273,7 +1280,7 @@ function _renderizarTimeline(eventos, usaPatrimonio, qtdAtual, canEdit){
             <div class="tl-data">${data}</div>
             <div class="tl-titulo">↓ Saída — ${e.quantidade} un · ${motivo_label[e.motivo]||e.motivo||''}</div>
             <div class="tl-detalhe">
-              ${e.observacao?e.observacao+' · ':''} por ${e.usuario||'Sistema'}
+              ${e.observacao?esc(e.observacao)+' · ':''} por ${esc(e.usuario||'Sistema')}
             </div>
           </div>
         </div>`;
@@ -1392,7 +1399,7 @@ function filtrarDashboard(){
   if(filtroAtivo && lista.length){
     const totalItens = lista.length;
     const totalQtd   = lista.reduce((acc,m)=>acc+m.quantidade,0);
-    const totalValor = lista.reduce((acc,m)=>acc+(m.valor_unitario!=null?m.valor_unitario*m.quantidade:0),0);
+    const totalValor = lista.reduce((acc,m)=>acc+(m.valor_total||0),0);
     const emAlerta   = lista.filter(m=>m.alerta_minimo).length;
     const label = catId
       ? (grpId ? lista[0]?.grupo.nome : lista[0]?.grupo.categoria.nome)
@@ -1588,8 +1595,9 @@ async function toggleMatDetail(id, tr, forceReload){
         </tr></thead>
         <tbody>
           ${unidades.map((u,i)=>{
-            const val = u.valor_unitario!=null ? 'R$ '+u.valor_unitario.toFixed(2)
-                      : mat.valor_unitario!=null ? 'R$ '+mat.valor_unitario.toFixed(2) : '—';
+            const val = (u.valor_unitario != null && u.valor_unitario > 0) ? 'R$ '+u.valor_unitario.toFixed(2)
+                      : u.valor_unitario === 0 ? '<span style="color:var(--muted);font-size:11px">Sem valor</span>'
+                      : mat.valor_unitario != null ? 'R$ '+mat.valor_unitario.toFixed(2) : '—';
             const isAtrib = u.tag==='atribuido';
             const tagAtual = u.status==='retirado' ? 'saida' : (u.tag || mat.tag);
             const cor = u.status==='retirado' ? 'color:var(--muted)' : isAtrib ? 'opacity:.6' : '';
@@ -1821,6 +1829,7 @@ async function carregarAtivos(){
     SAT.grupos.map(g=>`<option value="${g.id}">${esc(g.nome)}</option>`).join('');
   renderizarAtivos(ativos);
   trocarTabAtivos('ativos');
+  if(SAT.selecionado) selecionarAtivo(SAT.selecionado);
 }
 
 function mudarCatFiltroAtivo(){
@@ -2378,21 +2387,29 @@ async function carregarRequerimentos(){
   const isAdmin = S.grupo === 'admin' || S.grupo === 'mestre';
   if(isAdmin){
     _podeCriarReq = _podeAprovarReq = true;
-    const lista = await api('GET', '/requerimentos/');
-    if(!lista) return;
-    _renderRequerimentos(lista);
-    return;
+  } else {
+    const emails = await api('GET', '/notificacoes/emails');
+    const emailsAtivos = (emails||[]).filter(e=>e.ativo);
+    _podeCriarReq   = emailsAtivos.some(e=>e.tipo==='requerimento'         && e.email===S.email);
+    _podeAprovarReq = emailsAtivos.some(e=>e.tipo==='requerimento_decisao' && e.email===S.email);
   }
-  const [lista, emails] = await Promise.all([
-    api('GET', '/requerimentos/'),
-    api('GET', '/notificacoes/emails'),
-  ]);
-  if(!lista) return;
-  const emailsAtivos = (emails||[]).filter(e=>e.ativo);
-  _podeCriarReq   = emailsAtivos.some(e=>e.tipo==='requerimento'         && e.email===S.email);
-  _podeAprovarReq = emailsAtivos.some(e=>e.tipo==='requerimento_decisao' && e.email===S.email);
-  $('btn-novo-req')&&($('btn-novo-req').style.display = _podeCriarReq ? '' : 'none');
-  _renderRequerimentos(lista);
+  // Badge sempre atualizado
+  const listaReq = await api('GET', '/requerimentos/');
+  if(!listaReq) return;
+  _atualizarBadgeReq(listaReq);
+
+  // Exibir botões corretos conforme sub-aba ativa
+  const btnReq = $('btn-novo-req');
+  const btnSol = $('btn-nova-sol');
+  if(_reqTabAtual === 'req'){
+    if(btnReq) btnReq.style.display = _podeCriarReq ? '' : 'none';
+    if(btnSol) btnSol.style.display = 'none';
+    _renderRequerimentos(listaReq);
+  } else {
+    if(btnReq) btnReq.style.display = 'none';
+    if(btnSol) btnSol.style.display = S.grupo !== 'viewer' ? '' : 'none';
+    carregarSolicitacoes();
+  }
 }
 
 function _badgeReq(status){
@@ -2633,6 +2650,185 @@ async function importarExcelReq(input){
 }
 
 // ═══════════════════════════════════════════════════
+// Relatórios
+// ═══════════════════════════════════════════════════
+function carregarRelatorios(){
+  const agora = new Date();
+  const sel = $('rel-nfe-mes');
+  const selAno = $('rel-nfe-ano');
+  if(sel) sel.value = String(agora.getMonth()+1);
+  if(selAno) selAno.value = String(agora.getFullYear());
+  $('rel-nfe-resultado').innerHTML = '';
+}
+
+async function carregarRelatorioNfe(){
+  const mes = parseInt($('rel-nfe-mes').value);
+  const ano = parseInt($('rel-nfe-ano').value);
+  if(!mes || !ano){ toast('Selecione mês e ano','error'); return; }
+  const resultado = $('rel-nfe-resultado');
+  resultado.innerHTML = '<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  const data = await api('GET', `/relatorios/entradas-nfe?mes=${mes}&ano=${ano}`);
+  if(!data){ resultado.innerHTML=''; return; }
+  if(!data.length){
+    resultado.innerHTML = '<div style="padding:16px;color:var(--muted)">Nenhuma entrada via NF-e no período.</div>';
+    return;
+  }
+  const totalGeral = data.reduce((acc,r)=>acc+r.subtotal,0);
+  resultado.innerHTML = `
+    <div class="table-scroll" style="margin-top:16px">
+      <table>
+        <thead><tr>
+          <th>NF-e</th><th>Material</th><th>Categoria</th>
+          <th style="text-align:right">Qtd</th>
+          <th style="text-align:right">Valor Unit.</th>
+          <th style="text-align:right">Subtotal</th>
+          <th>Data</th>
+        </tr></thead>
+        <tbody>
+          ${data.map(r=>`<tr>
+            <td style="font-size:12px">${esc(r.nf_numero||'—')}</td>
+            <td>${esc(r.material_nome)}</td>
+            <td style="font-size:12px;color:var(--muted)">${esc(r.categoria_nome)}</td>
+            <td style="text-align:right">${Number(r.quantidade).toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(r.unidade)}</td>
+            <td style="text-align:right">${r.valor_unitario>0?'R$ '+r.valor_unitario.toFixed(2):'—'}</td>
+            <td style="text-align:right;font-weight:600">${r.subtotal>0?'R$ '+r.subtotal.toFixed(2):'—'}</td>
+            <td style="font-size:12px;color:var(--muted)">${fmtDT(r.criado_em)}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot><tr style="background:var(--bg)">
+          <td colspan="5" style="padding:10px 14px;font-weight:700;font-size:13px">Total do período</td>
+          <td style="padding:10px 14px;text-align:right;font-weight:700;font-size:13px">R$ ${totalGeral.toFixed(2)}</td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// Solicitações de Estoque
+// ═══════════════════════════════════════════════════
+let _reqTabAtual = 'req';   // 'req' | 'sol'
+
+function switchReqTab(tab){
+  _reqTabAtual = tab;
+  ['req','sol'].forEach(t=>{
+    const btn   = $('tab-btn-'+t);
+    const panel = $('tab-panel-'+t);
+    const isActive = t === tab;
+    if(btn)   btn.classList.toggle('active', isActive);
+    if(panel) panel.style.display = isActive ? '' : 'none';
+  });
+  // Mostra o botão de ação correto
+  const btnReq = $('btn-novo-req');
+  const btnSol = $('btn-nova-sol');
+  if(tab === 'req'){
+    if(btnReq) btnReq.style.display = _podeCriarReq ? '' : 'none';
+    if(btnSol) btnSol.style.display = 'none';
+    carregarRequerimentos();
+  } else {
+    if(btnReq) btnReq.style.display = 'none';
+    if(btnSol) btnSol.style.display = '';
+    carregarSolicitacoes();
+  }
+}
+
+async function carregarSolicitacoes(){
+  const isAdmin = S.grupo === 'admin' || S.grupo === 'mestre';
+  if(S.grupo === 'viewer'){ return; }
+  const lista = await api('GET', '/solicitacoes/');
+  if(!lista) return;
+  const tbody = $('sol-body');
+  if(!tbody) return;
+  if(!lista.length){
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><span>📦</span>Nenhuma solicitação cadastrada</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(s=>{
+    const badgeCls = s.status === 'aprovado' ? 'badge-ok' : s.status === 'rejeitado' ? 'badge-alert' : '';
+    const badgeSty = s.status === 'rejeitado' ? 'style="background:#FDECEA;color:var(--danger)"' : '';
+    const badgeTxt = s.status === 'aguardando' ? '<span class="badge" style="background:#FFF3CD;color:#856404;font-weight:600">Aguardando</span>'
+                   : s.status === 'aprovado'   ? '<span class="badge badge-ok">Aprovado</span>'
+                   :                             '<span class="badge badge-alert" style="background:#FDECEA;color:var(--danger)">Rejeitado</span>';
+    const acoes = isAdmin && s.status === 'aguardando'
+      ? `<button class="btn btn-primary btn-sm" onclick="aprovarSolicitacao(${s.id})">Aprovar</button>
+         <button class="btn btn-danger btn-sm" onclick="rejeitarSolicitacao(${s.id})">Rejeitar</button>`
+      : s.observacao ? `<span style="font-size:12px;color:var(--muted)" title="${esc(s.observacao)}">obs.</span>` : '—';
+    return `<tr>
+      <td><strong>${esc(s.material_nome)}</strong></td>
+      <td style="font-size:12px;color:var(--muted)">${esc(s.ativo_nome||'—')}</td>
+      <td style="text-align:right">${Number(s.quantidade).toLocaleString('pt-BR',{maximumFractionDigits:2})}</td>
+      <td style="font-size:12px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.motivo)}</td>
+      <td class="hide-mobile" style="font-size:12px;color:var(--muted)">${esc(s.criador_nome||'—')}</td>
+      <td>${badgeTxt}</td>
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">${acoes}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function abrirNovaSolicitacao(){
+  // Carrega lista de materiais ativos
+  const mats = await api('GET', '/materiais/');
+  if(!mats) return;
+  const ativos = await api('GET', '/ativos/');
+  const sel = $('sol-material-id');
+  const selAtivo = $('sol-ativo-id');
+  if(sel){
+    sel.innerHTML = '<option value="">-- Selecione o material --</option>'
+      + mats.filter(m=>m.ativo&&m.quantidade>0).map(m=>
+          `<option value="${m.id}">${esc(m.nome)} (${Number(m.quantidade).toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(m.unidade)})</option>`
+        ).join('');
+  }
+  if(selAtivo){
+    selAtivo.innerHTML = '<option value="">-- Nenhum / Sem ativo --</option>'
+      + (ativos||[]).filter(a=>a.ativo).map(a=>
+          `<option value="${a.id}">${esc(a.nome)}</option>`
+        ).join('');
+  }
+  $('sol-quantidade').value = '1';
+  $('sol-motivo').value = '';
+  abrirModal('modal-nova-sol');
+}
+
+async function criarSolicitacao(){
+  const material_id = parseInt($('sol-material-id').value);
+  const ativo_id_v  = $('sol-ativo-id').value;
+  const ativo_id    = ativo_id_v ? parseInt(ativo_id_v) : null;
+  const quantidade  = parseFloat($('sol-quantidade').value);
+  const motivo      = $('sol-motivo').value.trim();
+  if(!material_id){ toast('Selecione um material','error'); return; }
+  if(!quantidade || quantidade <= 0){ toast('Quantidade inválida','error'); return; }
+  if(!motivo){ toast('Informe o motivo','error'); return; }
+  const body = { material_id, quantidade, motivo };
+  if(ativo_id) body.ativo_id = ativo_id;
+  const r = await api('POST', '/solicitacoes/', body);
+  if(r){
+    fecharModal('modal-nova-sol');
+    toast('Solicitação criada!');
+    carregarSolicitacoes();
+  }
+}
+
+async function aprovarSolicitacao(id){
+  if(!confirm('Aprovar esta solicitação? O material será debitado do estoque.')) return;
+  const r = await api('POST', `/solicitacoes/${id}/aprovar`, {});
+  if(r){
+    const msg = r.ativo_nome
+      ? `Aprovado! ${r.material_nome} atribuído a ${r.ativo_nome}`
+      : `Aprovado! ${r.material_nome} retirado do estoque`;
+    toast(msg);
+    carregarSolicitacoes();
+  }
+}
+
+async function rejeitarSolicitacao(id){
+  const obs = prompt('Motivo da rejeição (obrigatório):');
+  if(obs === null) return;
+  if(!obs.trim()){ toast('Informe o motivo da rejeição','error'); return; }
+  const r = await api('POST', `/solicitacoes/${id}/rejeitar`, { observacao: obs.trim() });
+  if(r){ toast('Solicitação rejeitada'); carregarSolicitacoes(); }
+}
+
+// ═══════════════════════════════════════════════════
 // Polling — sincronização entre abas/usuários
 // ═══════════════════════════════════════════════════
 let _paginaAtual  = 'dashboard';
@@ -2642,11 +2838,11 @@ const _POLL_MS    = 20_000;
 
 // Quais entidades cada página monitora, e qual função recarrega
 const _pollCfg = {
-  dashboard:    { watch: ['materiais','movimentacoes'], fn: ()=> carregarDashboard() },
-  materiais:    { watch: ['materiais'],                 fn: ()=> carregarMateriais() },
-  retiradas:    { watch: ['movimentacoes'],             fn: ()=> carregarRetiradas() },
-  requerimentos:{ watch: ['requerimentos'],             fn: ()=> carregarRequerimentos() },
-  ativos:       { watch: ['ativos'],                    fn: ()=> carregarAtivos() },
+  dashboard:    { watch: ['materiais','movimentacoes'],              fn: ()=> carregarDashboard() },
+  materiais:    { watch: ['materiais'],                              fn: ()=> carregarMateriais() },
+  retiradas:    { watch: ['movimentacoes'],                          fn: ()=> carregarRetiradas() },
+  requerimentos:{ watch: ['requerimentos','solicitacoes'],           fn: ()=> carregarRequerimentos() },
+  ativos:       { watch: ['ativos'],                                 fn: ()=> carregarAtivos() },
 };
 
 async function _doPoll(){

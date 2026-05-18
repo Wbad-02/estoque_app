@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, field_validator
-from models import GrupoPermissao
+from models import GrupoPermissao, StatusUnidade
 import re
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -176,6 +176,7 @@ class MaterialOut(BaseModel):
     grupo: GrupoOut; ativo: bool; alerta_minimo: bool = False
     usa_patrimonio: bool = False
     valor_unitario: Optional[float] = None
+    valor_total: float = 0.0
     tag: Optional[str] = None
     criado_em: datetime; atualizado_em: datetime
     ultima_retirada: Optional[datetime] = None
@@ -189,6 +190,15 @@ class MaterialOut(BaseModel):
         data.usa_patrimonio  = bool(obj.usa_patrimonio)
         data.valor_unitario  = obj.valor_unitario
         data.tag             = obj.tag
+        if obj.usa_patrimonio:
+            # Comparar com o Enum garante consistência mesmo se o valor interno mudar
+            data.valor_total = sum(
+                u.valor_unitario or 0.0
+                for u in obj.unidades
+                if u.status == StatusUnidade.ativo
+            )
+        else:
+            data.valor_total = (obj.valor_unitario or 0.0) * obj.quantidade
         return data
 
 
@@ -490,4 +500,44 @@ class RequerimentoOut(BaseModel):
     aprovador_nome: str = ""
     total: float = 0.0
     itens: list[ItemRequerimentoOut] = []
+    model_config = {"from_attributes": True}
+
+
+# ── Solicitacao de Estoque ─────────────────────────────────────
+class SolicitacaoCreate(BaseModel):
+    material_id: int
+    ativo_id:    Optional[int] = None
+    quantidade:  float = 1.0
+    motivo:      str
+
+    @field_validator("quantidade")
+    @classmethod
+    def qtd_positiva(cls, v):
+        if v <= 0:
+            raise ValueError("Quantidade deve ser maior que zero")
+        return v
+
+    @field_validator("motivo")
+    @classmethod
+    def motivo_valido(cls, v):
+        v = v.strip()
+        if not v:
+            raise ValueError("Motivo é obrigatório")
+        return v
+
+class AprovarSolicitacaoBody(BaseModel):
+    observacao: Optional[str] = None
+
+class RejeitarSolicitacaoBody(BaseModel):
+    observacao: str
+
+class SolicitacaoOut(BaseModel):
+    id: int; material_id: int; ativo_id: Optional[int]
+    quantidade: float; motivo: str; status: str
+    criado_em: datetime; atualizado_em: datetime
+    observacao: Optional[str] = None
+    criador_nome:   str = ""
+    decididor_nome: str = ""
+    material_nome:  str = ""
+    ativo_nome:     str = ""
     model_config = {"from_attributes": True}

@@ -157,6 +157,7 @@ class Movimentacao(Base):
     observacao     = Column(Text, nullable=True)
     valor_unitario = Column(Float, nullable=True)                 # valor na época da entrada
     tag            = Column(String(10), nullable=True)            # "novo" | "usado" (lotes)
+    nf_numero      = Column(String(50), nullable=True)
     criado_em      = Column(DateTime, default=agora)
     material = relationship("Material", back_populates="movimentacoes")
     usuario  = relationship("Usuario",  back_populates="movimentacoes")
@@ -272,6 +273,31 @@ class ItemRequerimento(Base):
     quantidade      = Column(Float, nullable=False, default=1.0)
     valor           = Column(Float, nullable=False)
     requerimento    = relationship("Requerimento", back_populates="itens")
+
+
+class StatusSolicitacao(str, enum.Enum):
+    aguardando = "aguardando"
+    aprovado   = "aprovado"
+    rejeitado  = "rejeitado"
+
+
+class SolicitacaoEstoque(Base):
+    __tablename__ = "solicitacoes_estoque"
+    id            = Column(Integer, primary_key=True, index=True)
+    material_id   = Column(Integer, ForeignKey("materiais.id"), nullable=False)
+    ativo_id      = Column(Integer, ForeignKey("ativos.id"), nullable=True)
+    quantidade    = Column(Float, nullable=False, default=1.0)
+    motivo        = Column(Text, nullable=False)
+    status        = Column(Enum(StatusSolicitacao), default=StatusSolicitacao.aguardando)
+    criado_por    = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    decidido_por  = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    observacao    = Column(Text, nullable=True)
+    criado_em     = Column(DateTime, default=agora)
+    atualizado_em = Column(DateTime, default=agora, onupdate=agora)
+    material   = relationship("Material",  foreign_keys=[material_id])
+    ativo      = relationship("Ativo",     foreign_keys=[ativo_id])
+    criador    = relationship("Usuario",   foreign_keys=[criado_por])
+    decididor  = relationship("Usuario",   foreign_keys=[decidido_por])
 
 
 class NfeImportada(Base):

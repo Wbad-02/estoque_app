@@ -205,13 +205,15 @@ async def confirmar_importacao(
             db.flush()
             criados.append({"nome": mat.nome, "qtd": qtd})
 
+        nfe_numero = dados["nf_numero"]
         mov = models.Movimentacao(
             material_id=mat.id,
             usuario_id=atual.id,
             tipo="entrada",
             quantidade=qtd,
             valor_unitario=valor_unit,
-            observacao=f"NF-e {dados['nf_numero']} | {dados['emitente']['nome']}",
+            nf_numero=nfe_numero,
+            observacao=f"NF-e {nfe_numero} | {dados['emitente']['nome']}",
         )
         db.add(mov)
         db.flush()

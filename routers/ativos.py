@@ -103,13 +103,22 @@ def remover(ativo_id: int, db: Session = Depends(get_db),
                 ).first()
                 if unidade:
                     unidade.tag = "usado"
+                    unidade.valor_unitario = 0.0  # perde o valor ao retornar ao estoque como usado
+            else:
+                # Material sem patrimônio: sync_qty não restaura — deve somar manualmente
+                mat_sem_pat = db.query(models.Material).filter(
+                    models.Material.id == item.material_id
+                ).first()
+                if mat_sem_pat and not mat_sem_pat.usa_patrimonio:
+                    mat_sem_pat.quantidade += item.quantidade
             item.devolvido_em = agora()
             mats_afetados.add(item.material_id)
 
     db.flush()
     for mat_id in mats_afetados:
         mat = db.query(models.Material).filter(models.Material.id == mat_id).first()
-        if mat:
+        if mat and mat.usa_patrimonio:
+            # sync_qty só é válido para materiais com patrimônio
             sync_qty(mat, db)
 
     obj.ativo = False
@@ -191,10 +200,15 @@ def devolver_material(ativo_id: int, item_id: int,
         ).first()
         if unidade:
             unidade.tag = "usado"
+            unidade.valor_unitario = 0.0  # perde o valor ao retornar ao estoque como usado
+    elif mat and not mat.usa_patrimonio:
+        # Material sem patrimônio: sync_qty não restaura — soma a quantidade devolvida
+        mat.quantidade += item.quantidade
 
     item.devolvido_em = agora()
     db.flush()
-    if mat:
+    if mat and mat.usa_patrimonio:
+        # sync_qty só é válido para materiais com patrimônio
         sync_qty(mat, db)
     db.commit()
     registrar_log(db, atual.id, "devolver", "ativo_item", item_id,

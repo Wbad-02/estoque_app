@@ -8,10 +8,10 @@ from sqlalchemy import func
 from database import engine, get_db, Base
 from auth import verificar_senha, criar_token, hash_senha, registrar_log, get_usuario_atual
 from middleware_seguranca import MiddlewareSeguranca, REDES_PERMITIDAS, WHITELIST_IP_ATIVA
-from routers import usuarios, categorias, materiais, relatorios, grupos, importacao, retiradas, patrimonio, ativos, ativos_categorias, notificacoes, motivos, requerimentos
+from routers import usuarios, categorias, materiais, relatorios, grupos, importacao, retiradas, patrimonio, ativos, ativos_categorias, notificacoes, motivos, requerimentos, solicitacoes
 import models, schemas
 
-APP_VERSION = "3.2.0"
+APP_VERSION = "3.3.0"
 
 Base.metadata.create_all(bind=engine)
 
@@ -55,6 +55,7 @@ app.include_router(ativos.router)
 app.include_router(notificacoes.router)
 app.include_router(motivos.router)
 app.include_router(requerimentos.router)
+app.include_router(solicitacoes.router)
 
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
@@ -168,6 +169,7 @@ def poll_estado(
         "movimentacoes": max_ts(models.Movimentacao.criado_em),
         "requerimentos": max_ts(models.Requerimento.atualizado_em),
         "ativos":        max_ts(models.AtivoItem.atribuido_em),
+        "solicitacoes":  max_ts(models.SolicitacaoEstoque.atualizado_em),
     }
 
 

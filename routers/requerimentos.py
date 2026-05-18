@@ -129,7 +129,7 @@ def criar_requerimento(
     db.refresh(req)
 
     req = _load(req.id, db)
-    total = sum(i.valor for i in req.itens)
+    total = sum((i.quantidade or 1.0) * i.valor for i in req.itens)
 
     registrar_log(db, atual.id, "criar", "requerimento", req.id, payload.titulo)
 

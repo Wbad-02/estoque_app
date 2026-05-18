@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from database import get_db
-from auth import get_usuario_atual, requer_admin
+from auth import get_usuario_atual, requer_admin, requer_editor_ou_admin
 import models
 
 from reportlab.lib.pagesizes import A4
@@ -275,7 +275,8 @@ def exportar_saidas_pdf(
     elements = []
     titulo = "Relatório de Saídas de Estoque"
     if motivo:
-        titulo += f" — {{'colaborador':'Colaborador','defeito':'Defeito'}}.get(motivo, motivo)"
+        _motivo_label = {'colaborador': 'Colaborador', 'defeito': 'Defeito'}
+        titulo += f" — {_motivo_label.get(motivo, motivo)}"
     elements.append(Paragraph(titulo, title_style))
     elements.append(Paragraph(f"Gerado em {_agora_br().strftime('%d/%m/%Y às %H:%M')}", sub_style))
     elements.append(Spacer(1, 0.4*cm))
@@ -501,3 +502,52 @@ def exportar_notificacoes_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+# ── Relatório de Entradas por NF-e ───────────────────────────
+
+@router.get("/entradas-nfe")
+def relatorio_entradas_nfe(
+    mes: int,
+    ano: int,
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(requer_editor_ou_admin),
+):
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import func
+
+    movs = (
+        db.query(models.Movimentacao)
+        .options(
+            joinedload(models.Movimentacao.material).joinedload(models.Material.grupo).joinedload(models.GrupoMaterial.categoria),
+        )
+        .filter(
+            models.Movimentacao.tipo == "entrada",
+            models.Movimentacao.nf_numero.isnot(None),
+            func.strftime("%m", models.Movimentacao.criado_em) == f"{mes:02d}",
+            func.strftime("%Y", models.Movimentacao.criado_em) == str(ano),
+        )
+        .order_by(models.Movimentacao.criado_em.asc())
+        .all()
+    )
+
+    resultado = []
+    for m in movs:
+        mat = m.material
+        grupo = mat.grupo if mat else None
+        categoria = grupo.categoria if grupo else None
+        quantidade = m.quantidade or 0.0
+        valor_unit = m.valor_unitario or 0.0
+        resultado.append({
+            "nf_numero":      m.nf_numero,
+            "material_nome":  mat.nome if mat else "",
+            "categoria_nome": categoria.nome if categoria else "",
+            "grupo_nome":     grupo.nome if grupo else "",
+            "quantidade":     quantidade,
+            "unidade":        mat.unidade if mat else "",
+            "valor_unitario": valor_unit,
+            "subtotal":       round(quantidade * valor_unit, 2),
+            "criado_em":      m.criado_em.isoformat(),
+        })
+
+    return resultado

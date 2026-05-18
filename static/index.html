@@ -16,9 +16,9 @@
     <div style="font-size:36px;margin-bottom:16px">📦</div>
     <h1>Controle de Estoque</h1>
     <p>Acesso restrito à rede interna</p>
-    <div class="form-group"><label>E-mail</label>
+    <div class="form-group"><label for="login-email">E-mail</label>
       <input type="email" id="login-email" placeholder="admin@estoque.local" autocomplete="username"/></div>
-    <div class="form-group"><label>Senha</label>
+    <div class="form-group"><label for="login-senha">Senha</label>
       <input type="password" id="login-senha" placeholder="••••••" autocomplete="current-password"/></div>
     <div id="login-error" style="color:var(--danger);font-size:13px;margin-bottom:12px;display:none"></div>
     <button class="btn btn-primary" style="width:100%" onclick="withBtn(this,fazerLogin)">Entrar</button>
@@ -29,8 +29,8 @@
 </div>
 
 <!-- TOPBAR MOBILE -->
-<div class="sidebar-overlay" id="sidebar-overlay" onclick="fecharSidebar()"></div>
-<div class="topbar" id="topbar" style="display:none">
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="fecharSidebar()" role="presentation"></div>
+<div class="topbar" id="topbar" aria-label="Barra de navegação móvel" style="display:none">
   <button class="btn-hamburger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
   <span class="topbar-title">📦 Estoque</span>
   <span class="topbar-badge" id="topbar-badge">0</span>
@@ -220,35 +220,34 @@
       <div class="table-wrap editor-only" style="padding:20px;margin-bottom:20px">
         <h3 style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:16px">Registrar retirada</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end">
-          <div class="form-group" style="margin:0"><label>Categoria</label>
+          <div class="form-group" style="margin:0"><label for="ret-cat">Categoria</label>
             <select id="ret-cat" onchange="carregarGruposRet()">
               <option value="">Selecione…</option>
             </select></div>
-          <div class="form-group" style="margin:0"><label>Grupo</label>
+          <div class="form-group" style="margin:0"><label for="ret-grp">Grupo</label>
             <select id="ret-grp" onchange="carregarMateriaisRet()">
               <option value="">Selecione…</option>
             </select></div>
-          <div class="form-group" style="margin:0"><label>Material</label>
+          <div class="form-group" style="margin:0"><label for="ret-mat">Material</label>
             <select id="ret-mat" onchange="mostrarEstoqueAtual()">
               <option value="">Selecione…</option>
             </select></div>
-          <div class="form-group" style="margin:0"><label>Unidade *</label>
+          <div class="form-group" style="margin:0"><label for="ret-unidade">Unidade *</label>
             <select id="ret-unidade"><option value="">—</option></select></div>
           <div class="form-group" style="margin:0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-              <label style="margin:0">Motivo *</label>
-              <button class="btn btn-secondary btn-sm" onclick="abrirModalMotivo()" style="font-size:11px;padding:2px 8px">+ Gerenciar</button>
+              <label for="ret-motivo" style="margin:0">Motivo *</label>
+              <button class="btn btn-secondary btn-sm" onclick="abrirModalMotivo()" title="Gerenciar motivos personalizados" style="font-size:11px;padding:2px 8px">+ Gerenciar</button>
             </div>
             <select id="ret-motivo">
               <option value="colaborador">Atribuído a colaborador</option>
               <option value="defeito">Defeito / Ruim</option>
             </select>
           </div>
-          <div class="form-group" style="margin:0"><label>Observação</label>
+          <div class="form-group" style="margin:0"><label for="ret-obs">Observação</label>
             <input type="text" id="ret-obs" placeholder="Colaborador, chamado…"/></div>
           <div style="display:flex;flex-direction:column;gap:6px">
-            <div id="ret-estoque-info" style="display:none;background:#F0F4F2;border-radius:8px;
-              padding:8px 10px;font-size:12px;color:var(--green)"></div>
+            <div id="ret-estoque-info" class="info-box" style="display:none;font-size:12px"></div>
             <button class="btn btn-danger" style="width:100%" onclick="withBtn(this,registrarRetirada)">↓ Confirmar retirada</button>
           </div>
         </div>
@@ -292,13 +291,13 @@
         <div class="table-wrap" style="padding:24px">
           <h3 id="usr-form-title" style="font-size:16px;color:var(--green);margin-bottom:20px">Novo usuário</h3>
           <input type="hidden" id="usr-id"/>
-          <div class="form-group"><label>Nome *</label>
+          <div class="form-group"><label for="usr-nome">Nome *</label>
             <input type="text" id="usr-nome"/></div>
-          <div class="form-group"><label>E-mail *</label>
+          <div class="form-group"><label for="usr-email">E-mail *</label>
             <input type="email" id="usr-email" placeholder="usuario@empresa.local"/></div>
-          <div class="form-group" id="usr-senha-wrap"><label>Senha * <span style="font-weight:400;font-size:11px">(mín. 6 car.)</span></label>
+          <div class="form-group" id="usr-senha-wrap"><label for="usr-senha">Senha * <span style="font-weight:400;font-size:11px">(mín. 6 car.)</span></label>
             <input type="password" id="usr-senha"/></div>
-          <div class="form-group"><label>Grupo de permissão</label>
+          <div class="form-group"><label for="usr-grupo">Grupo de permissão</label>
             <select id="usr-grupo">
               <option value="viewer">Viewer – somente leitura</option>
               <option value="editor">Editor – edição de materiais</option>
@@ -403,9 +402,9 @@
           <div class="table-wrap" style="padding:20px">
             <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Retiradas</h3>
             <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Use {material}, {quantidade}, {usuario}, {data}, {motivo}, {observacao}</p>
-            <div class="form-group"><label>Assunto</label>
+            <div class="form-group"><label for="notif-tpl-retirada-assunto">Assunto</label>
               <input type="text" id="notif-tpl-retirada-assunto"/></div>
-            <div class="form-group"><label>Corpo</label>
+            <div class="form-group"><label for="notif-tpl-retirada-corpo">Corpo</label>
               <textarea id="notif-tpl-retirada-corpo" rows="6" style="resize:vertical"></textarea></div>
             <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('retirada'))">Salvar template</button>
           </div>
@@ -426,9 +425,9 @@
           <div class="table-wrap" style="padding:20px">
             <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Entradas</h3>
             <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Use {material}, {quantidade}, {usuario}, {data}</p>
-            <div class="form-group"><label>Assunto</label>
+            <div class="form-group"><label for="notif-tpl-entrada-assunto">Assunto</label>
               <input type="text" id="notif-tpl-entrada-assunto"/></div>
-            <div class="form-group"><label>Corpo</label>
+            <div class="form-group"><label for="notif-tpl-entrada-corpo">Corpo</label>
               <textarea id="notif-tpl-entrada-corpo" rows="6" style="resize:vertical"></textarea></div>
             <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('entrada'))">Salvar template</button>
           </div>
@@ -453,9 +452,9 @@
           <div class="table-wrap" style="padding:20px">
             <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Alertas</h3>
             <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Use {material}, {quantidade}, {minimo}, {grupo}, {data}</p>
-            <div class="form-group"><label>Assunto</label>
+            <div class="form-group"><label for="notif-tpl-alerta-assunto">Assunto</label>
               <input type="text" id="notif-tpl-alerta-assunto"/></div>
-            <div class="form-group"><label>Corpo</label>
+            <div class="form-group"><label for="notif-tpl-alerta-corpo">Corpo</label>
               <textarea id="notif-tpl-alerta-corpo" rows="6" style="resize:vertical"></textarea></div>
             <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('alerta'))">Salvar template</button>
           </div>
@@ -476,9 +475,9 @@
           <div class="table-wrap" style="padding:20px">
             <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Novo requerimento</h3>
             <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Variáveis: {titulo}, {criador}, {total}, {itens_count}, {link}</p>
-            <div class="form-group"><label>Assunto</label>
+            <div class="form-group"><label for="notif-tpl-requerimento-assunto">Assunto</label>
               <input type="text" id="notif-tpl-requerimento-assunto"/></div>
-            <div class="form-group"><label>Corpo</label>
+            <div class="form-group"><label for="notif-tpl-requerimento-corpo">Corpo</label>
               <textarea id="notif-tpl-requerimento-corpo" rows="6" style="resize:vertical"></textarea></div>
             <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('requerimento'))">Salvar template</button>
           </div>
@@ -495,9 +494,9 @@
           <div class="table-wrap" style="padding:20px">
             <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Decisão</h3>
             <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Variáveis: {titulo}, {status}, {aprovador}, {observacao}</p>
-            <div class="form-group"><label>Assunto</label>
+            <div class="form-group"><label for="notif-tpl-requerimento_decisao-assunto">Assunto</label>
               <input type="text" id="notif-tpl-requerimento_decisao-assunto"/></div>
-            <div class="form-group"><label>Corpo</label>
+            <div class="form-group"><label for="notif-tpl-requerimento_decisao-corpo">Corpo</label>
               <textarea id="notif-tpl-requerimento_decisao-corpo" rows="6" style="resize:vertical"></textarea></div>
             <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('requerimento_decisao'))">Salvar template</button>
           </div>
@@ -511,25 +510,25 @@
             <h3 style="font-size:14px;color:var(--green);margin-bottom:4px">Servidor de e-mail (SMTP)</h3>
             <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Configurações usadas para envio de todas as notificações.</p>
             <div class="form-group">
-              <label>Host</label>
+              <label for="smtp-host">Host</label>
               <input type="text" id="smtp-host" placeholder="smtp.gmail.com"/>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div class="form-group">
-                <label>Porta</label>
+                <label for="smtp-porta">Porta</label>
                 <input type="number" id="smtp-porta" placeholder="587"/>
               </div>
               <div class="form-group">
-                <label>Remetente</label>
+                <label for="smtp-remetente">Remetente</label>
                 <input type="text" id="smtp-remetente" placeholder="sistema@empresa.com"/>
               </div>
             </div>
             <div class="form-group">
-              <label>Usuário (login)</label>
+              <label for="smtp-usuario">Usuário (login)</label>
               <input type="text" id="smtp-usuario" placeholder="seuemail@gmail.com"/>
             </div>
             <div class="form-group">
-              <label>Senha</label>
+              <label for="smtp-senha">Senha</label>
               <input type="password" id="smtp-senha" placeholder="Senha ou senha de app"/>
             </div>
             <div style="display:flex;gap:20px;margin-bottom:16px">
@@ -556,80 +555,114 @@
       <div class="page-header"><h2>Relatórios</h2></div>
 
       <!-- Seção: Estoque -->
-      <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:12px">Estoque</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:28px">
-        <div class="table-wrap" style="padding:22px">
-          <h3 style="margin-bottom:6px;font-size:15px;color:var(--green)">Estoque completo</h3>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:18px">Todos os materiais ativos com categorias, grupos e quantidades.</p>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn btn-primary" onclick="exportar('excel',false)">⬇ Excel</button>
-            <button class="btn btn-secondary" onclick="exportar('pdf',false)">⬇ PDF</button>
+      <p class="rel-section-label">Estoque</p>
+      <div class="rel-card-grid">
+        <div class="table-wrap rel-card">
+          <h3>Estoque completo</h3>
+          <p>Todos os materiais ativos com categorias, grupos e quantidades.</p>
+          <div class="rel-actions">
+            <button class="btn btn-primary" onclick="exportar('excel',false)" title="Exportar estoque completo para Excel">⬇ Excel</button>
+            <button class="btn btn-secondary" onclick="exportar('pdf',false)" title="Exportar estoque completo para PDF">⬇ PDF</button>
           </div>
         </div>
-        <div class="table-wrap" style="padding:22px">
-          <h3 style="margin-bottom:6px;font-size:15px;color:var(--warn)">Apenas alertas</h3>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:18px">Itens abaixo ou igual ao mínimo do grupo.</p>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn btn-gold" onclick="exportar('excel',true)">⬇ Excel</button>
-            <button class="btn btn-secondary" onclick="exportar('pdf',true)">⬇ PDF</button>
+        <div class="table-wrap rel-card">
+          <h3 style="color:var(--warn)">Apenas alertas</h3>
+          <p>Itens abaixo ou igual ao mínimo do grupo.</p>
+          <div class="rel-actions">
+            <button class="btn btn-gold" onclick="exportar('excel',true)" title="Exportar itens em alerta para Excel">⬇ Excel</button>
+            <button class="btn btn-secondary" onclick="exportar('pdf',true)" title="Exportar itens em alerta para PDF">⬇ PDF</button>
           </div>
         </div>
       </div>
 
       <!-- Seção: Movimentações -->
-      <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:12px">Movimentações</p>
+      <p class="rel-section-label">Movimentações</p>
       <div style="margin-bottom:28px">
-        <div class="table-wrap" style="padding:22px">
-          <h3 style="margin-bottom:6px;font-size:15px;color:var(--green)">Saídas</h3>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Histórico de retiradas com filtros por motivo e período.</p>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-            <div style="display:flex;flex-direction:column;gap:4px">
-              <label style="font-size:11px;font-weight:600;color:var(--muted)">Motivo</label>
-              <select id="rel-saida-motivo" style="min-width:190px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px">
+        <div class="table-wrap rel-card">
+          <h3>Saídas</h3>
+          <p>Histórico de retiradas com filtros por motivo e período.</p>
+          <div class="rel-filter-row">
+            <div class="rel-filter-item">
+              <label for="rel-saida-motivo">Motivo</label>
+              <select id="rel-saida-motivo" style="min-width:190px">
                 <option value="">Todos os motivos</option>
                 <option value="colaborador">Atribuído a colaborador</option>
                 <option value="defeito">Defeito / Ruim</option>
               </select>
             </div>
-            <div style="display:flex;flex-direction:column;gap:4px">
-              <label style="font-size:11px;font-weight:600;color:var(--muted)">Data início</label>
-              <input type="date" id="rel-saida-inicio" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px"/>
+            <div class="rel-filter-item">
+              <label for="rel-saida-inicio">Data início</label>
+              <input type="date" id="rel-saida-inicio"/>
             </div>
-            <div style="display:flex;flex-direction:column;gap:4px">
-              <label style="font-size:11px;font-weight:600;color:var(--muted)">Data fim</label>
-              <input type="date" id="rel-saida-fim" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px"/>
+            <div class="rel-filter-item">
+              <label for="rel-saida-fim">Data fim</label>
+              <input type="date" id="rel-saida-fim"/>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn btn-primary" onclick="exportarSaidas('excel')">⬇ Excel</button>
-              <button class="btn btn-secondary" onclick="exportarSaidas('pdf')">⬇ PDF</button>
+            <div class="rel-actions" style="padding-top:20px">
+              <button class="btn btn-primary" onclick="exportarSaidas('excel')" title="Exportar saídas para Excel">⬇ Excel</button>
+              <button class="btn btn-secondary" onclick="exportarSaidas('pdf')" title="Exportar saídas para PDF">⬇ PDF</button>
             </div>
           </div>
         </div>
       </div>
 
+      <!-- Seção: Notas Fiscais -->
+      <p class="rel-section-label">Notas Fiscais</p>
+      <div style="margin-bottom:28px">
+        <div class="table-wrap rel-card">
+          <h3>Materiais por NF-e</h3>
+          <p>Entradas cadastradas via importação de NF-e, filtradas por mês e ano.</p>
+          <div class="rel-filter-row">
+            <div class="rel-filter-item">
+              <label for="rel-nfe-mes">Mês</label>
+              <select id="rel-nfe-mes" style="min-width:140px">
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                <option value="3">Março</option><option value="4">Abril</option>
+                <option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option>
+                <option value="9">Setembro</option><option value="10">Outubro</option>
+                <option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+            </div>
+            <div class="rel-filter-item">
+              <label for="rel-nfe-ano">Ano</label>
+              <select id="rel-nfe-ano" style="min-width:100px">
+                <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
+              </select>
+            </div>
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Ação</label>
+              <button class="btn btn-primary" onclick="carregarRelatorioNfe()">Consultar</button>
+            </div>
+          </div>
+          <div id="rel-nfe-resultado" style="margin-top:12px"></div>
+        </div>
+      </div>
+
       <!-- Seção: Cadastros -->
-      <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:12px">Cadastros</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:28px">
-        <div class="table-wrap" style="padding:22px">
-          <h3 style="margin-bottom:6px;font-size:15px;color:var(--green)">Ativos</h3>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:14px">Lista de ativos com materiais atribuídos.</p>
-          <div style="margin-bottom:14px">
-            <select id="rel-ativos-status" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;width:100%">
+      <p class="rel-section-label">Cadastros</p>
+      <div class="rel-card-grid">
+        <div class="table-wrap rel-card">
+          <h3>Ativos</h3>
+          <p>Lista de ativos com materiais atribuídos.</p>
+          <div class="form-group" style="margin-bottom:14px">
+            <label for="rel-ativos-status">Filtrar por status</label>
+            <select id="rel-ativos-status">
               <option value="ativo">Apenas ativos</option>
               <option value="inativo">Apenas inativos</option>
               <option value="all">Todos</option>
             </select>
           </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn btn-primary" onclick="exportarAtivos('excel')">⬇ Excel</button>
-            <button class="btn btn-secondary" onclick="exportarAtivos('pdf')">⬇ PDF</button>
+          <div class="rel-actions">
+            <button class="btn btn-primary" onclick="exportarAtivos('excel')" title="Exportar ativos para Excel">⬇ Excel</button>
+            <button class="btn btn-secondary" onclick="exportarAtivos('pdf')" title="Exportar ativos para PDF">⬇ PDF</button>
           </div>
         </div>
-        <div class="table-wrap admin-only" style="padding:22px">
-          <h3 style="margin-bottom:6px;font-size:15px;color:var(--green)">Notificações</h3>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:18px">Lista de e-mails cadastrados para notificações por tipo.</p>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn btn-primary" onclick="exportarNotificacoes('excel')">⬇ Excel</button>
+        <div class="table-wrap rel-card admin-only">
+          <h3>Notificações</h3>
+          <p>Lista de e-mails cadastrados para notificações por tipo.</p>
+          <div class="rel-actions">
+            <button class="btn btn-primary" onclick="exportarNotificacoes('excel')" title="Exportar e-mails de notificação para Excel">⬇ Excel</button>
           </div>
         </div>
       </div>
@@ -641,29 +674,101 @@
     <!-- REQUERIMENTOS DE COMPRA -->
     <section id="page-requerimentos" class="page">
       <div class="page-header">
-        <h2>Requerimentos de Compra</h2>
-        <button id="btn-novo-req" class="btn btn-primary editor-only" onclick="abrirNovoRequerimento()">+ Novo requerimento</button>
-      </div>
-      <div class="table-wrap">
-        <div class="table-toolbar">
-          <strong style="font-size:13px">Lista de requerimentos</strong>
+        <h2>Requerimentos</h2>
+        <div style="display:flex;gap:8px">
+          <button id="btn-novo-req" class="btn btn-primary" onclick="abrirNovoRequerimento()" style="display:none">+ Novo requerimento</button>
+          <button id="btn-nova-sol" class="btn btn-primary" onclick="abrirNovaSolicitacao()" style="display:none">+ Nova solicitação</button>
         </div>
-        <table>
-          <thead><tr>
-            <th>Título</th>
-            <th>Total</th>
-            <th class="hide-mobile">Criado por</th>
-            <th class="hide-mobile">Data</th>
-            <th>Status</th>
-            <th>Ações</th>
-          </tr></thead>
-          <tbody id="req-body">
-            <tr><td colspan="6"><div class="empty"><span>📋</span>Carregando…</div></td></tr>
-          </tbody>
-        </table>
       </div>
+
+      <!-- Tabs -->
+      <div class="inner-tabs" style="margin-bottom:20px">
+        <div class="inner-tab active" id="tab-btn-req" onclick="switchReqTab('req')">Requerimentos de Compra</div>
+        <div class="inner-tab editor-only" id="tab-btn-sol" onclick="switchReqTab('sol')">Solicitações de Estoque</div>
+      </div>
+
+      <!-- Panel: Requerimentos -->
+      <div id="tab-panel-req">
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <strong style="font-size:13px">Lista de requerimentos</strong>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Título</th>
+              <th>Total</th>
+              <th class="hide-mobile">Criado por</th>
+              <th class="hide-mobile">Data</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr></thead>
+            <tbody id="req-body">
+              <tr><td colspan="6"><div class="empty"><span>📋</span>Carregando…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Panel: Solicitações -->
+      <div id="tab-panel-sol" style="display:none">
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <strong style="font-size:13px">Solicitações de materiais em estoque</strong>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr>
+                <th>Material</th>
+                <th>Para (Ativo)</th>
+                <th style="text-align:right">Qtd</th>
+                <th>Motivo</th>
+                <th class="hide-mobile">Solicitado por</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr></thead>
+              <tbody id="sol-body">
+                <tr><td colspan="7"><div class="empty"><span>📦</span>Carregando…</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div class="copyright-footer">© Todos os direitos reservados – github.com/Wbad-02</div>
     </section>
+
+    <!-- Modal: Nova Solicitação -->
+    <div id="modal-nova-sol" class="modal-backdrop" style="display:none" onclick="if(event.target===this)fecharModal('modal-nova-sol')">
+      <div class="modal" style="max-width:480px;width:100%">
+        <div class="modal-header">
+          <h3>Nova Solicitação de Estoque</h3>
+          <button class="modal-close" onclick="fecharModal('modal-nova-sol')" aria-label="Fechar modal">✕</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label" for="sol-material-id">Material *</label>
+            <select id="sol-material-id">
+              <option value="">-- Selecione --</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label" for="sol-ativo-id">Para qual Ativo (opcional)</label>
+            <select id="sol-ativo-id">
+              <option value="">-- Nenhum --</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label" for="sol-quantidade">Quantidade *</label>
+            <input type="number" id="sol-quantidade" min="0.01" step="0.01" value="1"/>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label" for="sol-motivo">Motivo *</label>
+            <textarea id="sol-motivo" rows="3" placeholder="Descreva o motivo da solicitação…" style="resize:vertical"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="withBtn(this,criarSolicitacao)">Criar solicitação</button>
+        </div>
+      </div>
+    </div>
 
     <!-- PERFIL -->
     <section id="page-perfil" class="page">
@@ -674,12 +779,12 @@
         <div class="table-wrap" style="padding:28px">
           <h3 style="font-size:15px;color:var(--green);margin-bottom:6px">Dados pessoais</h3>
           <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Atualize seu nome de exibição.</p>
-          <div class="form-group"><label>Nome *</label>
+          <div class="form-group"><label for="perfil-nome">Nome *</label>
             <input type="text" id="perfil-nome"/></div>
-          <div class="form-group"><label>E-mail (não editável)</label>
-            <input type="text" id="perfil-email" disabled style="opacity:.6"/></div>
-          <div class="form-group"><label>Grupo de acesso</label>
-            <input type="text" id="perfil-grupo" disabled style="opacity:.6"/></div>
+          <div class="form-group"><label for="perfil-email">E-mail (não editável)</label>
+            <input type="text" id="perfil-email" disabled/></div>
+          <div class="form-group"><label for="perfil-grupo">Grupo de acesso</label>
+            <input type="text" id="perfil-grupo" disabled/></div>
           <button class="btn btn-primary" onclick="withBtn(this,salvarPerfil)">Salvar nome</button>
         </div>
 
@@ -689,11 +794,11 @@
           <p style="color:var(--muted);font-size:13px;margin-bottom:20px">
             Informe a senha atual para confirmar que é você.
           </p>
-          <div class="form-group"><label>Senha atual *</label>
+          <div class="form-group"><label for="perfil-senha-atual">Senha atual *</label>
             <input type="password" id="perfil-senha-atual" placeholder="••••••"/></div>
-          <div class="form-group"><label>Nova senha * <span style="font-weight:400;font-size:11px">(mín. 6 caracteres)</span></label>
+          <div class="form-group"><label for="perfil-nova-senha">Nova senha * <span style="font-weight:400;font-size:11px">(mín. 6 caracteres)</span></label>
             <input type="password" id="perfil-nova-senha" placeholder="••••••"/></div>
-          <div class="form-group"><label>Confirmar nova senha *</label>
+          <div class="form-group"><label for="perfil-confirma-senha">Confirmar nova senha *</label>
             <input type="password" id="perfil-confirma-senha" placeholder="••••••"/></div>
           <button class="btn btn-primary" onclick="withBtn(this,salvarMinhaSenha)">Alterar senha</button>
         </div>
@@ -710,21 +815,21 @@
   <div class="modal">
     <h3 id="modal-mat-title">Novo material</h3>
     <input type="hidden" id="mat-id"/>
-    <div class="form-group"><label>Nome *</label>
+    <div class="form-group"><label for="mat-nome">Nome *</label>
       <input type="text" id="mat-nome" placeholder="Ex: Mouse Logitech M185"/></div>
-    <div class="form-group"><label>Descrição</label>
+    <div class="form-group"><label for="mat-desc">Descrição</label>
       <input type="text" id="mat-desc" placeholder="Opcional"/></div>
-    <div id="mat-qty-un-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="form-group"><label>Quantidade</label>
+    <div id="mat-qty-un-row" class="form-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label for="mat-qtd">Quantidade</label>
         <input type="number" id="mat-qtd" min="0" step="0.01" value="0"/></div>
-      <div class="form-group"><label>Unidade</label>
+      <div class="form-group"><label for="mat-un">Unidade</label>
         <input type="text" id="mat-un" value="un" placeholder="un, m, kg…"/></div>
     </div>
-    <div class="form-group"><label>Valor unitário (R$) <span style="font-weight:400;font-size:11px;color:var(--muted)">— preço na época do cadastro</span></label>
+    <div class="form-group"><label for="mat-valor">Valor unitário (R$) <span style="font-weight:400;font-size:11px;color:var(--muted)">— preço na época do cadastro</span></label>
       <input type="number" id="mat-valor" min="0" step="0.01" placeholder="0,00"/></div>
-    <div class="form-group"><label>Categoria *</label>
+    <div class="form-group"><label for="mat-cat-sel">Categoria *</label>
       <select id="mat-cat-sel" onchange="carregarGruposModal()"></select></div>
-    <div class="form-group"><label>Grupo *</label>
+    <div class="form-group"><label for="mat-grp-sel">Grupo *</label>
       <select id="mat-grp-sel"></select></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="fecharModal('modal-material')">Cancelar</button>
@@ -738,22 +843,22 @@
   <div class="modal">
     <h3>Adicionar Material</h3>
     <input type="hidden" id="add-mat-id"/>
-    <div class="form-group"><label>Categoria *</label>
+    <div class="form-group"><label for="add-mat-cat">Categoria *</label>
       <select id="add-mat-cat" onchange="carregarGruposAddMat()"></select></div>
-    <div class="form-group"><label>Grupo *</label>
+    <div class="form-group"><label for="add-mat-grp">Grupo *</label>
       <select id="add-mat-grp" onchange="carregarMateriaisAddMat()"></select></div>
-    <div class="form-group"><label>Material *</label>
+    <div class="form-group"><label for="add-mat-sel">Material *</label>
       <select id="add-mat-sel" onchange="preencherCamposAddMat()"></select></div>
-    <div id="add-mat-info" style="display:none;background:#F0F4F2;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:var(--green)"></div>
+    <div id="add-mat-info" class="info-box" style="display:none;margin-bottom:12px"></div>
     <div class="form-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="form-group"><label>Quantidade *</label>
+      <div class="form-group"><label for="add-mat-qtd">Quantidade *</label>
         <input type="number" id="add-mat-qtd" min="0.01" step="0.01" value="1"/></div>
-      <div class="form-group"><label>Unidade</label>
+      <div class="form-group"><label for="add-mat-un">Unidade</label>
         <input type="text" id="add-mat-un" value="un" placeholder="un, m, kg…"/></div>
     </div>
-    <div class="form-group"><label>Valor unitário (R$)</label>
+    <div class="form-group"><label for="add-mat-valor">Valor unitário (R$)</label>
       <input type="number" id="add-mat-valor" min="0" step="0.01" placeholder="0,00"/></div>
-    <div class="form-group"><label>Observação</label>
+    <div class="form-group"><label for="add-mat-obs">Observação</label>
       <input type="text" id="add-mat-obs" placeholder="Nota fiscal, fornecedor…"/></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="fecharModal('modal-add-mat')">Cancelar</button>
@@ -767,13 +872,13 @@
   <div class="modal">
     <h3 id="modal-ativo-title">Novo ativo</h3>
     <input type="hidden" id="ativo-id"/>
-    <div class="form-group"><label>Nome *</label>
+    <div class="form-group"><label for="ativo-nome">Nome *</label>
       <input type="text" id="ativo-nome" placeholder="Ex: João Silva, Notebook TI-05…"/></div>
-    <div class="form-group"><label>Descrição</label>
+    <div class="form-group"><label for="ativo-desc">Descrição</label>
       <input type="text" id="ativo-desc" placeholder="Opcional"/></div>
-    <div class="form-group"><label>Categoria *</label>
+    <div class="form-group"><label for="ativo-cat-sel">Categoria *</label>
       <select id="ativo-cat-sel" onchange="carregarGruposModalAtivo()"></select></div>
-    <div class="form-group"><label>Grupo *</label>
+    <div class="form-group"><label for="ativo-grp-sel">Grupo *</label>
       <select id="ativo-grp-sel"></select></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="fecharModal('modal-ativo')">Cancelar</button>
@@ -787,9 +892,9 @@
   <div class="modal">
     <h3 id="modal-cat-ativo-title">Nova categoria</h3>
     <input type="hidden" id="cat-ativo-id"/>
-    <div class="form-group"><label>Nome *</label>
+    <div class="form-group"><label for="cat-ativo-nome">Nome *</label>
       <input type="text" id="cat-ativo-nome" placeholder="Ex: Funcionários, Departamentos…"/></div>
-    <div class="form-group"><label>Descrição</label>
+    <div class="form-group"><label for="cat-ativo-desc">Descrição</label>
       <input type="text" id="cat-ativo-desc" placeholder="Opcional"/></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="fecharModal('modal-cat-ativo')">Cancelar</button>
@@ -803,9 +908,9 @@
   <div class="modal">
     <h3 id="modal-grp-ativo-title">Editar grupo</h3>
     <input type="hidden" id="grp-ativo-edit-id"/>
-    <div class="form-group"><label>Nome *</label>
+    <div class="form-group"><label for="grp-ativo-edit-nome">Nome *</label>
       <input type="text" id="grp-ativo-edit-nome"/></div>
-    <div class="form-group"><label>Descrição</label>
+    <div class="form-group"><label for="grp-ativo-edit-desc">Descrição</label>
       <input type="text" id="grp-ativo-edit-desc"/></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="fecharModal('modal-grp-ativo')">Cancelar</button>
@@ -819,25 +924,24 @@
   <div class="modal">
     <h3 id="modal-atribuir-title">Atribuir material ao ativo</h3>
     <input type="hidden" id="atribuir-ativo-id"/>
-    <div class="form-group"><label>Categoria</label>
+    <div class="form-group"><label for="atribuir-cat">Categoria</label>
       <select id="atribuir-cat" onchange="carregarGruposAtribuir()">
         <option value="">Selecione…</option>
       </select></div>
-    <div class="form-group"><label>Grupo</label>
+    <div class="form-group"><label for="atribuir-grp">Grupo</label>
       <select id="atribuir-grp" onchange="carregarMateriaisAtribuir()">
         <option value="">Selecione…</option>
       </select></div>
-    <div class="form-group"><label>Material</label>
+    <div class="form-group"><label for="atribuir-mat">Material</label>
       <select id="atribuir-mat" onchange="carregarUnidadesAtribuir()">
         <option value="">Selecione…</option>
       </select></div>
-    <div id="atribuir-estoque-info" style="display:none;background:#F0F4F2;border-radius:8px;
-      padding:10px 12px;margin-bottom:16px;font-size:13px;color:var(--green)"></div>
-    <div class="form-group"><label>Unidade *</label>
+    <div id="atribuir-estoque-info" class="info-box" style="display:none;margin-bottom:16px"></div>
+    <div class="form-group"><label for="atribuir-unidade">Unidade *</label>
       <select id="atribuir-unidade">
         <option value="">Selecione o material primeiro…</option>
       </select></div>
-    <div class="form-group"><label>Observação</label>
+    <div class="form-group"><label for="atribuir-obs">Observação</label>
       <input type="text" id="atribuir-obs" placeholder="Motivo, chamado, observação…"/></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="fecharModal('modal-atribuir')">Cancelar</button>
@@ -853,7 +957,7 @@
     <input type="hidden" id="codigo-mat-id"/>
     <input type="hidden" id="codigo-unidade-id"/>
     <p id="codigo-unidade-info" style="font-size:12px;color:var(--muted);margin-bottom:16px"></p>
-    <div class="form-group"><label>Código *</label>
+    <div class="form-group"><label for="codigo-valor">Código *</label>
       <input type="text" id="codigo-valor" placeholder="ex: TI-001, MON-005, NB2024"
         oninput="this.value=this.value.toUpperCase()"
         onkeydown="if(event.key==='Enter') salvarCodigoInline()"/>
@@ -871,9 +975,9 @@
   <div class="modal">
     <h3 id="modal-cat-title">Nova categoria</h3>
     <input type="hidden" id="cat-id"/>
-    <div class="form-group"><label>Nome *</label>
+    <div class="form-group"><label for="cat-nome">Nome *</label>
       <input type="text" id="cat-nome" placeholder="Ex: Periféricos"/></div>
-    <div class="form-group"><label>Descrição</label>
+    <div class="form-group"><label for="cat-desc">Descrição</label>
       <input type="text" id="cat-desc" placeholder="Opcional"/></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="fecharModal('modal-categoria')">Cancelar</button>
@@ -887,11 +991,11 @@
   <div class="modal">
     <h3 id="modal-grp-title">Editar grupo</h3>
     <input type="hidden" id="grp-edit-id"/>
-    <div class="form-group"><label>Nome *</label>
+    <div class="form-group"><label for="grp-edit-nome">Nome *</label>
       <input type="text" id="grp-edit-nome"/></div>
-    <div class="form-group"><label>Descrição</label>
+    <div class="form-group"><label for="grp-edit-desc">Descrição</label>
       <input type="text" id="grp-edit-desc"/></div>
-    <div class="form-group"><label>Quantidade mínima (0 = sem alerta)</label>
+    <div class="form-group"><label for="grp-edit-min">Quantidade mínima (0 = sem alerta)</label>
       <input type="number" id="grp-edit-min" min="0" step="0.01" value="0"/></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="fecharModal('modal-grupo')">Cancelar</button>
@@ -908,9 +1012,9 @@
     <p style="color:var(--muted);font-size:13px;margin-bottom:20px">
       Como administrador, você pode redefinir a senha sem precisar da senha atual do usuário.
     </p>
-    <div class="form-group"><label>Nova senha * <span style="font-weight:400;font-size:11px">(mín. 6 caracteres)</span></label>
+    <div class="form-group"><label for="senha-admin-nova">Nova senha * <span style="font-weight:400;font-size:11px">(mín. 6 caracteres)</span></label>
       <input type="password" id="senha-admin-nova" placeholder="••••••"/></div>
-    <div class="form-group"><label>Confirmar nova senha *</label>
+    <div class="form-group"><label for="senha-admin-confirma">Confirmar nova senha *</label>
       <input type="password" id="senha-admin-confirma" placeholder="••••••"/></div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="fecharModal('modal-senha-admin')">Cancelar</button>
@@ -1042,7 +1146,7 @@
   <div class="modal" style="max-width:720px">
     <h3>Novo Requerimento de Compra</h3>
     <div class="form-group">
-      <label>Título *</label>
+      <label for="req-titulo">Título *</label>
       <input type="text" id="req-titulo" placeholder="Ex: Compra de material de escritório"/>
     </div>
     <div style="margin-bottom:8px">

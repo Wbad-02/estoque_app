@@ -153,6 +153,32 @@ def migrar():
     else:
         print("   requerimentos_itens.quantidade ja existe -- ok")
 
+    # ── 15. movimentacoes.nf_numero ──────────────────────────────
+    if not coluna_existe("movimentacoes", "nf_numero"):
+        cur.execute("ALTER TABLE movimentacoes ADD COLUMN nf_numero VARCHAR(50)")
+        print("✅ Coluna adicionada: movimentacoes.nf_numero (padrão: NULL)")
+        migracoes += 1
+    else:
+        print("   movimentacoes.nf_numero ja existe -- ok")
+
+    # ── 16. solicitacoes_estoque (nova tabela) ───────────────────
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS solicitacoes_estoque (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            material_id   INTEGER NOT NULL REFERENCES materiais(id),
+            ativo_id      INTEGER REFERENCES ativos(id),
+            quantidade    REAL    NOT NULL DEFAULT 1.0,
+            motivo        TEXT    NOT NULL,
+            status        VARCHAR(20) NOT NULL DEFAULT 'aguardando',
+            criado_por    INTEGER REFERENCES usuarios(id),
+            decidido_por  INTEGER REFERENCES usuarios(id),
+            observacao    TEXT,
+            criado_em     DATETIME DEFAULT CURRENT_TIMESTAMP,
+            atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    print("✅ Tabela solicitacoes_estoque verificada/criada")
+
     conn.commit()
     conn.close()
 

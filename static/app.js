@@ -2754,10 +2754,27 @@ function _atualizarBadgeReq(listaReq, listaSol){
   const nReq = (listaReq||[]).filter(r=>r.status==='aguardando').length;
   const nSol = (listaSol||[]).filter(s=>s.status==='aguardando').length;
   const total = nReq + nSol;
-  const el = $('nav-badge-req');
-  if(!el) return;
-  if(total > 0){ el.textContent = total > 99 ? '99+' : total; el.style.display=''; }
-  else { el.style.display='none'; }
+
+  // Badge sidebar (total combinado)
+  const nav = $('nav-badge-req');
+  if(nav){
+    if(total > 0){ nav.textContent = total > 99 ? '99+' : total; nav.style.display=''; }
+    else nav.style.display='none';
+  }
+
+  // Badge aba Requerimentos
+  const bReq = $('tab-badge-req');
+  if(bReq){
+    if(nReq > 0){ bReq.textContent = nReq > 99 ? '99+' : nReq; bReq.style.display=''; }
+    else bReq.style.display='none';
+  }
+
+  // Badge aba Solicitações
+  const bSol = $('tab-badge-sol');
+  if(bSol){
+    if(nSol > 0){ bSol.textContent = nSol > 99 ? '99+' : nSol; bSol.style.display=''; }
+    else bSol.style.display='none';
+  }
 }
 
 async function carregarRequerimentos(){

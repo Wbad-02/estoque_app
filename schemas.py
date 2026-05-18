@@ -401,8 +401,9 @@ class NotificacaoEmailCreate(BaseModel):
     @field_validator("tipo")
     @classmethod
     def tipo_valido(cls, v):
-        if v not in ("retirada", "entrada", "alerta", "requerimento", "requerimento_decisao"):
-            raise ValueError("Tipo deve ser: retirada, entrada, alerta ou requerimento")
+        if v not in ("retirada", "entrada", "alerta", "requerimento", "requerimento_decisao",
+                     "solicitacao", "solicitacao_decisao"):
+            raise ValueError("Tipo inválido")
         return v
 
 class NotificacaoEmailOut(BaseModel):
@@ -437,8 +438,9 @@ class NotificacaoTemplateCreate(BaseModel):
     @field_validator("tipo")
     @classmethod
     def tipo_valido(cls, v):
-        if v not in ("retirada", "entrada", "alerta", "requerimento", "requerimento_decisao"):
-            raise ValueError("Tipo deve ser: retirada, entrada, alerta ou requerimento")
+        if v not in ("retirada", "entrada", "alerta", "requerimento", "requerimento_decisao",
+                     "solicitacao", "solicitacao_decisao"):
+            raise ValueError("Tipo inválido")
         return v
 
 class NotificacaoTemplateOut(BaseModel):
@@ -507,6 +509,7 @@ class RequerimentoOut(BaseModel):
 class SolicitacaoCreate(BaseModel):
     material_id: int
     ativo_id:    Optional[int] = None
+    unidade_id:  Optional[int] = None  # obrigatório para materiais com patrimônio
     quantidade:  float = 1.0
     motivo:      str
 
@@ -533,6 +536,8 @@ class RejeitarSolicitacaoBody(BaseModel):
 
 class SolicitacaoOut(BaseModel):
     id: int; material_id: int; ativo_id: Optional[int]
+    unidade_id:     Optional[int] = None
+    unidade_codigo: Optional[str] = None
     quantidade: float; motivo: str; status: str
     criado_em: datetime; atualizado_em: datetime
     observacao: Optional[str] = None

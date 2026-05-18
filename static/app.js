@@ -2847,18 +2847,25 @@ async function carregarSolicitacoes(){
   }).join('');
 }
 
+let _solMateriais = [];
+
 async function abrirNovaSolicitacao(){
-  // Carrega lista de materiais ativos
-  const mats = await api('GET', '/materiais/');
+  const [mats, ativos] = await Promise.all([
+    api('GET', '/materiais/'),
+    api('GET', '/ativos/'),
+  ]);
   if(!mats) return;
-  const ativos = await api('GET', '/ativos/');
+  _solMateriais = mats;
+
   const sel = $('sol-material-id');
   const selAtivo = $('sol-ativo-id');
   if(sel){
     sel.innerHTML = '<option value="">-- Selecione o material --</option>'
       + mats.filter(m=>m.ativo&&m.quantidade>0).map(m=>
-          `<option value="${m.id}">${esc(m.nome)} (${Number(m.quantidade).toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(m.unidade)})</option>`
+          `<option value="${m.id}" data-pat="${m.usa_patrimonio?'1':'0'}">`
+          + `${esc(m.nome)} (${Number(m.quantidade).toLocaleString('pt-BR',{maximumFractionDigits:0})} ${esc(m.unidade)})</option>`
         ).join('');
+    sel.onchange = _onSolMaterialChange;
   }
   if(selAtivo){
     selAtivo.innerHTML = '<option value="">-- Nenhum / Sem ativo --</option>'
@@ -2866,22 +2873,79 @@ async function abrirNovaSolicitacao(){
           `<option value="${a.id}">${esc(a.nome)}</option>`
         ).join('');
   }
+  // reset
   $('sol-quantidade').value = '1';
   $('sol-motivo').value = '';
+  $('sol-quantidade-wrap').style.display = '';
+  $('sol-unidade-wrap').style.display = 'none';
+  $('sol-unidade-id').innerHTML = '<option value="">-- Selecione o material primeiro --</option>';
   abrirModal('modal-nova-sol');
+}
+
+async function _onSolMaterialChange(){
+  const sel = $('sol-material-id');
+  const matId = parseInt(sel.value);
+  const opt = sel.options[sel.selectedIndex];
+  const isPat = opt && opt.dataset.pat === '1';
+  const qtdWrap  = $('sol-quantidade-wrap');
+  const unidWrap = $('sol-unidade-wrap');
+  const unidSel  = $('sol-unidade-id');
+
+  if(!matId){
+    qtdWrap.style.display  = '';
+    unidWrap.style.display = 'none';
+    return;
+  }
+
+  if(isPat){
+    qtdWrap.style.display  = 'none';
+    unidWrap.style.display = '';
+    unidSel.innerHTML = '<option value="">Carregando unidades…</option>';
+    const unidades = await api('GET', `/patrimonio/${matId}/unidades`) || [];
+    const disponiveis = unidades.filter(u=>u.status==='ativo'&&u.tag!=='atribuido');
+    if(!disponiveis.length){
+      unidSel.innerHTML = '<option value="">Nenhuma unidade disponível</option>';
+    } else {
+      unidSel.innerHTML = '<option value="">-- Selecione uma unidade --</option>'
+        + disponiveis.map(u=>{
+            const cod  = u.codigo || `#${u.id}`;
+            const tag  = u.tag ? ` [${u.tag}]` : '';
+            const obs  = u.observacao ? ` — ${esc(u.observacao)}` : '';
+            return `<option value="${u.id}">${esc(cod)}${tag}${obs}</option>`;
+          }).join('');
+    }
+  } else {
+    qtdWrap.style.display  = '';
+    unidWrap.style.display = 'none';
+    $('sol-quantidade').value = '1';
+  }
 }
 
 async function criarSolicitacao(){
   const material_id = parseInt($('sol-material-id').value);
-  const ativo_id_v  = $('sol-ativo-id').value;
-  const ativo_id    = ativo_id_v ? parseInt(ativo_id_v) : null;
-  const quantidade  = parseFloat($('sol-quantidade').value);
-  const motivo      = $('sol-motivo').value.trim();
   if(!material_id){ toast('Selecione um material','error'); return; }
-  if(!quantidade || quantidade <= 0){ toast('Quantidade inválida','error'); return; }
+
+  const opt   = $('sol-material-id').options[$('sol-material-id').selectedIndex];
+  const isPat = opt && opt.dataset.pat === '1';
+  const ativo_id_v = $('sol-ativo-id').value;
+  const ativo_id   = ativo_id_v ? parseInt(ativo_id_v) : null;
+  const motivo     = $('sol-motivo').value.trim();
   if(!motivo){ toast('Informe o motivo','error'); return; }
-  const body = { material_id, quantidade, motivo };
+
+  const body = { material_id, motivo };
   if(ativo_id) body.ativo_id = ativo_id;
+
+  if(isPat){
+    const unidade_id = parseInt($('sol-unidade-id').value);
+    if(!unidade_id){ toast('Selecione uma unidade','error'); return; }
+    body.unidade_id = unidade_id;
+    body.quantidade = 1;
+  } else {
+    const quantidade = parseInt($('sol-quantidade').value, 10);
+    if(!quantidade || quantidade <= 0){ toast('Quantidade inválida','error'); return; }
+    body.quantidade = quantidade;
+  }
+
   const r = await api('POST', '/solicitacoes/', body);
   if(r){
     fecharModal('modal-nova-sol');

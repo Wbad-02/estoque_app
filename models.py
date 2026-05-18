@@ -286,6 +286,7 @@ class SolicitacaoEstoque(Base):
     id            = Column(Integer, primary_key=True, index=True)
     material_id   = Column(Integer, ForeignKey("materiais.id"), nullable=False)
     ativo_id      = Column(Integer, ForeignKey("ativos.id"), nullable=True)
+    unidade_id    = Column(Integer, ForeignKey("unidades_patrimonio.id"), nullable=True)
     quantidade    = Column(Float, nullable=False, default=1.0)
     motivo        = Column(Text, nullable=False)
     status        = Column(Enum(StatusSolicitacao), default=StatusSolicitacao.aguardando)
@@ -294,10 +295,11 @@ class SolicitacaoEstoque(Base):
     observacao    = Column(Text, nullable=True)
     criado_em     = Column(DateTime, default=agora)
     atualizado_em = Column(DateTime, default=agora, onupdate=agora)
-    material   = relationship("Material",  foreign_keys=[material_id])
-    ativo      = relationship("Ativo",     foreign_keys=[ativo_id])
-    criador    = relationship("Usuario",   foreign_keys=[criado_por])
-    decididor  = relationship("Usuario",   foreign_keys=[decidido_por])
+    material   = relationship("Material",         foreign_keys=[material_id])
+    ativo      = relationship("Ativo",            foreign_keys=[ativo_id])
+    unidade    = relationship("UnidadePatrimonio", foreign_keys=[unidade_id])
+    criador    = relationship("Usuario",          foreign_keys=[criado_por])
+    decididor  = relationship("Usuario",          foreign_keys=[decidido_por])
 
 
 class NfeImportada(Base):

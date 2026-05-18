@@ -179,6 +179,17 @@ def migrar():
     """)
     print("✅ Tabela solicitacoes_estoque verificada/criada")
 
+    # ── 17. solicitacoes_estoque.unidade_id ──────────────────────
+    if not coluna_existe("solicitacoes_estoque", "unidade_id"):
+        cur.execute("""
+            ALTER TABLE solicitacoes_estoque
+            ADD COLUMN unidade_id INTEGER REFERENCES unidades_patrimonio(id)
+        """)
+        print("✅ Coluna adicionada: solicitacoes_estoque.unidade_id (padrão: NULL)")
+        migracoes += 1
+    else:
+        print("   solicitacoes_estoque.unidade_id já existe — ok")
+
     conn.commit()
     conn.close()
 

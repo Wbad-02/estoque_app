@@ -20,6 +20,8 @@ def _build_out(s: models.SolicitacaoEstoque) -> schemas.SolicitacaoOut:
         id=s.id,
         material_id=s.material_id,
         ativo_id=s.ativo_id,
+        unidade_id=s.unidade_id,
+        unidade_codigo=s.unidade.codigo if s.unidade else None,
         quantidade=s.quantidade,
         motivo=s.motivo,
         status=s.status.value if s.status else "aguardando",
@@ -39,6 +41,7 @@ def _load(sol_id: int, db: Session) -> models.SolicitacaoEstoque:
         .options(
             joinedload(models.SolicitacaoEstoque.material),
             joinedload(models.SolicitacaoEstoque.ativo),
+            joinedload(models.SolicitacaoEstoque.unidade),
             joinedload(models.SolicitacaoEstoque.criador),
             joinedload(models.SolicitacaoEstoque.decididor),
         )
@@ -63,11 +66,6 @@ def criar_solicitacao(
     )
     if not mat:
         raise HTTPException(404, "Material nao encontrado")
-    if mat.quantidade < payload.quantidade:
-        raise HTTPException(
-            422,
-            f"Estoque insuficiente. Disponivel: {mat.quantidade} {mat.unidade}",
-        )
 
     if payload.ativo_id is not None:
         ativo = db.query(models.Ativo).filter(
@@ -76,10 +74,43 @@ def criar_solicitacao(
         if not ativo:
             raise HTTPException(404, "Ativo nao encontrado")
 
+    if mat.usa_patrimonio:
+        if not payload.unidade_id:
+            raise HTTPException(422, "Selecione uma unidade especifica do patrimonio")
+        unidade = (
+            db.query(models.UnidadePatrimonio)
+            .filter(
+                models.UnidadePatrimonio.id == payload.unidade_id,
+                models.UnidadePatrimonio.material_id == mat.id,
+                models.UnidadePatrimonio.status == models.StatusUnidade.ativo,
+                or_(
+                    models.UnidadePatrimonio.tag == None,
+                    models.UnidadePatrimonio.tag != "atribuido",
+                ),
+            )
+            .first()
+        )
+        if not unidade:
+            raise HTTPException(422, "Unidade nao disponivel ou ja atribuida")
+        sol_quantidade = 1
+        sol_unidade_id = payload.unidade_id
+    else:
+        if mat.quantidade < payload.quantidade:
+            raise HTTPException(
+                422,
+                f"Estoque insuficiente. Disponivel: {mat.quantidade} {mat.unidade}",
+            )
+        qtd = payload.quantidade
+        if qtd != int(qtd):
+            raise HTTPException(422, "Quantidade deve ser um numero inteiro")
+        sol_quantidade = int(qtd)
+        sol_unidade_id = None
+
     sol = models.SolicitacaoEstoque(
         material_id=payload.material_id,
         ativo_id=payload.ativo_id,
-        quantidade=payload.quantidade,
+        unidade_id=sol_unidade_id,
+        quantidade=sol_quantidade,
         motivo=payload.motivo.strip(),
         status=models.StatusSolicitacao.aguardando,
         criado_por=atual.id,
@@ -156,6 +187,7 @@ def listar_solicitacoes(
         .options(
             joinedload(models.SolicitacaoEstoque.material),
             joinedload(models.SolicitacaoEstoque.ativo),
+            joinedload(models.SolicitacaoEstoque.unidade),
             joinedload(models.SolicitacaoEstoque.criador),
             joinedload(models.SolicitacaoEstoque.decididor),
         )
@@ -227,25 +259,45 @@ def aprovar_solicitacao(
 
     if mat.usa_patrimonio:
         qtd_int = max(1, int(sol.quantidade))
-        unidades_disp = (
-            db.query(models.UnidadePatrimonio)
-            .filter(
-                models.UnidadePatrimonio.material_id == mat.id,
-                models.UnidadePatrimonio.status == models.StatusUnidade.ativo,
-                # tag IS NULL ou tag != 'atribuido' — espelha exatamente sync_qty
-                or_(
-                    models.UnidadePatrimonio.tag == None,
-                    models.UnidadePatrimonio.tag != "atribuido",
-                ),
+        if sol.unidade_id:
+            # Usa a unidade específica escolhida pelo solicitante
+            unidades_disp = (
+                db.query(models.UnidadePatrimonio)
+                .filter(
+                    models.UnidadePatrimonio.id == sol.unidade_id,
+                    models.UnidadePatrimonio.status == models.StatusUnidade.ativo,
+                    or_(
+                        models.UnidadePatrimonio.tag == None,
+                        models.UnidadePatrimonio.tag != "atribuido",
+                    ),
+                )
+                .all()
             )
-            .limit(qtd_int)
-            .all()
-        )
-        if len(unidades_disp) < qtd_int:
-            raise HTTPException(
-                422,
-                f"Estoque insuficiente. Disponiveis: {len(unidades_disp)} unidade(s)",
+            if not unidades_disp:
+                raise HTTPException(
+                    422,
+                    "A unidade selecionada nao esta mais disponivel",
+                )
+        else:
+            # Fallback: qualquer unidade disponível (solicitações sem unidade_id)
+            unidades_disp = (
+                db.query(models.UnidadePatrimonio)
+                .filter(
+                    models.UnidadePatrimonio.material_id == mat.id,
+                    models.UnidadePatrimonio.status == models.StatusUnidade.ativo,
+                    or_(
+                        models.UnidadePatrimonio.tag == None,
+                        models.UnidadePatrimonio.tag != "atribuido",
+                    ),
+                )
+                .limit(qtd_int)
+                .all()
             )
+            if len(unidades_disp) < qtd_int:
+                raise HTTPException(
+                    422,
+                    f"Estoque insuficiente. Disponiveis: {len(unidades_disp)} unidade(s)",
+                )
         for u in unidades_disp:
             if sol.ativo_id:
                 u.tag = "atribuido"

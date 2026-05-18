@@ -822,11 +822,31 @@ async function liberarReimportacao(chave){
   if(r!==null) { toast('Registro removido. Agora você pode reimportar a nota.'); _carregarHistoricoNfe(); }
 }
 
+function _grupoOptsHtml(valorSelecionado){
+  let html='<option value="">Selecione…</option>';
+  S.categorias.forEach(c=>{
+    const grpsCat=S.grupos.filter(g=>g.categoria_id==c.id);
+    if(!grpsCat.length) return;
+    html+=`<optgroup label="${esc(c.nome)}">`;
+    grpsCat.forEach(g=>{
+      html+=`<option value="${g.id}"${g.id==valorSelecionado?' selected':''}>${esc(g.nome)}</option>`;
+    });
+    html+='</optgroup>';
+  });
+  return html;
+}
+
 async function carregarGruposNfe(){
   const catId=$('nfe-cat-sel').value;
   const grps=await api('GET',catId?`/grupos/?categoria_id=${catId}`:'/grupos/');
   $('nfe-grp-sel').innerHTML='<option value="">Selecione o grupo…</option>'+
     (grps||[]).map(g=>`<option value="${g.id}">${esc(g.nome)}</option>`).join('');
+  aplicarGrupoGlobal();
+}
+
+function aplicarGrupoGlobal(){
+  const grpId=$('nfe-grp-sel').value;
+  document.querySelectorAll('.nfe-item-grp').forEach(sel=>{sel.value=grpId;});
 }
 
 async function previewNFe(){
@@ -843,13 +863,15 @@ async function previewNFe(){
     $('nfe-numero').textContent=dados.nf_numero+' — '+(dados.nf_data||'');
     $('nfe-emitente').style.display='block';
     $('nfe-count').textContent=`${dados.itens.length} item(s)`;
+    const grupoOpts=_grupoOptsHtml('');
     $('nfe-preview-body').innerHTML=dados.itens.map((it,idx)=>`
       <tr>
         <td style="font-size:12px;color:var(--muted)">${it.codigo}</td>
         <td><strong>${esc(it.nome)}</strong></td>
         <td>${it.quantidade}</td><td>${it.unidade}</td>
         <td>R$ ${it.valor_unit.toFixed(2)}</td>
-        <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" checked title="Marcar como patrimônio individual"/></td>
+        <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" title="Marcar como patrimônio individual"/></td>
+        <td><select class="nfe-item-grp" data-idx="${idx}" style="font-size:12px;min-width:160px">${grupoOpts}</select></td>
       </tr>`).join('');
     $('nfe-grupo-wrap').style.display='block';
     $('nfe-btn-confirmar').style.display='block';
@@ -858,14 +880,17 @@ async function previewNFe(){
 
 async function confirmarNFe(){
   if(!_nfeArquivo){toast('Selecione um XML','error');return;}
-  const grupoId=$('nfe-grp-sel').value;
-  if(!grupoId){toast('Selecione o grupo de destino','error');return;}
+  const sels=[...document.querySelectorAll('.nfe-item-grp')];
+  if(!sels.length){toast('Carregue um XML primeiro','error');return;}
+  if(sels.some(s=>!s.value)){toast('Selecione o grupo de destino para todos os itens','error');return;}
+  const grupoIds=sels.map(s=>s.value).join(',');
   const patrimonioIndices=[...document.querySelectorAll('.nfe-patrimonio-cb:checked')]
     .map(cb=>cb.dataset.idx).join(',');
   const form=new FormData(); form.append('arquivo',_nfeArquivo);
   form.append('patrimonio_indices', patrimonioIndices);
+  form.append('grupo_ids', grupoIds);
   try{
-    const r=await fetch(`/api/importacao/confirmar?grupo_id=${grupoId}`,
+    const r=await fetch('/api/importacao/confirmar',
       {method:'POST',headers:{Authorization:`Bearer ${S.token}`},body:form});
     if(!r.ok){const e=await r.json().catch(()=>({}));toast(e.detail||'Erro na importação','error');return;}
     const res=await r.json();

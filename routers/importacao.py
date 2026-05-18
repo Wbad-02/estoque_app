@@ -128,29 +128,40 @@ async def preview_xml(
 @router.post("/confirmar")
 async def confirmar_importacao(
     arquivo:             UploadFile = File(...),
-    grupo_id:            int = 0,
+    grupo_ids:           str = Form(""),
     patrimonio_indices:  str = Form(""),
     db:                  Session = Depends(get_db),
     atual:               models.Usuario = Depends(requer_editor_ou_admin),
 ):
     """
     Importa TODOS os itens do XML para o banco (suporta NF-e com múltiplos produtos).
+    - Aceita grupo_ids (comma-separated, um por item) para destinos diferentes por produto.
     - Rejeita com 409 se a chave de acesso já foi importada.
     - Por item: soma quantidade se material já existir no grupo, cria se não existir.
     - Registra movimentação de entrada para cada item importado.
     - Salva a chave de acesso para impedir reimportação.
     """
-    if not grupo_id:
-        raise HTTPException(400, "Informe o grupo_id de destino")
-
-    grupo = db.query(models.GrupoMaterial).filter(
-        models.GrupoMaterial.id == grupo_id
-    ).first()
-    if not grupo:
-        raise HTTPException(404, "Grupo não encontrado")
+    ids_por_item = [int(g) for g in grupo_ids.split(",") if g.strip().isdigit()]
+    if not ids_por_item:
+        raise HTTPException(400, "Informe o grupo de destino de cada item")
 
     conteudo = await arquivo.read()
     dados    = _parse_nfe(conteudo)
+
+    if len(ids_por_item) != len(dados["itens"]):
+        raise HTTPException(
+            400,
+            f"Número de grupos ({len(ids_por_item)}) não corresponde "
+            f"ao número de itens ({len(dados['itens'])})"
+        )
+
+    # Pré-valida todos os grupos antes de gravar qualquer coisa
+    grupos_cache = {}
+    for gid in set(ids_por_item):
+        g = db.query(models.GrupoMaterial).filter(models.GrupoMaterial.id == gid).first()
+        if not g:
+            raise HTTPException(404, f"Grupo {gid} não encontrado")
+        grupos_cache[gid] = g
 
     # ── Verificar duplicata pela chave de acesso ────────────────────────────
     ja_importada = db.query(models.NfeImportada).filter(
@@ -170,6 +181,7 @@ async def confirmar_importacao(
     atualizados = []
 
     for idx, item in enumerate(dados["itens"]):
+        grupo_id  = ids_por_item[idx]
         nome_norm = item["nome"].strip()
         qtd       = item["quantidade"]
 

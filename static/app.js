@@ -2847,76 +2847,79 @@ async function carregarSolicitacoes(){
   }).join('');
 }
 
-let _solMateriais = [];
-
 async function abrirNovaSolicitacao(){
-  const [mats, ativos] = await Promise.all([
-    api('GET', '/materiais/'),
-    api('GET', '/ativos/'),
-  ]);
-  if(!mats) return;
-  _solMateriais = mats;
+  if(!S.categorias.length) S.categorias = await api('GET', '/categorias/') || [];
+  const ativos = await api('GET', '/ativos/') || [];
 
-  const sel = $('sol-material-id');
-  const selAtivo = $('sol-ativo-id');
-  if(sel){
-    sel.innerHTML = '<option value="">-- Selecione o material --</option>'
-      + mats.filter(m=>m.ativo&&m.quantidade>0).map(m=>
-          `<option value="${m.id}" data-pat="${m.usa_patrimonio?'1':'0'}">`
-          + `${esc(m.nome)} (${Number(m.quantidade).toLocaleString('pt-BR',{maximumFractionDigits:0})} ${esc(m.unidade)})</option>`
-        ).join('');
-    sel.onchange = _onSolMaterialChange;
-  }
-  if(selAtivo){
-    selAtivo.innerHTML = '<option value="">-- Nenhum / Sem ativo --</option>'
-      + (ativos||[]).filter(a=>a.ativo).map(a=>
-          `<option value="${a.id}">${esc(a.nome)}</option>`
-        ).join('');
-  }
-  // reset
-  $('sol-quantidade').value = '1';
-  $('sol-motivo').value = '';
-  $('sol-quantidade-wrap').style.display = '';
-  $('sol-unidade-wrap').style.display = 'none';
-  $('sol-unidade-id').innerHTML = '<option value="">-- Selecione o material primeiro --</option>';
+  $('sol-cat').innerHTML = '<option value="">Selecione…</option>'
+    + S.categorias.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+  $('sol-grp').innerHTML       = '<option value="">Selecione…</option>';
+  $('sol-material-id').innerHTML = '<option value="">Selecione…</option>';
+  $('sol-unidade-id').innerHTML  = '<option value="">Selecione o material primeiro…</option>';
+  $('sol-ativo-id').innerHTML = '<option value="">-- Nenhum / Sem ativo --</option>'
+    + ativos.filter(a=>a.ativo).map(a=>`<option value="${a.id}">${esc(a.nome)}</option>`).join('');
+
+  $('sol-quantidade').value      = '1';
+  $('sol-motivo').value          = '';
+  $('sol-quantidade-wrap').style.display = 'none';
+  $('sol-unidade-wrap').style.display    = 'none';
   abrirModal('modal-nova-sol');
 }
 
-async function _onSolMaterialChange(){
-  const sel = $('sol-material-id');
-  const matId = parseInt(sel.value);
-  const opt = sel.options[sel.selectedIndex];
-  const isPat = opt && opt.dataset.pat === '1';
-  const qtdWrap  = $('sol-quantidade-wrap');
-  const unidWrap = $('sol-unidade-wrap');
-  const unidSel  = $('sol-unidade-id');
+async function solCarregarGrupos(){
+  const catId = $('sol-cat').value;
+  $('sol-grp').innerHTML         = '<option value="">Selecione…</option>';
+  $('sol-material-id').innerHTML = '<option value="">Selecione…</option>';
+  $('sol-quantidade-wrap').style.display = 'none';
+  $('sol-unidade-wrap').style.display    = 'none';
+  if(!catId) return;
+  const grps = await api('GET', `/grupos/?categoria_id=${catId}`) || [];
+  $('sol-grp').innerHTML = '<option value="">Selecione…</option>'
+    + grps.map(g=>`<option value="${g.id}">${esc(g.nome)}</option>`).join('');
+}
 
-  if(!matId){
-    qtdWrap.style.display  = '';
-    unidWrap.style.display = 'none';
-    return;
-  }
+async function solCarregarMateriais(){
+  const grpId = $('sol-grp').value;
+  $('sol-material-id').innerHTML = '<option value="">Selecione…</option>';
+  $('sol-quantidade-wrap').style.display = 'none';
+  $('sol-unidade-wrap').style.display    = 'none';
+  if(!grpId) return;
+  const mats = await api('GET', `/materiais/?grupo_id=${grpId}`) || [];
+  const disponiveis = mats.filter(m=>m.ativo && m.quantidade > 0);
+  $('sol-material-id').innerHTML = '<option value="">Selecione…</option>'
+    + disponiveis.map(m=>
+        `<option value="${m.id}" data-pat="${m.usa_patrimonio?'1':'0'}" data-un="${esc(m.unidade)}">`
+        +`${esc(m.nome)} (${Number(m.quantidade).toLocaleString('pt-BR',{maximumFractionDigits:0})} ${esc(m.unidade)})</option>`
+      ).join('');
+}
+
+async function solCarregarUnidades(){
+  const sel = $('sol-material-id');
+  const opt = sel.options[sel.selectedIndex];
+  $('sol-quantidade-wrap').style.display = 'none';
+  $('sol-unidade-wrap').style.display    = 'none';
+  if(!opt || !opt.value) return;
+
+  const matId = opt.value;
+  const isPat = opt.dataset.pat === '1';
 
   if(isPat){
-    qtdWrap.style.display  = 'none';
-    unidWrap.style.display = '';
-    unidSel.innerHTML = '<option value="">Carregando unidades…</option>';
-    const unidades = await api('GET', `/patrimonio/${matId}/unidades`) || [];
-    const disponiveis = unidades.filter(u=>u.status==='ativo'&&u.tag!=='atribuido');
+    $('sol-unidade-wrap').style.display = '';
+    $('sol-unidade-id').innerHTML = '<option value="">Carregando…</option>';
+    const unidades    = await api('GET', `/patrimonio/${matId}/unidades`) || [];
+    const disponiveis = unidades.filter(u=>u.status==='ativo' && u.tag!=='atribuido');
     if(!disponiveis.length){
-      unidSel.innerHTML = '<option value="">Nenhuma unidade disponível</option>';
+      $('sol-unidade-id').innerHTML = '<option value="">Nenhuma unidade disponível</option>';
     } else {
-      unidSel.innerHTML = '<option value="">-- Selecione uma unidade --</option>'
+      $('sol-unidade-id').innerHTML = '<option value="">Selecione a unidade…</option>'
         + disponiveis.map(u=>{
-            const cod  = u.codigo || `#${u.id}`;
-            const tag  = u.tag ? ` [${u.tag}]` : '';
-            const obs  = u.observacao ? ` — ${esc(u.observacao)}` : '';
-            return `<option value="${u.id}">${esc(cod)}${tag}${obs}</option>`;
+            const cod = u.codigo || 'Sem código #' + u.id;
+            const tag = u.tag || 'novo';
+            return `<option value="${u.id}">${esc(cod)} — ${tag}</option>`;
           }).join('');
     }
   } else {
-    qtdWrap.style.display  = '';
-    unidWrap.style.display = 'none';
+    $('sol-quantidade-wrap').style.display = '';
     $('sol-quantidade').value = '1';
   }
 }
@@ -2925,8 +2928,8 @@ async function criarSolicitacao(){
   const material_id = parseInt($('sol-material-id').value);
   if(!material_id){ toast('Selecione um material','error'); return; }
 
-  const opt   = $('sol-material-id').options[$('sol-material-id').selectedIndex];
-  const isPat = opt && opt.dataset.pat === '1';
+  const opt    = $('sol-material-id').options[$('sol-material-id').selectedIndex];
+  const isPat  = opt && opt.dataset.pat === '1';
   const ativo_id_v = $('sol-ativo-id').value;
   const ativo_id   = ativo_id_v ? parseInt(ativo_id_v) : null;
   const motivo     = $('sol-motivo').value.trim();

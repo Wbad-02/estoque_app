@@ -785,25 +785,37 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:14px">
           <div class="form-group" style="margin:0">
+            <label class="form-label" for="sol-cat">Categoria *</label>
+            <select id="sol-cat" onchange="solCarregarGrupos()">
+              <option value="">Selecione…</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label" for="sol-grp">Grupo *</label>
+            <select id="sol-grp" onchange="solCarregarMateriais()">
+              <option value="">Selecione…</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
             <label class="form-label" for="sol-material-id">Material *</label>
-            <select id="sol-material-id">
-              <option value="">-- Selecione --</option>
+            <select id="sol-material-id" onchange="solCarregarUnidades()">
+              <option value="">Selecione…</option>
             </select>
           </div>
           <div class="form-group" style="margin:0">
             <label class="form-label" for="sol-ativo-id">Para qual Ativo (opcional)</label>
             <select id="sol-ativo-id">
-              <option value="">-- Nenhum --</option>
+              <option value="">-- Nenhum / Sem ativo --</option>
             </select>
           </div>
-          <div id="sol-quantidade-wrap" class="form-group" style="margin:0">
+          <div id="sol-quantidade-wrap" class="form-group" style="margin:0;display:none">
             <label class="form-label" for="sol-quantidade">Quantidade *</label>
             <input type="number" id="sol-quantidade" min="1" step="1" value="1"/>
           </div>
           <div id="sol-unidade-wrap" class="form-group" style="margin:0;display:none">
             <label class="form-label" for="sol-unidade-id">Unidade *</label>
             <select id="sol-unidade-id">
-              <option value="">-- Selecione o material primeiro --</option>
+              <option value="">Selecione o material primeiro…</option>
             </select>
           </div>
           <div class="form-group" style="margin:0">

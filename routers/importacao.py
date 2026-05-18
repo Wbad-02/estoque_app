@@ -202,7 +202,7 @@ async def confirmar_importacao(
                 existente.usa_patrimonio = True
             db.flush()
             mat = existente
-            atualizados.append({"nome": mat.nome, "qtd_adicionada": qtd})
+            atualizados.append({"nome": mat.nome, "grupo": grupos_cache[grupo_id].nome, "qtd_adicionada": qtd})
         else:
             mat = models.Material(
                 nome=nome_norm,
@@ -215,7 +215,7 @@ async def confirmar_importacao(
             )
             db.add(mat)
             db.flush()
-            criados.append({"nome": mat.nome, "qtd": qtd})
+            criados.append({"nome": mat.nome, "grupo": grupos_cache[grupo_id].nome, "qtd": qtd})
 
         nfe_numero = dados["nf_numero"]
         mov = models.Movimentacao(
@@ -267,8 +267,8 @@ async def confirmar_importacao(
         "emitente":    dados["emitente"]["nome"],
         "nf_numero":   dados["nf_numero"],
         "total_itens": len(dados["itens"]),
-        "criados":     [i["nome"] for i in criados],
-        "atualizados": [i["nome"] for i in atualizados],
+        "criados":     [{"nome": i["nome"], "grupo": i["grupo"]} for i in criados],
+        "atualizados": [{"nome": i["nome"], "grupo": i["grupo"]} for i in atualizados],
         "total":       len(criados) + len(atualizados),
     }
 

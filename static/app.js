@@ -838,7 +838,7 @@ function _grupoOptsHtml(valorSelecionado){
 
 async function carregarGruposNfe(){
   const catId=$('nfe-cat-sel').value;
-  const grps=await api('GET',catId?`/grupos/?categoria_id=${catId}`:'/grupos/');
+  const grps=catId ? await api('GET',`/grupos/?categoria_id=${catId}`) : S.grupos;
   $('nfe-grp-sel').innerHTML='<option value="">Selecione o grupo…</option>'+
     (grps||[]).map(g=>`<option value="${g.id}">${esc(g.nome)}</option>`).join('');
   aplicarGrupoGlobal();
@@ -853,8 +853,10 @@ async function previewNFe(){
   const input=$('nfe-arquivo');
   if(!input.files.length) return;
   _nfeArquivo=input.files[0];
+  $('nfe-resultado').style.display='none';
+  $('nfe-aviso-duplicata').style.display='none';
   const form=new FormData(); form.append('arquivo',_nfeArquivo);
-  $('nfe-preview-body').innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">Analisando…</td></tr>';
+  $('nfe-preview-body').innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Analisando…</td></tr>';
   try{
     const r=await fetch('/api/importacao/preview',{method:'POST',headers:{Authorization:`Bearer ${S.token}`},body:form});
     if(!r.ok){const e=await r.json().catch(()=>({}));toast(e.detail||'Erro ao analisar XML','error');return;}
@@ -863,6 +865,11 @@ async function previewNFe(){
     $('nfe-numero').textContent=dados.nf_numero+' — '+(dados.nf_data||'');
     $('nfe-emitente').style.display='block';
     $('nfe-count').textContent=`${dados.itens.length} item(s)`;
+    if(dados.ja_importada){
+      const av=$('nfe-aviso-duplicata');
+      av.textContent=`Esta NF-e já foi importada (${(dados.importado_em||'').substring(0,10)}). Confirme só se liberou a reimportação.`;
+      av.style.display='block';
+    }
     const grupoOpts=_grupoOptsHtml('');
     $('nfe-preview-body').innerHTML=dados.itens.map((it,idx)=>`
       <tr>
@@ -870,7 +877,7 @@ async function previewNFe(){
         <td><strong>${esc(it.nome)}</strong></td>
         <td>${it.quantidade}</td><td>${it.unidade}</td>
         <td>R$ ${it.valor_unit.toFixed(2)}</td>
-        <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" title="Marcar como patrimônio individual"/></td>
+        <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" checked title="Marcar como patrimônio individual"/></td>
         <td><select class="nfe-item-grp" data-idx="${idx}" style="font-size:12px;min-width:160px">${grupoOpts}</select></td>
       </tr>`).join('');
     $('nfe-grupo-wrap').style.display='block';
@@ -903,8 +910,8 @@ async function confirmarNFe(){
         <strong>${res.criados.length}</strong> criado(s) &nbsp;·&nbsp;
         <strong>${res.atualizados.length}</strong> atualizado(s)
       </p>
-      ${res.criados.length?`<ul style="margin-top:8px;padding-left:20px;font-size:12px;color:var(--muted)">${res.criados.map(n=>`<li>+ ${esc(n)}</li>`).join('')}</ul>`:''}
-      ${res.atualizados.length?`<ul style="padding-left:20px;font-size:12px;color:var(--muted)">${res.atualizados.map(n=>`<li>↑ ${esc(n)}</li>`).join('')}</ul>`:''}`;
+      ${res.criados.length?`<ul style="margin-top:8px;padding-left:20px;font-size:12px;color:var(--muted)">${res.criados.map(n=>`<li>+ ${esc(n.nome)} <span style="color:var(--gold);font-size:11px">${esc(n.grupo)}</span></li>`).join('')}</ul>`:''}
+      ${res.atualizados.length?`<ul style="padding-left:20px;font-size:12px;color:var(--muted)">${res.atualizados.map(n=>`<li>↑ ${esc(n.nome)} <span style="color:var(--gold);font-size:11px">${esc(n.grupo)}</span></li>`).join('')}</ul>`:''}`;
     toast(`Importação concluída! ${res.total} item(s)`);
     if(S.grupo==='admin'||S.grupo==='mestre') _carregarHistoricoNfe();
   }catch{toast('Falha ao confirmar','error');}

@@ -322,7 +322,7 @@
     <!-- IMPORTAÇÃO NF-e -->
     <section id="page-importacao" class="page">
       <div class="page-header"><h2>Importar NF-e</h2></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start">
         <div class="table-wrap" style="padding:24px">
           <h3 style="font-size:15px;color:var(--green);margin-bottom:6px">1. Selecionar XML</h3>
           <p style="color:var(--muted);font-size:13px;margin-bottom:20px">NF-e padrão versão 4.00. Os itens serão listados para revisão antes da confirmação.</p>
@@ -332,6 +332,7 @@
             <strong style="color:var(--green)">Emitente:</strong> <span id="nfe-emit-nome"></span><br/>
             <strong style="color:var(--green)">NF-e nº:</strong> <span id="nfe-numero"></span>
           </div>
+          <div id="nfe-aviso-duplicata" style="display:none;background:#FFF3CD;color:#856404;border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px;border:1px solid #FFDDA0"></div>
           <div id="nfe-grupo-wrap" style="display:none">
             <div class="form-group"><label>2. Grupo padrão (aplica a todos)</label>
               <select id="nfe-cat-sel" onchange="carregarGruposNfe()" style="margin-bottom:8px">

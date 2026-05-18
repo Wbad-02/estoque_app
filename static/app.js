@@ -176,9 +176,12 @@ function iniciarApp(){
     carregarDashboard();
   }
 
-  // Badge de requerimentos: busca em background para exibir antes de navegar até a aba
+  // Badge de requerimentos + solicitações: busca em background para exibir antes de navegar até a aba
   if(S.grupo !== 'viewer'){
-    api('GET', '/requerimentos/').then(lista => { if(lista) _atualizarBadgeReq(lista); });
+    Promise.all([
+      api('GET', '/requerimentos/'),
+      api('GET', '/solicitacoes/'),
+    ]).then(([req, sol]) => { _atualizarBadgeReq(req, sol); });
   }
 
   _startPolling();
@@ -2256,7 +2259,7 @@ async function carregarNotificacoes(){
   if(!emails||!tpls) return;
 
   // Preencher listas de emails
-  ['retirada','entrada','alerta','requerimento','requerimento_decisao'].forEach(tipo=>{
+  ['retirada','entrada','alerta','requerimento','requerimento_decisao','solicitacao','solicitacao_decisao'].forEach(tipo=>{
     const lista=emails.filter(e=>e.tipo===tipo);
     _renderizarEmailsNotif(tipo, lista);
   });
@@ -2330,13 +2333,14 @@ function trocarAbaNotif(aba){
   _notifAbaAtiva=aba;
   const section=$('page-notificacoes');
   section?.querySelectorAll('.inner-tab').forEach((el,i)=>{
-    const abas=['retiradas','entradas','alertas','requerimento','smtp'];
+    const abas=['retiradas','entradas','alertas','requerimento','solicitacao','smtp'];
     el.classList.toggle('active', abas[i]===aba);
   });
   section?.querySelectorAll('.inner-tab-pane').forEach(el=>el.classList.remove('active'));
   $(`notif-pane-${aba}`)?.classList.add('active');
   if(aba==='smtp') carregarSmtp();
   if(aba==='requerimento') _carregarEmailsRequerimento();
+  if(aba==='solicitacao')  _carregarEmailsSolicitacao();
 }
 
 async function _carregarEmailsRequerimento(){
@@ -2356,6 +2360,12 @@ async function _carregarEmailsRequerimento(){
     if(assuntoEl) assuntoEl.value = tpl.assunto;
     if(corpoEl)   corpoEl.value   = tpl.corpo;
   });
+}
+
+async function _carregarEmailsSolicitacao(){
+  const emails = await api('GET', '/notificacoes/emails');
+  _renderizarEmailsNotif('solicitacao',         (emails||[]).filter(e=>e.tipo==='solicitacao'));
+  _renderizarEmailsNotif('solicitacao_decisao', (emails||[]).filter(e=>e.tipo==='solicitacao_decisao'));
 }
 
 async function carregarSmtp(){
@@ -2441,11 +2451,13 @@ let _reqDetalheId  = null;
 let _podeCriarReq  = false;
 let _podeAprovarReq = false;
 
-function _atualizarBadgeReq(lista){
-  const n = (lista||[]).filter(r=>r.status==='aguardando').length;
+function _atualizarBadgeReq(listaReq, listaSol){
+  const nReq = (listaReq||[]).filter(r=>r.status==='aguardando').length;
+  const nSol = (listaSol||[]).filter(s=>s.status==='aguardando').length;
+  const total = nReq + nSol;
   const el = $('nav-badge-req');
   if(!el) return;
-  if(n > 0){ el.textContent = n > 99 ? '99+' : n; el.style.display=''; }
+  if(total > 0){ el.textContent = total > 99 ? '99+' : total; el.style.display=''; }
   else { el.style.display='none'; }
 }
 
@@ -2459,10 +2471,13 @@ async function carregarRequerimentos(){
     _podeCriarReq   = emailsAtivos.some(e=>e.tipo==='requerimento'         && e.email===S.email);
     _podeAprovarReq = emailsAtivos.some(e=>e.tipo==='requerimento_decisao' && e.email===S.email);
   }
-  // Badge sempre atualizado
-  const listaReq = await api('GET', '/requerimentos/');
+  // Badge sempre atualizado (requerimentos + solicitações)
+  const [listaReq, listaSol] = await Promise.all([
+    api('GET', '/requerimentos/'),
+    api('GET', '/solicitacoes/'),
+  ]);
   if(!listaReq) return;
-  _atualizarBadgeReq(listaReq);
+  _atualizarBadgeReq(listaReq, listaSol);
 
   // Exibir botões corretos conforme sub-aba ativa
   const btnReq = $('btn-novo-req');
@@ -2485,7 +2500,8 @@ function _badgeReq(status){
 }
 
 function _renderRequerimentos(lista){
-  _atualizarBadgeReq(lista);
+  // Badge já foi atualizado por carregarRequerimentos com ambas as listas
+  _atualizarBadgeReq(lista, null);
   const tbody = $('req-body');
   if(!lista.length){
     tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><span>📋</span>Nenhum requerimento cadastrado</div></td></tr>';
@@ -2935,9 +2951,14 @@ async function _doPoll(){
     if(mudou) cfg.fn();
   }
 
-  // ── Badge de requerimentos: atualiza sempre ─────────────────
-  if(data.requerimentos !== _pollState.requerimentos && _paginaAtual !== 'requerimentos'){
-    api('GET', '/requerimentos/').then(lista => { if(lista) _atualizarBadgeReq(lista); });
+  // ── Badge de requerimentos + solicitações: atualiza sempre ──
+  const reqMudou = data.requerimentos !== _pollState.requerimentos;
+  const solMudou = data.solicitacoes  !== _pollState.solicitacoes;
+  if((reqMudou || solMudou) && _paginaAtual !== 'requerimentos'){
+    Promise.all([
+      api('GET', '/requerimentos/'),
+      api('GET', '/solicitacoes/'),
+    ]).then(([req, sol]) => { _atualizarBadgeReq(req, sol); });
   }
 
   _pollState = data;

@@ -390,6 +390,7 @@
         <div class="inner-tab" onclick="trocarAbaNotif('entradas')">Entradas</div>
         <div class="inner-tab" onclick="trocarAbaNotif('alertas')">Alertas</div>
         <div class="inner-tab" onclick="trocarAbaNotif('requerimento')">Requerimento</div>
+        <div class="inner-tab" onclick="trocarAbaNotif('solicitacao')">Solicitações</div>
         <div class="inner-tab" onclick="trocarAbaNotif('smtp')">Config. SMTP</div>
       </div>
 
@@ -505,6 +506,39 @@
               <textarea id="notif-tpl-requerimento_decisao-corpo" rows="6" style="resize:vertical"></textarea></div>
             <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('requerimento_decisao'))">Salvar template</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Aba: Solicitações -->
+      <div class="inner-tab-pane" id="notif-pane-solicitacao">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+
+          <!-- E-mails para nova solicitação (notifica admins) -->
+          <div class="table-wrap" style="padding:20px">
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">E-mails — Nova solicitação</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+              Destinatários notificados quando um editor abre uma nova solicitação de estoque.
+            </p>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <input type="email" id="notif-email-solicitacao" placeholder="email@empresa.local" style="flex:1"/>
+              <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('solicitacao'))">Adicionar</button>
+            </div>
+            <div id="notif-list-solicitacao"></div>
+          </div>
+
+          <!-- E-mails para decisão de solicitação -->
+          <div class="table-wrap" style="padding:20px">
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">E-mails — Decisão de solicitação</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+              O criador da solicitação é notificado automaticamente. Adicione aqui outros e-mails que devem receber a decisão.
+            </p>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <input type="email" id="notif-email-solicitacao_decisao" placeholder="email@empresa.local" style="flex:1"/>
+              <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('solicitacao_decisao'))">Adicionar</button>
+            </div>
+            <div id="notif-list-solicitacao_decisao"></div>
+          </div>
+
         </div>
       </div>
 

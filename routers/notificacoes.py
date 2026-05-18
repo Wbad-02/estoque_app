@@ -9,7 +9,7 @@ import models, schemas
 
 router = APIRouter(prefix="/api/notificacoes", tags=["notificacoes"])
 
-_TIPOS_VALIDOS = ("retirada", "entrada", "alerta")
+_TIPOS_VALIDOS = ("retirada", "entrada", "alerta", "solicitacao", "solicitacao_decisao")
 
 _TEMPLATES_PADRAO = {
     "retirada": {
@@ -43,6 +43,30 @@ _TEMPLATES_PADRAO = {
             "Quantidade mínima: {minimo} {unidade}\n"
             "Grupo: {grupo}\n"
             "Data do alerta: {data}"
+        ),
+    },
+    "solicitacao": {
+        "assunto": "Nova solicitação de estoque: {material}",
+        "corpo": (
+            "Uma nova solicitação de material foi aberta e aguarda aprovação.\n\n"
+            "Material:      {material}\n"
+            "Quantidade:    {quantidade}\n"
+            "Solicitante:   {criador}\n"
+            "Motivo:        {motivo}\n"
+            "Ativo destino: {ativo}\n"
+            "Data:          {data}\n\n"
+            "Acesse para aprovar ou rejeitar: {link}"
+        ),
+    },
+    "solicitacao_decisao": {
+        "assunto": "Solicitação de '{material}' foi {status}",
+        "corpo": (
+            "Sua solicitação de material teve uma decisão registrada.\n\n"
+            "Material:     {material}\n"
+            "Quantidade:   {quantidade}\n"
+            "Status:       {status}\n"
+            "Decidido por: {decididor}\n"
+            "Observação:   {observacao}"
         ),
     },
 }
@@ -131,7 +155,7 @@ def obter_template(
     _: models.Usuario = Depends(requer_admin),
 ):
     if tipo not in _TIPOS_VALIDOS:
-        raise HTTPException(400, "Tipo inválido. Use: retirada, entrada ou alerta")
+        raise HTTPException(400, f"Tipo inválido. Use: {', '.join(_TIPOS_VALIDOS)}")
     t = db.query(models.NotificacaoTemplate).filter(
         models.NotificacaoTemplate.tipo == tipo
     ).first()
@@ -152,7 +176,7 @@ def atualizar_template(
     atual: models.Usuario = Depends(requer_admin),
 ):
     if tipo not in _TIPOS_VALIDOS:
-        raise HTTPException(400, "Tipo inválido. Use: retirada, entrada ou alerta")
+        raise HTTPException(400, f"Tipo inválido. Use: {', '.join(_TIPOS_VALIDOS)}")
     t = db.query(models.NotificacaoTemplate).filter(
         models.NotificacaoTemplate.tipo == tipo
     ).first()

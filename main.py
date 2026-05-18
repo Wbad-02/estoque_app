@@ -113,6 +113,32 @@ def _seed_templates_requerimento(db: Session):
                 "Observacao:  {observacao}"
             ),
         },
+        {
+            "tipo":    "solicitacao",
+            "assunto": "Nova solicitação de estoque: {material}",
+            "corpo": (
+                "Uma nova solicitação de material foi aberta e aguarda aprovação.\n\n"
+                "Material:      {material}\n"
+                "Quantidade:    {quantidade}\n"
+                "Solicitante:   {criador}\n"
+                "Motivo:        {motivo}\n"
+                "Ativo destino: {ativo}\n"
+                "Data:          {data}\n\n"
+                "Acesse para aprovar ou rejeitar: {link}"
+            ),
+        },
+        {
+            "tipo":    "solicitacao_decisao",
+            "assunto": "Solicitação de '{material}' foi {status}",
+            "corpo": (
+                "Sua solicitação de material teve uma decisão registrada.\n\n"
+                "Material:     {material}\n"
+                "Quantidade:   {quantidade}\n"
+                "Status:       {status}\n"
+                "Decidido por: {decididor}\n"
+                "Observação:   {observacao}"
+            ),
+        },
     ]
     for d in defaults:
         existe = db.query(models.NotificacaoTemplate).filter(

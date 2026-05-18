@@ -1,4 +1,6 @@
 # © Todos os direitos reservados – github.com/Wbad-02
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
@@ -7,6 +9,8 @@ from auth import get_usuario_atual, requer_editor_ou_admin, requer_admin, regist
 from database import get_db
 from utils import sync_qty
 from models import agora
+import email_service as _es
+from email_service import _html_email, _linha_info, _badge_status
 
 router = APIRouter(prefix="/api/solicitacoes", tags=["solicitacoes"])
 
@@ -84,6 +88,61 @@ def criar_solicitacao(
     db.commit()
     db.refresh(sol)
     registrar_log(db, atual.id, "criar", "solicitacao", sol.id, mat.nome)
+
+    # ── Notifica admins sobre nova solicitação ────────────────────────────────
+    try:
+        sol_loaded = _load(sol.id, db)
+        admins = [
+            u.email
+            for u in db.query(models.Usuario).filter(
+                models.Usuario.grupo.in_([
+                    models.GrupoPermissao.admin,
+                    models.GrupoPermissao.mestre,
+                ]),
+                models.Usuario.ativo == True,
+            ).all()
+            if u.email
+        ]
+
+        data_fmt  = agora().strftime("%d/%m/%Y %H:%M")
+        ativo_nome = sol_loaded.ativo.nome if sol_loaded.ativo else "—"
+        link       = os.environ.get("APP_URL", "http://localhost:8000")
+
+        corpo_linhas = f"""
+<p style="margin:0 0 16px;font-size:15px;color:#444">
+  Uma nova <b>solicitação de material</b> foi criada e aguarda sua aprovação.
+</p>
+<table style="width:100%;border-collapse:collapse">
+  {_linha_info("Material", mat.nome, destaque=True)}
+  {_linha_info("Quantidade", f"{sol.quantidade} {mat.unidade}")}
+  {_linha_info("Solicitante", sol_loaded.criador.nome if sol_loaded.criador else atual.nome)}
+  {_linha_info("Motivo", sol.motivo)}
+  {_linha_info("Ativo destino", ativo_nome)}
+  {_linha_info("Data", data_fmt)}
+</table>
+<div style="margin-top:24px;padding-top:16px;border-top:1px solid #eee">
+  <a href="{link}/#requerimentos" style="display:inline-block;padding:10px 24px;background:#1B3A2D;color:#fff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600">
+    Ver solicitação
+  </a>
+</div>
+"""
+        corpo_html = _html_email("Nova solicitação de estoque", corpo_linhas)
+
+        variaveis = {
+            "material":    mat.nome,
+            "quantidade":  f"{sol.quantidade} {mat.unidade}",
+            "criador":     atual.nome,
+            "motivo":      sol.motivo,
+            "ativo":       ativo_nome,
+            "data":        data_fmt,
+            "link":        link,
+        }
+        _es.disparar_notificacao(
+            db, "solicitacao", variaveis, extras=admins, corpo_html=corpo_html
+        )
+    except Exception as exc:
+        print(f"[email] Erro ao notificar admins sobre solicitacao #{sol.id}: {exc}")
+
     return _build_out(_load(sol.id, db))
 
 
@@ -104,6 +163,51 @@ def listar_solicitacoes(
         .all()
     )
     return [_build_out(s) for s in sols]
+
+
+def _notificar_decisao(
+    db: Session,
+    sol: models.SolicitacaoEstoque,
+    mat: models.Material,
+    atual: models.Usuario,
+    decisao: str,
+    observacao: str,
+):
+    """Notifica o criador da solicitação sobre aprovação ou rejeição."""
+    if not (sol.criador and sol.criador.email):
+        return
+
+    status_label = "aprovada" if decisao == "aprovado" else "rejeitada"
+    titulo_email = f"Solicitação {status_label}"
+
+    corpo_linhas = f"""
+<p style="margin:0 0 16px;font-size:15px;color:#444">
+  Sua solicitação de material foi <b>{status_label}</b>.
+</p>
+<table style="width:100%;border-collapse:collapse">
+  {_linha_info("Material", mat.nome, destaque=True)}
+  {_linha_info("Quantidade", f"{sol.quantidade} {mat.unidade}")}
+  {_linha_info("Status", _badge_status(status_label))}
+  {_linha_info("Decidido por", atual.nome)}
+  {_linha_info("Observação", observacao or "—")}
+</table>
+"""
+    corpo_html = _html_email(titulo_email, corpo_linhas)
+
+    variaveis = {
+        "material":   mat.nome,
+        "quantidade": f"{sol.quantidade} {mat.unidade}",
+        "status":     status_label,
+        "decididor":  atual.nome,
+        "observacao": observacao or "—",
+    }
+    _es.disparar_notificacao(
+        db,
+        "solicitacao_decisao",
+        variaveis,
+        extras=[sol.criador.email],
+        corpo_html=corpo_html,
+    )
 
 
 @router.post("/{sol_id}/aprovar", response_model=schemas.SolicitacaoOut)
@@ -204,6 +308,14 @@ def aprovar_solicitacao(
     db.commit()
     registrar_log(db, atual.id, "aprovar", "solicitacao", sol_id,
                   f"{mat.nome} x{sol.quantidade}")
+
+    # ── Notifica criador sobre a aprovação ────────────────────────────────────
+    try:
+        sol_reloaded = _load(sol_id, db)
+        _notificar_decisao(db, sol_reloaded, mat, atual, "aprovado", body.observacao or "")
+    except Exception as exc:
+        print(f"[email] Erro ao notificar criador sobre aprovacao #{sol_id}: {exc}")
+
     return _build_out(_load(sol_id, db))
 
 
@@ -218,10 +330,22 @@ def rejeitar_solicitacao(
     if sol.status != models.StatusSolicitacao.aguardando:
         raise HTTPException(409, f"Solicitacao ja esta '{sol.status.value}'")
 
+    mat = db.query(models.Material).filter(models.Material.id == sol.material_id).first()
+    if not mat:
+        raise HTTPException(404, "Material nao encontrado")
+
     sol.status = models.StatusSolicitacao.rejeitado
     sol.decidido_por = atual.id
     sol.observacao = body.observacao
     sol.atualizado_em = agora()
     db.commit()
     registrar_log(db, atual.id, "rejeitar", "solicitacao", sol_id, body.observacao)
+
+    # ── Notifica criador sobre a rejeição ─────────────────────────────────────
+    try:
+        sol_reloaded = _load(sol_id, db)
+        _notificar_decisao(db, sol_reloaded, mat, atual, "rejeitado", body.observacao or "")
+    except Exception as exc:
+        print(f"[email] Erro ao notificar criador sobre rejeicao #{sol_id}: {exc}")
+
     return _build_out(_load(sol_id, db))

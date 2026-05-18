@@ -191,11 +191,11 @@ class MaterialOut(BaseModel):
         data.valor_unitario  = obj.valor_unitario
         data.tag             = obj.tag
         if obj.usa_patrimonio:
-            # Comparar com o Enum garante consistência mesmo se o valor interno mudar
+            # Exclui unidades atribuídas a ativos — elas entram apenas no valor imobilizado
             data.valor_total = sum(
                 u.valor_unitario or 0.0
                 for u in obj.unidades
-                if u.status == StatusUnidade.ativo
+                if u.status == StatusUnidade.ativo and u.tag != "atribuido"
             )
         else:
             data.valor_total = (obj.valor_unitario or 0.0) * obj.quantidade

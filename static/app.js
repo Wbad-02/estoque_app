@@ -787,14 +787,12 @@ let _nfeArquivo=null;
 async function carregarImportacao(){
   const [cats,grps]=await Promise.all([api('GET','/categorias/'),api('GET','/grupos/')]);
   S.categorias=cats||[]; S.grupos=grps||[];
-  $('nfe-cat-sel').innerHTML='<option value="">Selecione a categoria…</option>'+
-    S.categorias.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
   _nfeArquivo=null; $('nfe-arquivo').value='';
   $('nfe-emitente').style.display='none';
-  $('nfe-grupo-wrap').style.display='none';
+  $('nfe-aviso-duplicata').style.display='none';
   $('nfe-btn-confirmar').style.display='none';
   $('nfe-resultado').style.display='none';
-  $('nfe-preview-body').innerHTML='<tr><td colspan="5"><div class="empty"><span>📄</span>Carregue um XML</div></td></tr>';
+  $('nfe-preview-body').innerHTML='<tr><td colspan="7"><div class="empty"><span>📄</span>Carregue um XML</div></td></tr>';
   $('nfe-count').textContent='';
   if(S.grupo==='admin'||S.grupo==='mestre') _carregarHistoricoNfe();
 }
@@ -822,31 +820,69 @@ async function liberarReimportacao(chave){
   if(r!==null) { toast('Registro removido. Agora você pode reimportar a nota.'); _carregarHistoricoNfe(); }
 }
 
-function _grupoOptsHtml(valorSelecionado){
-  let html='<option value="">Selecione…</option>';
-  S.categorias.forEach(c=>{
-    const grpsCat=S.grupos.filter(g=>g.categoria_id==c.id);
+
+// ── Grupo pesquisável por linha ──────────────────────
+function _nfeGrpHtml(idx){
+  return `<div class="nfe-grp-wrap" data-idx="${idx}" style="position:relative">
+    <input type="text" class="nfe-grp-input" data-idx="${idx}"
+           placeholder="Buscar grupo…" autocomplete="off"
+           oninput="_nfeGrpInput(this)" onfocus="_nfeGrpInput(this)"
+           onblur="_nfeGrpBlur(this)"
+           style="width:100%;font-size:12px;box-sizing:border-box"/>
+    <input type="hidden" class="nfe-grp-id" data-idx="${idx}" value=""/>
+    <div class="nfe-grp-drop" data-idx="${idx}"
+         style="display:none;position:absolute;top:100%;left:0;right:0;z-index:100;
+                background:#fff;border:1px solid #ccc;border-radius:4px;
+                max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+    </div>
+  </div>`;
+}
+
+function _nfeGrpInput(el){
+  const idx=el.dataset.idx;
+  const q=(el.value||'').toLowerCase().trim();
+  const drop=document.querySelector(`.nfe-grp-drop[data-idx="${idx}"]`);
+  if(!drop) return;
+
+  let html='';
+  S.categorias.forEach(cat=>{
+    const grpsCat=S.grupos.filter(g=>g.categoria_id==cat.id &&
+      (!q || g.nome.toLowerCase().includes(q)));
     if(!grpsCat.length) return;
-    html+=`<optgroup label="${esc(c.nome)}">`;
+    html+=`<div style="padding:4px 10px;font-size:10px;color:#888;text-transform:uppercase;
+                        background:#f5f5f5;letter-spacing:.5px">${esc(cat.nome)}</div>`;
     grpsCat.forEach(g=>{
-      html+=`<option value="${g.id}"${g.id==valorSelecionado?' selected':''}>${esc(g.nome)}</option>`;
+      html+=`<div class="nfe-grp-opt"
+                  onmousedown="_nfeGrpSelecionar(${idx},${g.id},'${esc(g.nome).replace(/'/g,"\\'")}')  "
+                  style="padding:6px 12px;font-size:12px;cursor:pointer"
+                  onmouseover="this.style.background='var(--green)';this.style.color='#fff'"
+                  onmouseout="this.style.background='';this.style.color=''">${esc(g.nome)}</div>`;
     });
-    html+='</optgroup>';
   });
-  return html;
+
+  if(!html) html='<div style="padding:8px 12px;font-size:12px;color:#888">Nenhum resultado</div>';
+  drop.innerHTML=html;
+  drop.style.display='block';
 }
 
-async function carregarGruposNfe(){
-  const catId=$('nfe-cat-sel').value;
-  const grps=catId ? await api('GET',`/grupos/?categoria_id=${catId}`) : S.grupos;
-  $('nfe-grp-sel').innerHTML='<option value="">Selecione o grupo…</option>'+
-    (grps||[]).map(g=>`<option value="${g.id}">${esc(g.nome)}</option>`).join('');
-  aplicarGrupoGlobal();
+function _nfeGrpBlur(el){
+  setTimeout(()=>{
+    const idx=el.dataset.idx;
+    const idEl=document.querySelector(`.nfe-grp-id[data-idx="${idx}"]`);
+    const drop=document.querySelector(`.nfe-grp-drop[data-idx="${idx}"]`);
+    if(drop) drop.style.display='none';
+    // Se não há grupo selecionado, limpa o texto digitado
+    if(idEl && !idEl.value) el.value='';
+  },150);
 }
 
-function aplicarGrupoGlobal(){
-  const grpId=$('nfe-grp-sel').value;
-  document.querySelectorAll('.nfe-item-grp').forEach(sel=>{sel.value=grpId;});
+function _nfeGrpSelecionar(idx, grupoId, grupoNome){
+  const inputEl=document.querySelector(`.nfe-grp-input[data-idx="${idx}"]`);
+  const idEl=document.querySelector(`.nfe-grp-id[data-idx="${idx}"]`);
+  const drop=document.querySelector(`.nfe-grp-drop[data-idx="${idx}"]`);
+  if(inputEl) inputEl.value=grupoNome;
+  if(idEl) idEl.value=grupoId;
+  if(drop) drop.style.display='none';
 }
 
 async function previewNFe(){
@@ -870,7 +906,6 @@ async function previewNFe(){
       av.textContent=`Esta NF-e já foi importada (${(dados.importado_em||'').substring(0,10)}). Confirme só se liberou a reimportação.`;
       av.style.display='block';
     }
-    const grupoOpts=_grupoOptsHtml('');
     $('nfe-preview-body').innerHTML=dados.itens.map((it,idx)=>`
       <tr>
         <td style="font-size:12px;color:var(--muted)">${it.codigo}</td>
@@ -878,18 +913,17 @@ async function previewNFe(){
         <td>${it.quantidade}</td><td>${it.unidade}</td>
         <td>R$ ${it.valor_unit.toFixed(2)}</td>
         <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" checked title="Marcar como patrimônio individual"/></td>
-        <td><select class="nfe-item-grp" data-idx="${idx}" style="font-size:12px;min-width:160px">${grupoOpts}</select></td>
+        <td style="min-width:180px">${_nfeGrpHtml(idx)}</td>
       </tr>`).join('');
-    $('nfe-grupo-wrap').style.display='block';
     $('nfe-btn-confirmar').style.display='block';
   }catch{toast('Falha ao enviar arquivo','error');}
 }
 
 async function confirmarNFe(){
   if(!_nfeArquivo){toast('Selecione um XML','error');return;}
-  const sels=[...document.querySelectorAll('.nfe-item-grp')];
+  const sels=[...document.querySelectorAll('.nfe-grp-id')];
   if(!sels.length){toast('Carregue um XML primeiro','error');return;}
-  if(sels.some(s=>!s.value)){toast('Selecione o grupo de destino para todos os itens','error');return;}
+  if(sels.some(s=>!s.value)){toast('Selecione o grupo para todos os itens','error');return;}
   const grupoIds=sels.map(s=>s.value).join(',');
   const patrimonioIndices=[...document.querySelectorAll('.nfe-patrimonio-cb:checked')]
     .map(cb=>cb.dataset.idx).join(',');

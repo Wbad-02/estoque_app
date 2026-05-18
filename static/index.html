@@ -322,50 +322,51 @@
     <!-- IMPORTAÇÃO NF-e -->
     <section id="page-importacao" class="page">
       <div class="page-header"><h2>Importar NF-e</h2></div>
-      <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start">
-        <div class="table-wrap" style="padding:24px">
-          <h3 style="font-size:15px;color:var(--green);margin-bottom:6px">1. Selecionar XML</h3>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:20px">NF-e padrão versão 4.00. Os itens serão listados para revisão antes da confirmação.</p>
-          <div class="form-group"><label>Arquivo XML</label>
-            <input type="file" id="nfe-arquivo" accept=".xml" onchange="previewNFe()" style="cursor:pointer"/></div>
-          <div id="nfe-emitente" style="display:none;background:#F0F4F2;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px">
+
+      <!-- Card upload + info emitente -->
+      <div class="table-wrap" style="padding:20px 24px;margin-bottom:20px">
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:20px">
+          <div style="flex:0 0 auto">
+            <p style="color:var(--muted);font-size:13px;margin-bottom:10px">NF-e padrão versão 4.00. Os itens serão listados para revisão antes da confirmação.</p>
+            <div class="form-group" style="margin-bottom:0"><label>Arquivo XML</label>
+              <input type="file" id="nfe-arquivo" accept=".xml" onchange="previewNFe()" style="cursor:pointer"/>
+            </div>
+          </div>
+          <div id="nfe-emitente" style="display:none;background:#F0F4F2;border-radius:8px;padding:12px 16px;font-size:13px;flex:1 1 220px;align-self:flex-end">
             <strong style="color:var(--green)">Emitente:</strong> <span id="nfe-emit-nome"></span><br/>
             <strong style="color:var(--green)">NF-e nº:</strong> <span id="nfe-numero"></span>
           </div>
-          <div id="nfe-aviso-duplicata" style="display:none;background:#FFF3CD;color:#856404;border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px;border:1px solid #FFDDA0"></div>
-          <div id="nfe-grupo-wrap" style="display:none">
-            <div class="form-group"><label>2. Grupo padrão (aplica a todos)</label>
-              <select id="nfe-cat-sel" onchange="carregarGruposNfe()" style="margin-bottom:8px">
-                <option value="">Selecione a categoria…</option>
-              </select>
-              <select id="nfe-grp-sel" onchange="aplicarGrupoGlobal()"><option value="">Selecione o grupo…</option></select>
-              <p style="font-size:11px;color:var(--muted);margin-top:6px">
-                Selecione aqui para preencher todos os itens. Ajuste individualmente na tabela ao lado.
-              </p>
-            </div>
-          </div>
-          <button class="btn btn-primary" id="nfe-btn-confirmar" style="width:100%;display:none" onclick="withBtn(this,confirmarNFe)">✓ Confirmar importação</button>
         </div>
-        <div class="table-wrap">
-          <div class="table-toolbar">
-            <strong style="font-size:13px">Itens na nota</strong>
-            <span id="nfe-count" style="font-size:12px;color:var(--muted);margin-left:8px"></span>
-          </div>
-          <div style="overflow-x:auto">
+        <div id="nfe-aviso-duplicata" style="display:none;background:#FFF3CD;color:#856404;border-radius:8px;padding:10px 12px;font-size:12px;margin-top:14px;border:1px solid #FFDDA0"></div>
+      </div>
+
+      <!-- Tabela de itens -->
+      <div class="table-wrap" style="margin-bottom:16px">
+        <div class="table-toolbar">
+          <strong style="font-size:13px">Itens na nota</strong>
+          <span id="nfe-count" style="font-size:12px;color:var(--muted);margin-left:8px"></span>
+        </div>
+        <div style="overflow-x:auto">
           <table style="min-width:700px">
             <thead><tr><th>Código</th><th>Produto</th><th>Qtd.</th><th>Un.</th><th>Vl. Unit.</th><th title="Criar unidades individuais rastreadas">Pat.</th><th>Grupo de destino</th></tr></thead>
             <tbody id="nfe-preview-body">
               <tr><td colspan="7"><div class="empty"><span>📄</span>Carregue um XML</div></td></tr>
             </tbody>
           </table>
-          </div>
         </div>
       </div>
-      <div id="nfe-resultado" style="display:none;margin-top:20px" class="table-wrap">
+
+      <!-- Botão confirmar (abaixo da tabela, full-width) -->
+      <button class="btn btn-primary" id="nfe-btn-confirmar" style="width:100%;display:none;margin-bottom:20px" onclick="withBtn(this,confirmarNFe)">✓ Confirmar importação</button>
+
+      <!-- Resultado da importação -->
+      <div id="nfe-resultado" style="display:none;margin-bottom:20px" class="table-wrap">
         <div class="table-toolbar"><strong style="font-size:13px;color:var(--green)">✓ Importação concluída</strong></div>
         <div style="padding:20px;font-size:13px" id="nfe-resultado-detalhe"></div>
       </div>
-      <div class="table-wrap admin-only" style="margin-top:20px" id="nfe-historico-wrap">
+
+      <!-- Histórico (admin/mestre) -->
+      <div class="table-wrap admin-only" style="margin-bottom:20px" id="nfe-historico-wrap">
         <div class="table-toolbar">
           <strong style="font-size:13px">Histórico de importações</strong>
           <span style="font-size:12px;color:var(--muted);margin-left:8px">Remova o registro para permitir reimportação</span>
@@ -377,6 +378,7 @@
           </tbody>
         </table>
       </div>
+
       <div class="copyright-footer">© Todos os direitos reservados – github.com/Wbad-02</div>
     </section>
 

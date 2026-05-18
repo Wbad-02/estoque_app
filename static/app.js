@@ -1102,31 +1102,50 @@ async function liberarReimportacao(chave){
 
 // ── Grupo pesquisável por linha ──────────────────────
 function _nfeGrpHtml(idx){
-  return `<div class="nfe-grp-wrap" data-idx="${idx}" style="position:relative">
+  // Sem dropdown interno — usamos um único dropdown global no body
+  // para escapar de qualquer overflow:hidden/auto dos ancestrais.
+  return `<div class="nfe-grp-wrap" data-idx="${idx}">
     <input type="text" class="nfe-grp-input" data-idx="${idx}"
            placeholder="Buscar grupo…" autocomplete="off"
            oninput="_nfeGrpInput(this)" onfocus="_nfeGrpInput(this)"
            onblur="_nfeGrpBlur(this)"
            style="width:100%;font-size:12px;box-sizing:border-box"/>
     <input type="hidden" class="nfe-grp-id" data-idx="${idx}" value=""/>
-    <div class="nfe-grp-drop" data-idx="${idx}"
-         style="display:none;position:absolute;top:100%;left:0;min-width:260px;z-index:200;
-                background:#fff;border:1.5px solid #1B3A2D;border-radius:6px;
-                max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.15)">
-    </div>
   </div>`;
+}
+
+function _nfeGrpDrop(){
+  let d=document.getElementById('_nfe-grp-drop-global');
+  if(!d){
+    d=document.createElement('div');
+    d.id='_nfe-grp-drop-global';
+    d.style.cssText=[
+      'display:none;position:fixed;z-index:9999;',
+      'background:#fff;border:1.5px solid #1B3A2D;border-radius:6px;',
+      'max-height:220px;overflow-y:auto;',
+      'box-shadow:0 4px 16px rgba(0,0,0,.18);min-width:240px;'
+    ].join('');
+    document.body.appendChild(d);
+  }
+  return d;
 }
 
 function _nfeGrpInput(el){
   const idx=el.dataset.idx;
   const q=(el.value||'').toLowerCase().trim();
-  const drop=document.querySelector(`.nfe-grp-drop[data-idx="${idx}"]`);
-  if(!drop) return;
+  const drop=_nfeGrpDrop();
+  drop.dataset.idx=idx;
+
+  // Posiciona abaixo do input usando coordenadas fixas (viewport)
+  const rect=el.getBoundingClientRect();
+  drop.style.top =(rect.bottom+2)+'px';
+  drop.style.left= rect.left+'px';
+  drop.style.width=Math.max(rect.width,240)+'px';
 
   let html='';
   S.categorias.forEach(cat=>{
     const grpsCat=S.grupos.filter(g=>g.categoria_id==cat.id &&
-      (!q || g.nome.toLowerCase().includes(q)));
+      (!q||g.nome.toLowerCase().includes(q)));
     if(!grpsCat.length) return;
     html+=`<div style="padding:4px 10px;font-size:10px;color:#888;text-transform:uppercase;
                         background:#f5f5f5;letter-spacing:.5px">${esc(cat.nome)}</div>`;
@@ -1134,7 +1153,7 @@ function _nfeGrpInput(el){
       html+=`<div class="nfe-grp-opt"
                   onmousedown="_nfeGrpSelecionar(${idx},${g.id},'${esc(g.nome).replace(/'/g,"\\'")}')  "
                   style="padding:6px 12px;font-size:12px;cursor:pointer"
-                  onmouseover="this.style.background='var(--green)';this.style.color='#fff'"
+                  onmouseover="this.style.background='#1B3A2D';this.style.color='#fff'"
                   onmouseout="this.style.background='';this.style.color=''">${esc(g.nome)}</div>`;
     });
   });
@@ -1148,20 +1167,18 @@ function _nfeGrpBlur(el){
   setTimeout(()=>{
     const idx=el.dataset.idx;
     const idEl=document.querySelector(`.nfe-grp-id[data-idx="${idx}"]`);
-    const drop=document.querySelector(`.nfe-grp-drop[data-idx="${idx}"]`);
-    if(drop) drop.style.display='none';
-    // Se não há grupo selecionado, limpa o texto digitado
-    if(idEl && !idEl.value) el.value='';
+    const drop=_nfeGrpDrop();
+    if(drop.dataset.idx===idx) drop.style.display='none';
+    if(idEl&&!idEl.value) el.value='';
   },150);
 }
 
 function _nfeGrpSelecionar(idx, grupoId, grupoNome){
   const inputEl=document.querySelector(`.nfe-grp-input[data-idx="${idx}"]`);
-  const idEl=document.querySelector(`.nfe-grp-id[data-idx="${idx}"]`);
-  const drop=document.querySelector(`.nfe-grp-drop[data-idx="${idx}"]`);
+  const idEl   =document.querySelector(`.nfe-grp-id[data-idx="${idx}"]`);
   if(inputEl) inputEl.value=grupoNome;
-  if(idEl) idEl.value=grupoId;
-  if(drop) drop.style.display='none';
+  if(idEl)    idEl.value=grupoId;
+  _nfeGrpDrop().style.display='none';
 }
 
 async function previewNFe(){

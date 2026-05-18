@@ -1110,9 +1110,9 @@ function _nfeGrpHtml(idx){
            style="width:100%;font-size:12px;box-sizing:border-box"/>
     <input type="hidden" class="nfe-grp-id" data-idx="${idx}" value=""/>
     <div class="nfe-grp-drop" data-idx="${idx}"
-         style="display:none;position:absolute;top:100%;left:0;right:0;z-index:100;
-                background:#fff;border:1px solid #ccc;border-radius:4px;
-                max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+         style="display:none;position:absolute;top:100%;left:0;min-width:260px;z-index:200;
+                background:#fff;border:1.5px solid #1B3A2D;border-radius:6px;
+                max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.15)">
     </div>
   </div>`;
 }
@@ -1192,7 +1192,7 @@ async function previewNFe(){
         <td>${it.quantidade}</td><td>${it.unidade}</td>
         <td>R$ ${it.valor_unit.toFixed(2)}</td>
         <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" checked title="Marcar como patrimônio individual"/></td>
-        <td style="min-width:180px">${_nfeGrpHtml(idx)}</td>
+        <td style="min-width:260px;width:280px">${_nfeGrpHtml(idx)}</td>
       </tr>`).join('');
     $('nfe-btn-confirmar').style.display='block';
   }catch{toast('Falha ao enviar arquivo','error');}

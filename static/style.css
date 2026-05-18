@@ -530,24 +530,11 @@ table{min-width:540px}
   .rel-card-grid { grid-template-columns: 1fr; }
 
   /* ── Importação NF-e: responsividade mobile ── */
-  /* Card de upload: empilha verticalmente */
-  #page-importacao .table-wrap > div[style*="display:flex"] {
-    flex-direction: column !important;
-  }
-  /* Emitente ocupa 100% */
   #nfe-emitente {
     flex: 1 1 100% !important;
     align-self: stretch !important;
   }
-  /* Botão confirmar: já tem width:100%, sem ajuste extra */
-  #nfe-btn-confirmar {
-    font-size: 13px;
-  }
-  /* Coluna Grupo de destino na tabela NF-e: ocultar em telas muito pequenas */
-  #page-importacao table th:last-child,
-  #page-importacao table td:last-child {
-    min-width: 120px;
-  }
+  #nfe-btn-confirmar { font-size: 13px; }
 }
 
 /* ── Tablet: meio-termo ── */

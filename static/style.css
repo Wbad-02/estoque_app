@@ -153,9 +153,10 @@ tr.row-alert td{background:var(--warn-bg)}
 .badge-viewer {background:#ECEFF1;color:#37474F}
 .badge-colab  {background:#E3F2FD;color:#0D47A1}
 .badge-defeito{background:#FDECEA;color:#7B1818}
-.badge-novo   {background:#E3F2FD;color:#0D47A1}
-.badge-usado  {background:#FFF3E0;color:#BF360C}
-.badge-saida  {background:#FDECEA;color:#7B1818}
+.badge-novo        {background:#E3F2FD;color:#0D47A1}
+.badge-usado       {background:#FFF3E0;color:#BF360C}
+.badge-solicitado  {background:#FFF8E1;color:#F57F17}
+.badge-saida       {background:#FDECEA;color:#7B1818}
 .badge-em-uso {background:#F3E5F5;color:#4A148C}
 /* Status de requerimentos */
 .badge-pendente  {background:#FFF3CD;color:#7A5A00}

@@ -607,7 +607,8 @@ function renderizarMateriais(lista){
     itens.forEach(m=>{
       const semEstoque = m.quantidade <= 0;
       const tagBadge=m.tag==='novo'?'<span class="badge badge-novo" style="margin-left:5px">Novo</span>'
-        :m.tag==='usado'?'<span class="badge badge-usado" style="margin-left:5px">Usado</span>':'';
+        :m.tag==='usado'?'<span class="badge badge-usado" style="margin-left:5px">Usado</span>'
+        :m.tag==='solicitado'?'<span class="badge badge-solicitado" style="margin-left:5px">Solicitado</span>':'';
       html+=`<tr class="${m.alerta_minimo?'row-alert':''}" style="cursor:pointer;${semEstoque?'opacity:.55;':''}\" onclick="toggleMatDetail(${m.id},this)">
         <td>
           <span class="mat-expand-btn" title="Expandir">▶</span>
@@ -643,7 +644,7 @@ function renderizarMateriais(lista){
             </div>`:''}
             <div class="mat-detail-item">
               <span class="lbl">Tag</span>
-              <span class="val">${m.tag==='novo'?'<span class="badge badge-novo">Novo</span>':m.tag==='usado'?'<span class="badge badge-usado">Usado</span>':'<span style="color:var(--muted)">—</span>'}</span>
+              <span class="val">${m.tag==='novo'?'<span class="badge badge-novo">Novo</span>':m.tag==='usado'?'<span class="badge badge-usado">Usado</span>':m.tag==='solicitado'?'<span class="badge badge-solicitado">Solicitado</span>':'<span style="color:var(--muted)">—</span>'}</span>
             </div>
             <div class="mat-detail-item">
               <span class="lbl">Patrimônio individual</span>
@@ -1918,11 +1919,13 @@ async function toggleMatDetail(id, tr, forceReload){
     ? '<span class="badge badge-novo">Novo</span>'
     : t==='usado'
       ? '<span class="badge badge-usado">Usado</span>'
-      : t==='atribuido'
-        ? '<span class="badge" style="background:#e0e0e0;color:#888">Atribuído</span>'
-        : t==='saida'
-          ? '<span class="badge badge-saida">Saída</span>'
-          : '<span style="color:var(--muted);font-size:11px">—</span>';
+      : t==='solicitado'
+        ? '<span class="badge badge-solicitado">Solicitado</span>'
+        : t==='atribuido'
+          ? '<span class="badge" style="background:#e0e0e0;color:#888">Atribuído</span>'
+          : t==='saida'
+            ? '<span class="badge badge-saida">Saída</span>'
+            : '<span style="color:var(--muted);font-size:11px">—</span>';
 
   const tblStyle = 'width:100%;border-collapse:collapse;font-size:12px';
   const thStyle  = 'text-align:left;padding:5px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:1px solid var(--border)';
@@ -2484,13 +2487,14 @@ async function carregarUnidadesAtribuir(){
   $('atribuir-estoque-info').textContent=`Estoque disponível: ${opt.dataset.qtd} ${opt.dataset.un}`;
   $('atribuir-estoque-info').style.display='block';
   const unidades=await api('GET',`/patrimonio/${matId}/unidades`);
-  const disponiveis=(unidades||[]).filter(u=>u.tag!=='atribuido'&&u.status==='ativo');
+  const disponiveis=(unidades||[]).filter(u=>u.tag!=='atribuido'&&u.tag!=='solicitado'&&u.status==='ativo');
   if(!disponiveis.length){
     $('atribuir-unidade').innerHTML='<option value="">Nenhuma unidade disponível</option>';
     return;
   }
   $('atribuir-unidade').innerHTML='<option value="">Selecione a unidade…</option>'+
     disponiveis.map(u=>`<option value="${u.id}">${u.codigo||'Sem código #'+u.id} — ${u.tag||'novo'}</option>`).join('');
+  // (unidades com tag='solicitado' já foram excluídas pelo filtro de disponiveis)
 }
 
 async function confirmarAtribuir(){

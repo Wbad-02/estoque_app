@@ -686,6 +686,13 @@
               <label style="visibility:hidden">Ação</label>
               <button class="btn btn-primary" onclick="carregarRelatorioNfe()">Consultar</button>
             </div>
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Download</label>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-gold" onclick="exportarNfe('excel')" title="Baixar Excel">⬇ Excel</button>
+                <button class="btn btn-secondary" onclick="exportarNfe('pdf')" title="Baixar PDF">⬇ PDF</button>
+              </div>
+            </div>
           </div>
           <div id="rel-nfe-resultado" style="margin-top:12px"></div>
         </div>
@@ -710,13 +717,6 @@
             <button class="btn btn-secondary" onclick="exportarAtivos('pdf')" title="Exportar ativos para PDF">⬇ PDF</button>
           </div>
         </div>
-        <div class="table-wrap rel-card admin-only">
-          <h3>Notificações</h3>
-          <p>Lista de e-mails cadastrados para notificações por tipo.</p>
-          <div class="rel-actions">
-            <button class="btn btn-primary" onclick="exportarNotificacoes('excel')" title="Exportar e-mails de notificação para Excel">⬇ Excel</button>
-          </div>
-        </div>
       </div>
 
       <!-- Seção: Planejamento -->
@@ -739,6 +739,13 @@
               <label style="visibility:hidden">Ação</label>
               <button class="btn btn-primary" onclick="carregarRelRuptura()">Consultar</button>
             </div>
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Download</label>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-gold" onclick="exportarConsumeMedio('excel')" title="Baixar Excel">⬇ Excel</button>
+                <button class="btn btn-secondary" onclick="exportarConsumeMedio('pdf')" title="Baixar PDF">⬇ PDF</button>
+              </div>
+            </div>
           </div>
           <div id="rel-ruptura-resultado" style="margin-top:12px"></div>
         </div>
@@ -754,6 +761,13 @@
             <div class="rel-filter-item" style="justify-content:flex-end">
               <label style="visibility:hidden">Ação</label>
               <button class="btn btn-primary" onclick="carregarRelSolicitacoes()">Consultar</button>
+            </div>
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Download</label>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-gold" onclick="exportarSolicitacoesRel('excel')" title="Baixar Excel">⬇ Excel</button>
+                <button class="btn btn-secondary" onclick="exportarSolicitacoesRel('pdf')" title="Baixar PDF">⬇ PDF</button>
+              </div>
             </div>
           </div>
           <div id="rel-sol-resultado" style="margin-top:12px"></div>

@@ -1286,6 +1286,35 @@ function exportarNotificacoes(tipo){
     }).catch(()=>toast('Erro ao gerar relatório','error'));
 }
 
+function _downloadRel(url, filename){
+  fetch(url,{headers:{Authorization:`Bearer ${S.token}`}})
+    .then(r=>{if(!r.ok) throw r; return r.blob();})
+    .then(blob=>{
+      const link=document.createElement('a');
+      link.href=URL.createObjectURL(blob);
+      link.download=filename;
+      link.click(); URL.revokeObjectURL(link.href);
+    }).catch(()=>toast('Erro ao gerar relatório','error'));
+}
+
+function exportarNfe(tipo){
+  const mes=$('rel-nfe-mes').value, ano=$('rel-nfe-ano').value;
+  if(!mes||!ano){toast('Selecione mês e ano','error');return;}
+  _downloadRel(`/api/relatorios/entradas-nfe/${tipo}?mes=${mes}&ano=${ano}`,
+    `nfe_${mes.padStart(2,'0')}${ano}.${tipo==='excel'?'xlsx':'pdf'}`);
+}
+
+function exportarConsumeMedio(tipo){
+  const meses=$('rel-ruptura-meses')?.value||3;
+  _downloadRel(`/api/relatorios/consumo-medio/${tipo}?meses=${meses}`,
+    `consumo_medio.${tipo==='excel'?'xlsx':'pdf'}`);
+}
+
+function exportarSolicitacoesRel(tipo){
+  _downloadRel(`/api/relatorios/solicitacoes-por-material/${tipo}`,
+    `solicitacoes.${tipo==='excel'?'xlsx':'pdf'}`);
+}
+
 // ═══════════════════════════════════════════════════
 // Modal lista de unidades de patrimônio
 // ═══════════════════════════════════════════════════
@@ -3110,8 +3139,8 @@ async function carregarRelatorioNfe(){
   }
   const totalGeral = data.reduce((acc,r)=>acc+r.subtotal,0);
   resultado.innerHTML = `
-    <div class="table-scroll" style="margin-top:16px">
-      <table>
+    <div style="max-height:440px;overflow-y:auto;overflow-x:auto;margin-top:16px">
+      <table style="min-width:660px">
         <thead><tr>
           <th>NF-e</th><th>Material</th><th>Categoria</th>
           <th style="text-align:right">Qtd</th>
@@ -3166,8 +3195,8 @@ async function carregarRelRuptura(){
       <td style="text-align:right;font-weight:700;color:${cor}">${label}</td>
     </tr>`;
   }).join('');
-  el.innerHTML=`<div class="table-scroll">
-    <table>
+  el.innerHTML=`<div style="max-height:440px;overflow-y:auto;overflow-x:auto">
+    <table style="min-width:560px">
       <thead><tr>
         <th>Material</th><th>Categoria</th>
         <th style="text-align:right">Estoque atual</th>
@@ -3205,8 +3234,8 @@ async function carregarRelSolicitacoes(){
     <td style="text-align:right;color:#e65100">${r.aguardando}</td>
     <td style="text-align:right">${r.taxa_aprovacao.toFixed(1)}%</td>
   </tr>`).join('');
-  el.innerHTML=`<div class="table-scroll">
-    <table>
+  el.innerHTML=`<div style="max-height:440px;overflow-y:auto;overflow-x:auto">
+    <table style="min-width:580px">
       <thead><tr>
         <th>#</th><th>Material</th><th>Categoria</th>
         <th style="text-align:right">Total</th>

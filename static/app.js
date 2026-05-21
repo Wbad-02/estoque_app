@@ -841,15 +841,17 @@ function renderizarHistorico(lista){
     tbody.innerHTML='<tr><td colspan="7"><div class="empty"><span>📋</span>Nenhuma retirada registrada</div></td></tr>';
     return;
   }
-  const labelMotivo={colaborador:'Colaborador',defeito:'Defeito'};
-  const badgeMotivo={colaborador:'badge-colab',defeito:'badge-defeito'};
+  const _lbl={colaborador:'Colaborador',defeito:'Defeito'};
+  const _badge={colaborador:'badge-colab',defeito:'badge-defeito'};
+  const _labelM=m=>_lbl[m]||(m&&m.startsWith('Solicitacao #')?'Solicitação':esc(m||'—'));
+  const _badgeM=m=>_badge[m]||(m&&m.startsWith('Solicitacao #')?'badge-solicitado':'');
   tbody.innerHTML=lista.map(h=>`
     <tr>
       <td>${fmtDT(h.criado_em)}</td>
       <td><strong>${esc(h.nome_material)}</strong></td>
       <td class="hide-mobile"><span style="color:var(--muted);font-size:12px">${esc(h.categoria_nome)} / </span>${esc(h.grupo_nome)}</td>
       <td>${h.quantidade}</td>
-      <td><span class="badge ${badgeMotivo[h.motivo]||''}">${labelMotivo[h.motivo]||h.motivo}</span></td>
+      <td><span class="badge ${_badgeM(h.motivo)}">${_labelM(h.motivo)}</span></td>
       <td class="hide-mobile">${h.observacao||'—'}</td>
       <td class="hide-mobile" style="font-size:12px;color:var(--muted)">${esc(h.nome_usuario)}</td>
     </tr>`).join('');

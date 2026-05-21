@@ -2,7 +2,7 @@
 import os
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 import models, schemas
 from auth import get_usuario_atual, requer_editor_ou_admin, requer_admin, registrar_log
@@ -85,13 +85,20 @@ def criar_solicitacao(
                 models.UnidadePatrimonio.status == models.StatusUnidade.ativo,
                 or_(
                     models.UnidadePatrimonio.tag == None,
-                    models.UnidadePatrimonio.tag != "atribuido",
+                    and_(
+                        models.UnidadePatrimonio.tag != "atribuido",
+                        models.UnidadePatrimonio.tag != "solicitado",
+                    ),
                 ),
             )
             .first()
         )
         if not unidade:
-            raise HTTPException(422, "Unidade nao disponivel ou ja atribuida")
+            raise HTTPException(422, "Unidade nao disponivel, ja atribuida ou ja solicitada")
+        tag_original = unidade.tag      # "novo" | "usado" | None — restaurar se rejeitado
+        unidade.tag = "solicitado"
+        db.flush()
+        sync_qty(mat, db)
         sol_quantidade = 1
         sol_unidade_id = payload.unidade_id
     else:
@@ -105,11 +112,13 @@ def criar_solicitacao(
             raise HTTPException(422, "Quantidade deve ser um numero inteiro")
         sol_quantidade = int(qtd)
         sol_unidade_id = None
+        tag_original = None
 
     sol = models.SolicitacaoEstoque(
         material_id=payload.material_id,
         ativo_id=payload.ativo_id,
         unidade_id=sol_unidade_id,
+        unidade_tag_original=tag_original,
         quantidade=sol_quantidade,
         motivo=payload.motivo.strip(),
         status=models.StatusSolicitacao.aguardando,
@@ -259,24 +268,28 @@ def aprovar_solicitacao(
 
     if mat.usa_patrimonio:
         qtd_int = max(1, int(sol.quantidade))
+        _tag_disponivel = or_(
+            models.UnidadePatrimonio.tag == None,
+            and_(
+                models.UnidadePatrimonio.tag != "atribuido",
+                models.UnidadePatrimonio.tag != "solicitado",
+            ),
+        )
         if sol.unidade_id:
-            # Usa a unidade específica escolhida pelo solicitante
+            # A unidade foi reservada como 'solicitado' pelo criador — aceita esse estado
             unidades_disp = (
                 db.query(models.UnidadePatrimonio)
                 .filter(
                     models.UnidadePatrimonio.id == sol.unidade_id,
                     models.UnidadePatrimonio.status == models.StatusUnidade.ativo,
-                    or_(
-                        models.UnidadePatrimonio.tag == None,
-                        models.UnidadePatrimonio.tag != "atribuido",
-                    ),
+                    models.UnidadePatrimonio.tag == "solicitado",
                 )
                 .all()
             )
             if not unidades_disp:
                 raise HTTPException(
                     422,
-                    "A unidade selecionada nao esta mais disponivel",
+                    "A unidade reservada nao esta mais disponivel",
                 )
         else:
             # Fallback: qualquer unidade disponível (solicitações sem unidade_id)
@@ -285,10 +298,7 @@ def aprovar_solicitacao(
                 .filter(
                     models.UnidadePatrimonio.material_id == mat.id,
                     models.UnidadePatrimonio.status == models.StatusUnidade.ativo,
-                    or_(
-                        models.UnidadePatrimonio.tag == None,
-                        models.UnidadePatrimonio.tag != "atribuido",
-                    ),
+                    _tag_disponivel,
                 )
                 .limit(qtd_int)
                 .all()
@@ -385,6 +395,16 @@ def rejeitar_solicitacao(
     mat = db.query(models.Material).filter(models.Material.id == sol.material_id).first()
     if not mat:
         raise HTTPException(404, "Material nao encontrado")
+
+    # Devolve a unidade ao estoque restaurando a tag original
+    if sol.unidade_id:
+        unidade = db.query(models.UnidadePatrimonio).filter(
+            models.UnidadePatrimonio.id == sol.unidade_id
+        ).first()
+        if unidade and unidade.tag == "solicitado":
+            unidade.tag = sol.unidade_tag_original  # "novo" | "usado" | None
+            db.flush()
+            sync_qty(mat, db)
 
     sol.status = models.StatusSolicitacao.rejeitado
     sol.decidido_por = atual.id

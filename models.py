@@ -134,7 +134,7 @@ class UnidadePatrimonio(Base):
     origem        = Column(String(20), default="manual")  # "manual" | "xml" | "sistema"
     nf_numero     = Column(String(50), nullable=True)     # NF-e de origem quando vim de XML
     valor_unitario = Column(Float, nullable=True)
-    tag            = Column(String(10), nullable=True)    # "novo" | "usado"
+    tag            = Column(String(20), nullable=True)    # "novo" | "usado" | "atribuido" | "solicitado"
     criado_em     = Column(DateTime, default=agora)
     retirado_em   = Column(DateTime, nullable=True)
 
@@ -286,7 +286,8 @@ class SolicitacaoEstoque(Base):
     id            = Column(Integer, primary_key=True, index=True)
     material_id   = Column(Integer, ForeignKey("materiais.id"), nullable=False)
     ativo_id      = Column(Integer, ForeignKey("ativos.id"), nullable=True)
-    unidade_id    = Column(Integer, ForeignKey("unidades_patrimonio.id"), nullable=True)
+    unidade_id          = Column(Integer, ForeignKey("unidades_patrimonio.id"), nullable=True)
+    unidade_tag_original = Column(String(20), nullable=True)  # tag da unidade antes de virar 'solicitado'
     quantidade    = Column(Float, nullable=False, default=1.0)
     motivo        = Column(Text, nullable=False)
     status        = Column(Enum(StatusSolicitacao), default=StatusSolicitacao.aguardando)

@@ -191,11 +191,11 @@ class MaterialOut(BaseModel):
         data.valor_unitario  = obj.valor_unitario
         data.tag             = obj.tag
         if obj.usa_patrimonio:
-            # Exclui unidades atribuídas a ativos — elas entram apenas no valor imobilizado
+            # Exclui unidades reservadas (solicitado) e imobilizadas (atribuido)
             data.valor_total = sum(
                 u.valor_unitario or 0.0
                 for u in obj.unidades
-                if u.status == StatusUnidade.ativo and u.tag != "atribuido"
+                if u.status == StatusUnidade.ativo and u.tag not in ("atribuido", "solicitado")
             )
         else:
             data.valor_total = (obj.valor_unitario or 0.0) * obj.quantidade
@@ -536,8 +536,9 @@ class RejeitarSolicitacaoBody(BaseModel):
 
 class SolicitacaoOut(BaseModel):
     id: int; material_id: int; ativo_id: Optional[int]
-    unidade_id:     Optional[int] = None
-    unidade_codigo: Optional[str] = None
+    unidade_id:           Optional[int] = None
+    unidade_codigo:       Optional[str] = None
+    unidade_tag_original: Optional[str] = None
     quantidade: float; motivo: str; status: str
     criado_em: datetime; atualizado_em: datetime
     observacao: Optional[str] = None

@@ -190,6 +190,17 @@ def migrar():
     else:
         print("   solicitacoes_estoque.unidade_id já existe — ok")
 
+    # ── 18. solicitacoes_estoque.unidade_tag_original ─────────────────────
+    if not coluna_existe("solicitacoes_estoque", "unidade_tag_original"):
+        cur.execute("""
+            ALTER TABLE solicitacoes_estoque
+            ADD COLUMN unidade_tag_original TEXT
+        """)
+        print("✅ Coluna adicionada: solicitacoes_estoque.unidade_tag_original")
+        migracoes += 1
+    else:
+        print("   solicitacoes_estoque.unidade_tag_original já existe — ok")
+
     conn.commit()
     conn.close()
 

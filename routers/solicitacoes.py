@@ -1,13 +1,11 @@
 # © Todos os direitos reservados – github.com/Wbad-02
-import os
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, case, or_
 from sqlalchemy.orm import Session, joinedload
 import models, schemas
 from auth import get_usuario_atual, requer_editor_ou_admin, requer_admin, registrar_log
 from database import get_db
-from utils import sync_qty
+from utils import sync_qty, get_app_url
 from models import agora
 import email_service as _es
 from email_service import _html_email, _linha_info, _badge_status
@@ -151,7 +149,7 @@ def criar_solicitacao(
 
         data_fmt  = agora().strftime("%d/%m/%Y %H:%M")
         ativo_nome = sol_loaded.ativo.nome if sol_loaded.ativo else "—"
-        link       = os.environ.get("APP_URL", "http://localhost:8000")
+        link       = get_app_url()
 
         corpo_linhas = f"""
 <p style="margin:0 0 16px;font-size:15px;color:#444">

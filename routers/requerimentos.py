@@ -1,6 +1,5 @@
 # © Todos os direitos reservados – github.com/Wbad-02
 import io
-import os
 import re
 import unicodedata
 
@@ -13,11 +12,9 @@ import schemas
 from auth import get_usuario_atual, requer_editor_ou_admin, registrar_log
 from database import get_db
 from email_service import disparar_notificacao
+from utils import get_app_url
 
 router = APIRouter(prefix="/api/requerimentos", tags=["requerimentos"])
-
-_origins = os.environ.get("CORS_ORIGINS", "http://localhost:8000")
-_URL_BASE = _origins.split(",")[0].strip().rstrip("/")
 
 
 def _requer_criador_req(
@@ -138,7 +135,7 @@ def criar_requerimento(
         "total":        f"R$ {total:,.2f}",
         "itens_count":  str(len(req.itens)),
         "criador":      atual.nome,
-        "link":         f"{_URL_BASE}/#requerimentos",
+        "link":         f"{get_app_url()}/#requerimentos",
     })
 
     return _build_out(req)
@@ -462,7 +459,7 @@ def importar_excel(
         "total":       f"R$ {total:,.2f}",
         "itens_count": str(len(req.itens)),
         "criador":     atual.nome,
-        "link":        f"{_URL_BASE}/#requerimentos",
+        "link":        f"{get_app_url()}/#requerimentos",
     })
 
     return _build_out(req)

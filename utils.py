@@ -1,8 +1,19 @@
 # © Todos os direitos reservados – github.com/Wbad-02
 """Utilitários compartilhados entre routers."""
+import os
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 import models
+
+
+def get_app_url() -> str:
+    """URL pública do sistema, usada em links de e-mail.
+    Lê APP_URL; se não definida, tenta o primeiro valor de CORS_ORIGINS."""
+    url = os.environ.get("APP_URL", "").strip().rstrip("/")
+    if not url:
+        origens = os.environ.get("CORS_ORIGINS", "")
+        url = origens.split(",")[0].strip().rstrip("/")
+    return url or "http://localhost:8000"
 
 _TAGS_INDISPONIVEIS = ("atribuido", "solicitado")
 

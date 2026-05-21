@@ -8,7 +8,7 @@ from sqlalchemy import func
 from database import engine, get_db, Base
 from auth import verificar_senha, criar_token, hash_senha, registrar_log, get_usuario_atual
 from middleware_seguranca import MiddlewareSeguranca, REDES_PERMITIDAS, WHITELIST_IP_ATIVA
-from routers import usuarios, categorias, materiais, relatorios, grupos, importacao, retiradas, patrimonio, ativos, ativos_categorias, notificacoes, motivos, requerimentos, solicitacoes
+from routers import usuarios, categorias, materiais, relatorios, grupos, importacao, retiradas, patrimonio, ativos, ativos_categorias, notificacoes, motivos, requerimentos, solicitacoes, auditoria
 import models, schemas
 
 APP_VERSION = "3.3.0"
@@ -56,6 +56,7 @@ app.include_router(notificacoes.router)
 app.include_router(motivos.router)
 app.include_router(requerimentos.router)
 app.include_router(solicitacoes.router)
+app.include_router(auditoria.router)
 
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)

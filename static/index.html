@@ -719,6 +719,84 @@
         </div>
       </div>
 
+      <!-- Seção: Planejamento -->
+      <p class="rel-section-label">Planejamento</p>
+      <div style="margin-bottom:28px">
+        <div class="table-wrap rel-card">
+          <h3>Consumo médio &amp; previsão de ruptura</h3>
+          <p>Estima o consumo médio mensal por material e projeta quantos dias de cobertura restam no estoque.</p>
+          <div class="rel-filter-row">
+            <div class="rel-filter-item">
+              <label for="rel-ruptura-meses">Período de análise</label>
+              <select id="rel-ruptura-meses" style="min-width:170px">
+                <option value="1">Último mês</option>
+                <option value="3" selected>Últimos 3 meses</option>
+                <option value="6">Últimos 6 meses</option>
+                <option value="12">Último ano</option>
+              </select>
+            </div>
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Ação</label>
+              <button class="btn btn-primary" onclick="carregarRelRuptura()">Consultar</button>
+            </div>
+          </div>
+          <div id="rel-ruptura-resultado" style="margin-top:12px"></div>
+        </div>
+      </div>
+
+      <!-- Seção: Análise de Solicitações -->
+      <p class="rel-section-label">Análise de Solicitações</p>
+      <div style="margin-bottom:28px">
+        <div class="table-wrap rel-card">
+          <h3>Volume de solicitações por material</h3>
+          <p>Ranking dos materiais mais solicitados com taxa de aprovação e situação atual.</p>
+          <div class="rel-filter-row">
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Ação</label>
+              <button class="btn btn-primary" onclick="carregarRelSolicitacoes()">Consultar</button>
+            </div>
+          </div>
+          <div id="rel-sol-resultado" style="margin-top:12px"></div>
+        </div>
+      </div>
+
+      <!-- Seção: Auditoria (admin only) -->
+      <p class="rel-section-label admin-only">Auditoria</p>
+      <div class="admin-only" style="margin-bottom:28px">
+        <div class="table-wrap rel-card">
+          <h3>Log de auditoria</h3>
+          <p>Histórico completo de todas as ações registradas no sistema.</p>
+          <div class="rel-filter-row" style="flex-wrap:wrap;gap:12px">
+            <div class="rel-filter-item">
+              <label for="aud-usuario">Usuário</label>
+              <select id="aud-usuario" style="min-width:160px"><option value="">Todos</option></select>
+            </div>
+            <div class="rel-filter-item">
+              <label for="aud-acao">Ação</label>
+              <select id="aud-acao" style="min-width:130px"><option value="">Todas</option></select>
+            </div>
+            <div class="rel-filter-item">
+              <label for="aud-entidade">Entidade</label>
+              <select id="aud-entidade" style="min-width:130px"><option value="">Todas</option></select>
+            </div>
+            <div class="rel-filter-item">
+              <label for="aud-inicio">Data início</label>
+              <input type="date" id="aud-inicio"/>
+            </div>
+            <div class="rel-filter-item">
+              <label for="aud-fim">Data fim</label>
+              <input type="date" id="aud-fim"/>
+            </div>
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Ação</label>
+              <button class="btn btn-primary" onclick="carregarRelAuditoria(0)">Consultar</button>
+            </div>
+          </div>
+          <div id="rel-auditoria-resultado" style="margin-top:12px"></div>
+          <div id="rel-auditoria-paginacao" style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"></div>
+        </div>
+      </div>
+
       <div class="copyright-footer">© Todos os direitos reservados – github.com/Wbad-02</div>
     </section>
 

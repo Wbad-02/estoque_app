@@ -551,3 +551,119 @@ def relatorio_entradas_nfe(
         })
 
     return resultado
+
+
+# ── Consumo médio + previsão de ruptura ──────────────────────
+
+@router.get("/consumo-medio")
+def consumo_medio(
+    meses: int = 3,
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(get_usuario_atual),
+):
+    from datetime import timedelta
+    from sqlalchemy import func
+
+    if not (1 <= meses <= 24):
+        meses = 3
+
+    corte = _agora_br() - timedelta(days=30 * meses)
+
+    saidas_q = (
+        db.query(
+            models.Movimentacao.material_id,
+            func.sum(models.Movimentacao.quantidade).label("total_saida"),
+        )
+        .filter(
+            models.Movimentacao.tipo == "saida",
+            models.Movimentacao.criado_em >= corte,
+        )
+        .group_by(models.Movimentacao.material_id)
+        .all()
+    )
+    saidas_map = {r.material_id: float(r.total_saida or 0) for r in saidas_q}
+
+    mats = (
+        db.query(models.Material)
+        .filter(models.Material.ativo == True)
+        .join(models.GrupoMaterial)
+        .order_by(models.GrupoMaterial.nome, models.Material.nome)
+        .all()
+    )
+
+    resultado = []
+    for m in mats:
+        total = saidas_map.get(m.id, 0.0)
+        media_mensal = round(total / meses, 2)
+        if media_mensal > 0:
+            dias = round((float(m.quantidade) / media_mensal) * 30)
+        else:
+            dias = None
+        resultado.append({
+            "material_id":          m.id,
+            "material_nome":        m.nome,
+            "categoria_nome":       m.grupo.categoria.nome if m.grupo and m.grupo.categoria else "",
+            "grupo_nome":           m.grupo.nome if m.grupo else "",
+            "estoque_atual":        float(m.quantidade),
+            "unidade":              m.unidade,
+            "consumo_total_periodo": total,
+            "media_mensal":         media_mensal,
+            "dias_cobertura":       dias,
+        })
+
+    resultado.sort(key=lambda x: (x["dias_cobertura"] is None, x["dias_cobertura"] or 0))
+    return resultado
+
+
+# ── Solicitações por material ─────────────────────────────────
+
+@router.get("/solicitacoes-por-material")
+def solicitacoes_por_material(
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(get_usuario_atual),
+):
+    from sqlalchemy import func, case
+
+    rows = (
+        db.query(
+            models.SolicitacaoEstoque.material_id,
+            func.count(models.SolicitacaoEstoque.id).label("total"),
+            func.sum(case(
+                (models.SolicitacaoEstoque.status == models.StatusSolicitacao.aprovado, 1), else_=0
+            )).label("aprovados"),
+            func.sum(case(
+                (models.SolicitacaoEstoque.status == models.StatusSolicitacao.rejeitado, 1), else_=0
+            )).label("rejeitados"),
+            func.sum(case(
+                (models.SolicitacaoEstoque.status == models.StatusSolicitacao.aguardando, 1), else_=0
+            )).label("aguardando"),
+        )
+        .group_by(models.SolicitacaoEstoque.material_id)
+        .order_by(func.count(models.SolicitacaoEstoque.id).desc())
+        .all()
+    )
+
+    mat_ids = [r.material_id for r in rows]
+    mats = {
+        m.id: m
+        for m in db.query(models.Material).filter(models.Material.id.in_(mat_ids)).all()
+    } if mat_ids else {}
+
+    resultado = []
+    for r in rows:
+        mat = mats.get(r.material_id)
+        total = int(r.total or 0)
+        aprovados = int(r.aprovados or 0)
+        taxa = round((aprovados / total) * 100, 1) if total > 0 else 0.0
+        resultado.append({
+            "material_id":    r.material_id,
+            "material_nome":  mat.nome if mat else "—",
+            "categoria_nome": mat.grupo.categoria.nome if mat and mat.grupo and mat.grupo.categoria else "",
+            "grupo_nome":     mat.grupo.nome if mat and mat.grupo else "",
+            "total":          total,
+            "aprovados":      aprovados,
+            "rejeitados":     int(r.rejeitados or 0),
+            "aguardando":     int(r.aguardando or 0),
+            "taxa_aprovacao": taxa,
+        })
+    return resultado

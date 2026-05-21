@@ -3092,6 +3092,8 @@ function carregarRelatorios(){
   if(sel) sel.value = String(agora.getMonth()+1);
   if(selAno) selAno.value = String(agora.getFullYear());
   $('rel-nfe-resultado').innerHTML = '';
+  carregarRelRuptura();
+  if(S.grupo==='admin'||S.grupo==='mestre') iniciarAuditoria();
 }
 
 async function carregarRelatorioNfe(){
@@ -3135,6 +3137,161 @@ async function carregarRelatorioNfe(){
         </tr></tfoot>
       </table>
     </div>`;
+}
+
+// ── Relatório: Consumo médio + previsão de ruptura ──────────
+async function carregarRelRuptura(){
+  const meses = parseInt($('rel-ruptura-meses').value)||3;
+  const el = $('rel-ruptura-resultado');
+  el.innerHTML = '<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  const data = await api('GET',`/relatorios/consumo-medio?meses=${meses}`);
+  if(!data){ el.innerHTML=''; return; }
+  if(!data.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhum material encontrado.</div>';
+    return;
+  }
+  const rows = data.map(r=>{
+    const d = r.dias_cobertura;
+    let cor='', label='';
+    if(d===null||d===undefined){ cor='var(--muted)'; label='Sem consumo'; }
+    else if(d<=7){  cor='#c62828'; label=`${d} dias`; }
+    else if(d<=30){ cor='#e65100'; label=`${d} dias`; }
+    else if(d<=60){ cor='#f9a825'; label=`${d} dias`; }
+    else {          cor='#2e7d32'; label=`${d} dias`; }
+    return `<tr>
+      <td>${esc(r.material_nome)}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(r.categoria_nome)}</td>
+      <td style="text-align:right">${r.estoque_atual.toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(r.unidade)}</td>
+      <td style="text-align:right">${r.media_mensal>0?r.media_mensal.toLocaleString('pt-BR',{maximumFractionDigits:2})+' '+esc(r.unidade)+'/mês':'—'}</td>
+      <td style="text-align:right;font-weight:700;color:${cor}">${label}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`<div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>Material</th><th>Categoria</th>
+        <th style="text-align:right">Estoque atual</th>
+        <th style="text-align:right">Consumo médio</th>
+        <th style="text-align:right">Cobertura</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+  <div style="margin-top:10px;font-size:12px;color:var(--muted)">
+    <span style="color:#c62828;font-weight:700">■</span> &le;7 dias &nbsp;
+    <span style="color:#e65100;font-weight:700">■</span> &le;30 dias &nbsp;
+    <span style="color:#f9a825;font-weight:700">■</span> &le;60 dias &nbsp;
+    <span style="color:#2e7d32;font-weight:700">■</span> OK
+  </div>`;
+}
+
+// ── Relatório: Solicitações por material ─────────────────────
+async function carregarRelSolicitacoes(){
+  const el = $('rel-sol-resultado');
+  el.innerHTML='<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  const data = await api('GET','/relatorios/solicitacoes-por-material');
+  if(!data){ el.innerHTML=''; return; }
+  if(!data.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhuma solicitação registrada.</div>';
+    return;
+  }
+  const rows = data.map((r,i)=>`<tr>
+    <td style="text-align:center;color:var(--muted);font-size:13px">${i+1}</td>
+    <td>${esc(r.material_nome)}</td>
+    <td style="font-size:12px;color:var(--muted)">${esc(r.categoria_nome)}</td>
+    <td style="text-align:right;font-weight:700">${r.total}</td>
+    <td style="text-align:right;color:#2e7d32">${r.aprovados}</td>
+    <td style="text-align:right;color:#c62828">${r.rejeitados}</td>
+    <td style="text-align:right;color:#e65100">${r.aguardando}</td>
+    <td style="text-align:right">${r.taxa_aprovacao.toFixed(1)}%</td>
+  </tr>`).join('');
+  el.innerHTML=`<div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Material</th><th>Categoria</th>
+        <th style="text-align:right">Total</th>
+        <th style="text-align:right">Aprovados</th>
+        <th style="text-align:right">Rejeitados</th>
+        <th style="text-align:right">Aguardando</th>
+        <th style="text-align:right">Taxa aprv.</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// ── Relatório: Log de auditoria ───────────────────────────────
+let _audTotal=0, _audLimit=100;
+
+async function iniciarAuditoria(){
+  const opcoes = await api('GET','/auditoria/opcoes');
+  if(!opcoes) return;
+  const selU=$('aud-usuario'), selA=$('aud-acao'), selE=$('aud-entidade');
+  if(selU){
+    selU.innerHTML='<option value="">Todos</option>'+
+      opcoes.usuarios.map(u=>`<option value="${u.id}">${esc(u.nome)}</option>`).join('');
+  }
+  if(selA){
+    selA.innerHTML='<option value="">Todas</option>'+
+      opcoes.acoes.map(a=>`<option value="${a}">${esc(a)}</option>`).join('');
+  }
+  if(selE){
+    selE.innerHTML='<option value="">Todas</option>'+
+      opcoes.entidades.map(e=>`<option value="${e}">${esc(e)}</option>`).join('');
+  }
+}
+
+async function carregarRelAuditoria(offset){
+  offset = offset||0;
+  const el=$('rel-auditoria-resultado'), pag=$('rel-auditoria-paginacao');
+  if(!el) return;
+  el.innerHTML='<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  pag.innerHTML='';
+  const uid  = $('aud-usuario')?.value||'';
+  const acao = $('aud-acao')?.value||'';
+  const ent  = $('aud-entidade')?.value||'';
+  const ini  = $('aud-inicio')?.value||'';
+  const fim  = $('aud-fim')?.value||'';
+  let qs=`limit=${_audLimit}&offset=${offset}`;
+  if(uid)  qs+=`&usuario_id=${uid}`;
+  if(acao) qs+=`&acao=${encodeURIComponent(acao)}`;
+  if(ent)  qs+=`&entidade=${encodeURIComponent(ent)}`;
+  if(ini)  qs+=`&data_inicio=${ini}`;
+  if(fim)  qs+=`&data_fim=${fim}`;
+  const data = await api('GET',`/auditoria/?${qs}`);
+  if(!data){ el.innerHTML=''; return; }
+  _audTotal=data.total;
+  if(!data.logs.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhum registro encontrado.</div>';
+    return;
+  }
+  const rows=data.logs.map(l=>`<tr>
+    <td style="font-size:12px;color:var(--muted)">${fmtDT(l.criado_em)}</td>
+    <td>${esc(l.usuario_nome)}</td>
+    <td><span class="badge" style="background:#e8f5e9;color:#2e7d32">${esc(l.acao)}</span></td>
+    <td style="font-size:12px">${esc(l.entidade)}</td>
+    <td style="text-align:right;font-size:12px;color:var(--muted)">${l.entidade_id||'—'}</td>
+    <td style="font-size:12px;color:var(--muted);max-width:320px;white-space:pre-wrap;word-break:break-word">${esc(l.detalhe||'')}</td>
+  </tr>`).join('');
+  el.innerHTML=`<div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>Data/hora</th><th>Usuário</th><th>Ação</th>
+        <th>Entidade</th><th style="text-align:right">ID</th><th>Detalhe</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+  // paginação
+  const totalPags=Math.ceil(_audTotal/_audLimit);
+  const pagAtual=Math.floor(offset/_audLimit);
+  if(totalPags>1){
+    let btns='';
+    if(pagAtual>0) btns+=`<button class="btn btn-secondary" onclick="carregarRelAuditoria(${(pagAtual-1)*_audLimit})">← Anterior</button>`;
+    btns+=`<span style="font-size:13px;color:var(--muted);align-self:center">Pág. ${pagAtual+1} / ${totalPags} (${_audTotal} registros)</span>`;
+    if(pagAtual<totalPags-1) btns+=`<button class="btn btn-secondary" onclick="carregarRelAuditoria(${(pagAtual+1)*_audLimit})">Próxima →</button>`;
+    pag.innerHTML=btns;
+  }
 }
 
 // ═══════════════════════════════════════════════════

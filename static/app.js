@@ -3202,18 +3202,16 @@ async function abrirNovaSolicitacao(){
     + S.categorias.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
   $('sol-grp').innerHTML       = '<option value="">Selecione…</option>';
   $('sol-material-id').innerHTML = '<option value="">Selecione…</option>';
-  $('sol-unidade-id').innerHTML  = '<option value="">Selecione o material primeiro…</option>';
   $('sol-ativo-id').innerHTML = '<option value="">-- Nenhum / Sem ativo --</option>'
     + ativos.filter(a=>a.ativo).map(a=>`<option value="${a.id}">${esc(a.nome)}</option>`).join('');
 
-  $('sol-quantidade').value      = '1';
-  $('sol-motivo').value          = '';
+  $('sol-quantidade').value = '1';
+  $('sol-motivo').value     = '';
   $('sol-quantidade-wrap').style.display = 'none';
-  $('sol-unidade-wrap').style.display    = 'none';
+  $('sol-pat-info').style.display        = 'none';
   abrirModal('modal-nova-sol');
 
-  // Searchable selects — aplicar após o modal abrir e os selects serem populados
-  ['sol-cat','sol-grp','sol-material-id','sol-unidade-id','sol-ativo-id'].forEach(tornarPesquisavel);
+  ['sol-cat','sol-grp','sol-material-id','sol-ativo-id'].forEach(tornarPesquisavel);
 }
 
 async function solCarregarGrupos(){
@@ -3221,7 +3219,7 @@ async function solCarregarGrupos(){
   $('sol-grp').innerHTML         = '<option value="">Selecione…</option>';
   $('sol-material-id').innerHTML = '<option value="">Selecione…</option>';
   $('sol-quantidade-wrap').style.display = 'none';
-  $('sol-unidade-wrap').style.display    = 'none';
+  $('sol-pat-info').style.display        = 'none';
   if(!catId) return;
   const grps = await api('GET', `/grupos/?categoria_id=${catId}`) || [];
   $('sol-grp').innerHTML = '<option value="">Selecione…</option>'
@@ -3232,42 +3230,36 @@ async function solCarregarMateriais(){
   const grpId = $('sol-grp').value;
   $('sol-material-id').innerHTML = '<option value="">Selecione…</option>';
   $('sol-quantidade-wrap').style.display = 'none';
-  $('sol-unidade-wrap').style.display    = 'none';
+  $('sol-pat-info').style.display        = 'none';
   if(!grpId) return;
   const mats = await api('GET', `/materiais/?grupo_id=${grpId}`) || [];
   const disponiveis = mats.filter(m=>m.ativo && m.quantidade > 0);
   $('sol-material-id').innerHTML = '<option value="">Selecione…</option>'
     + disponiveis.map(m=>
-        `<option value="${m.id}" data-pat="${m.usa_patrimonio?'1':'0'}" data-un="${esc(m.unidade)}">`
+        `<option value="${m.id}" data-pat="${m.usa_patrimonio?'1':'0'}" data-un="${esc(m.unidade)}" data-qty="${m.quantidade}">`
         +`${esc(m.nome)} (${Number(m.quantidade).toLocaleString('pt-BR',{maximumFractionDigits:0})} ${esc(m.unidade)})</option>`
       ).join('');
 }
 
-async function solCarregarUnidades(){
+function solOnMaterial(){
   const sel = $('sol-material-id');
   const opt = sel.options[sel.selectedIndex];
   $('sol-quantidade-wrap').style.display = 'none';
-  $('sol-unidade-wrap').style.display    = 'none';
+  $('sol-pat-info').style.display        = 'none';
   if(!opt || !opt.value) return;
 
-  const matId = opt.value;
-  const isPat = opt.dataset.pat === '1';
+  const isPat   = opt.dataset.pat === '1';
+  const qtdDisp = parseFloat(opt.dataset.qty || '0');
 
   if(isPat){
-    $('sol-unidade-wrap').style.display = '';
-    $('sol-unidade-id').innerHTML = '<option value="">Carregando…</option>';
-    const unidades    = await api('GET', `/patrimonio/${matId}/unidades`) || [];
-    const disponiveis = unidades.filter(u=>u.status==='ativo' && u.tag!=='atribuido');
-    if(!disponiveis.length){
-      $('sol-unidade-id').innerHTML = '<option value="">Nenhuma unidade disponível</option>';
+    const txt = $('sol-pat-info-text');
+    if(qtdDisp <= 0){
+      txt.innerHTML = '<span style="color:var(--danger)">Nenhuma unidade disponível no estoque.</span>';
     } else {
-      $('sol-unidade-id').innerHTML = '<option value="">Selecione a unidade…</option>'
-        + disponiveis.map(u=>{
-            const cod = u.codigo || 'Sem código #' + u.id;
-            const tag = u.tag || 'novo';
-            return `<option value="${u.id}">${esc(cod)} — ${tag}</option>`;
-          }).join('');
+      const un = qtdDisp === 1 ? 'unidade disponível' : 'unidades disponíveis';
+      txt.innerHTML = `<b>${qtdDisp}</b> ${un} &mdash; será atribuída automaticamente <span style="color:var(--muted)">(prioridade: novas primeiro)</span>`;
     }
+    $('sol-pat-info').style.display = '';
   } else {
     $('sol-quantidade-wrap').style.display = '';
     $('sol-quantidade').value = '1';
@@ -3289,9 +3281,6 @@ async function criarSolicitacao(){
   if(ativo_id) body.ativo_id = ativo_id;
 
   if(isPat){
-    const unidade_id = parseInt($('sol-unidade-id').value);
-    if(!unidade_id){ toast('Selecione uma unidade','error'); return; }
-    body.unidade_id = unidade_id;
     body.quantidade = 1;
   } else {
     const quantidade = parseInt($('sol-quantidade').value, 10);

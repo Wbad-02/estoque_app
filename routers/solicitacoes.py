@@ -2,7 +2,7 @@
 import os
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, case, or_
 from sqlalchemy.orm import Session, joinedload
 import models, schemas
 from auth import get_usuario_atual, requer_editor_ou_admin, requer_admin, registrar_log
@@ -75,12 +75,10 @@ def criar_solicitacao(
             raise HTTPException(404, "Ativo nao encontrado")
 
     if mat.usa_patrimonio:
-        if not payload.unidade_id:
-            raise HTTPException(422, "Selecione uma unidade especifica do patrimonio")
+        # Backend escolhe automaticamente: prioridade novo → sem tag → usado
         unidade = (
             db.query(models.UnidadePatrimonio)
             .filter(
-                models.UnidadePatrimonio.id == payload.unidade_id,
                 models.UnidadePatrimonio.material_id == mat.id,
                 models.UnidadePatrimonio.status == models.StatusUnidade.ativo,
                 or_(
@@ -91,16 +89,23 @@ def criar_solicitacao(
                     ),
                 ),
             )
+            .order_by(
+                case(
+                    (models.UnidadePatrimonio.tag == "novo", 0),
+                    (models.UnidadePatrimonio.tag == None, 1),
+                    else_=2,
+                )
+            )
             .first()
         )
         if not unidade:
-            raise HTTPException(422, "Unidade nao disponivel, ja atribuida ou ja solicitada")
+            raise HTTPException(422, "Nenhuma unidade disponivel no estoque")
         tag_original = unidade.tag      # "novo" | "usado" | None — restaurar se rejeitado
         unidade.tag = "solicitado"
         db.flush()
         sync_qty(mat, db)
         sol_quantidade = 1
-        sol_unidade_id = payload.unidade_id
+        sol_unidade_id = unidade.id
     else:
         if mat.quantidade < payload.quantidade:
             raise HTTPException(

@@ -168,80 +168,81 @@ def baixar_modelo_excel(
     _: models.Usuario = Depends(requer_editor_ou_admin),
 ):
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
 
+    # Colunas: A=Nome | B=Link | C=Qtd | D=Valor Unit. | E=Subtotal
     wb = Workbook()
     ws = wb.active
     ws.title = "Requerimento"
 
     fill_verde   = PatternFill("solid", fgColor="1B3A2D")
     fill_dourado = PatternFill("solid", fgColor="C9A84C")
-    fill_dica    = PatternFill("solid", fgColor="FFF9E6")
+    font_branco  = Font(bold=True, color="FFFFFF", size=13)
+    font_header  = Font(bold=True, size=11)
+    font_normal  = Font(size=11)
+    font_link    = Font(size=11, color="0563C1", underline="single")
+    al_center    = Alignment(horizontal="center", vertical="center")
+    al_right     = Alignment(horizontal="right",  vertical="center")
+    al_left      = Alignment(horizontal="left",   vertical="center")
 
-    borda_dica = Border(
-        left=Side(style="thin", color="C9A84C"),
-        right=Side(style="thin", color="C9A84C"),
-        top=Side(style="thin", color="C9A84C"),
-        bottom=Side(style="thin", color="C9A84C"),
-    )
+    # Linha 1 — título (A1:E1)
+    ws.merge_cells("A1:E1")
+    ws["A1"] = "Requerimento de Compra"
+    ws["A1"].font = font_branco; ws["A1"].fill = fill_verde; ws["A1"].alignment = al_center
+    ws.row_dimensions[1].height = 24
 
-    ws.merge_cells("A1:D1")
-    ws["A1"] = "MODELO — Requerimento de Compra"
-    ws["A1"].font      = Font(bold=True, color="FFFFFF", size=13)
-    ws["A1"].fill      = fill_verde
-    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[1].height = 22
-
-    # Linha 2: dica de uso
-    ws.merge_cells("A2:D2")
-    ws["A2"] = (
-        "INSTRUÇÃO: Na coluna 'Nome do Item', cole o link do produto como hiperlink na célula "
-        "(clique direito → Link → cole a URL). O nome do item será o texto visível."
-    )
-    ws["A2"].font      = Font(italic=True, size=9, color="856404")
-    ws["A2"].fill      = fill_dica
-    ws["A2"].border    = borda_dica
-    ws["A2"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
-    ws.row_dimensions[2].height = 32
-
-    # Linha 3: cabeçalhos
-    cabecalhos = ["Nome do Item", "Quantidade", "Valor Unitário (R$)", "Subtotal (R$)"]
-    for col, texto in enumerate(cabecalhos, start=1):
-        c = ws.cell(row=3, column=col, value=texto)
-        c.font      = Font(bold=True, size=11)
-        c.fill      = fill_dourado
-        c.alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[3].height = 18
-
-    # Três linhas de exemplo — a primeira com hyperlink de demonstração
-    exemplos = [
-        ("Mouse sem fio Logitech M170", "https://www.mercadolivre.com.br/mouse-sem-fio-logitech-m170/p/MLB8588", 2, 89.90),
-        ("Teclado USB padrão ABNT2",   None, 1, 69.90),
-        ("Monitor 21.5\" Full HD",     None, 1, 649.00),
+    # Linha 2 — cabeçalhos
+    cabecalhos = [
+        ("A2", "Nome"),
+        ("B2", "Link (URL do produto)"),
+        ("C2", "Qtd"),
+        ("D2", "Valor Unitário (R$)"),
+        ("E2", "Subtotal (R$)"),
     ]
-    font_link   = Font(size=11, color="0563C1", underline="single")
-    font_normal = Font(size=11)
+    for cel, texto in cabecalhos:
+        ws[cel] = texto
+        ws[cel].font = font_header; ws[cel].fill = fill_dourado; ws[cel].alignment = al_center
+    ws.row_dimensions[2].height = 18
 
-    for linha, (nome, url, qtd, val) in enumerate(exemplos, start=4):
+    # Linhas de exemplo
+    exemplos = [
+        ("Mouse sem fio Logitech M170", "https://produto.mercadolivre.com.br/MLB-123456", 2, 89.90),
+        ("Teclado USB padrão ABNT2",    "https://produto.mercadolivre.com.br/MLB-789012", 1, 69.90),
+        ("Monitor 21.5\" Full HD",      "",                                               1, 649.00),
+    ]
+    for linha, (nome, url, qtd, val) in enumerate(exemplos, start=3):
+        # Coluna A — Nome
         c_nome = ws.cell(row=linha, column=1, value=nome)
+        c_nome.font = font_normal; c_nome.alignment = al_left
+
+        # Coluna B — Link (texto puro; clicável como hyperlink se preenchido)
+        c_url = ws.cell(row=linha, column=2, value=url or "")
         if url:
-            c_nome.hyperlink = url
-            c_nome.font = font_link
+            c_url.hyperlink = url
+            c_url.font = font_link
         else:
-            c_nome.font = font_normal
+            c_url.font = font_normal
+        c_url.alignment = al_left
 
-        c_qtd = ws.cell(row=linha, column=2, value=qtd)
-        c_qtd.number_format = "#,##0.##"; c_qtd.alignment = Alignment(horizontal="right")
-        c_val = ws.cell(row=linha, column=3, value=val)
-        c_val.number_format = "#,##0.00"; c_val.alignment = Alignment(horizontal="right")
-        c_sub = ws.cell(row=linha, column=4, value=f"=B{linha}*C{linha}")
-        c_sub.number_format = "#,##0.00"; c_sub.alignment = Alignment(horizontal="right"); c_sub.font = font_normal
+        # Coluna C — Qtd
+        c_qtd = ws.cell(row=linha, column=3, value=qtd)
+        c_qtd.number_format = "#,##0.##"; c_qtd.alignment = al_right; c_qtd.font = font_normal
 
-    ws.column_dimensions[get_column_letter(1)].width = 44
-    ws.column_dimensions[get_column_letter(2)].width = 14
-    ws.column_dimensions[get_column_letter(3)].width = 20
-    ws.column_dimensions[get_column_letter(4)].width = 18
+        # Coluna D — Valor Unit.
+        c_val = ws.cell(row=linha, column=4, value=val)
+        c_val.number_format = "#,##0.00"; c_val.alignment = al_right; c_val.font = font_normal
+
+        # Coluna E — Subtotal (fórmula =C*D)
+        c_sub = ws.cell(row=linha, column=5, value=f"=C{linha}*D{linha}")
+        c_sub.number_format = "#,##0.00"; c_sub.alignment = al_right; c_sub.font = font_normal
+
+    # Larguras
+    ws.column_dimensions["A"].width = 38
+    ws.column_dimensions["B"].width = 42
+    ws.column_dimensions["C"].width = 10
+    ws.column_dimensions["D"].width = 20
+    ws.column_dimensions["E"].width = 18
 
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -276,30 +277,44 @@ def importar_excel(
     except Exception:
         raise HTTPException(422, "Arquivo Excel inválido ou corrompido")
 
-    itens_raw = []
-    # Itera célula a célula para capturar hyperlinks; pula cabeçalhos e dicas
-    for row_cells in ws.iter_rows(min_row=3):
-        c_nome = row_cells[0]
-        raw_nome = c_nome.value
-        nome = str(raw_nome).strip() if raw_nome not in (None, "") else ""
-        if not nome or nome.upper() in ("TOTAL", "NOME DO ITEM", "NOME", "INSTRUÇÃO:",
-                                         "INSTRUCAO:", "MODELO", "MODELO —"):
-            continue
-        # Extrai hyperlink se existir
-        url = None
-        if c_nome.hyperlink:
-            url = c_nome.hyperlink.target if hasattr(c_nome.hyperlink, "target") else str(c_nome.hyperlink)
+    # Layout esperado: A=Nome | B=Link (URL) | C=Qtd | D=Valor Unit. | E=Subtotal (ignorado)
+    _SKIP_NOMES = {"TOTAL", "NOME", "NOME DO ITEM", "REQUERIMENTO DE COMPRA"}
 
+    itens_raw = []
+    for row_cells in ws.iter_rows(min_row=2):   # min_row=2 pula o título (linha 1)
+        if len(row_cells) < 4:
+            continue
+
+        # Coluna A — Nome
+        raw_nome = row_cells[0].value
+        nome = str(raw_nome).strip() if raw_nome not in (None, "") else ""
+        if not nome or nome.upper() in _SKIP_NOMES:
+            continue
+
+        # Coluna B — Link/URL (texto puro ou hyperlink na célula)
+        c_url = row_cells[1]
+        raw_url = c_url.value
+        url: str | None = None
+        if raw_url not in (None, ""):
+            url = str(raw_url).strip() or None
+        # Fallback: hyperlink embutido na célula B
+        if not url and c_url.hyperlink:
+            url = c_url.hyperlink.target if hasattr(c_url.hyperlink, "target") else str(c_url.hyperlink)
+
+        # Coluna C — Qtd
+        # Coluna D — Valor Unit.
         try:
-            raw_qtd = row_cells[1].value if len(row_cells) > 1 else None
-            raw_val = row_cells[2].value if len(row_cells) > 2 else None
+            raw_qtd = row_cells[2].value
+            raw_val = row_cells[3].value
             qtd = float(raw_qtd) if raw_qtd not in (None, "") else 1.0
             val = float(raw_val) if raw_val not in (None, "") else 0.0
         except (TypeError, ValueError):
             continue
+
         if qtd <= 0 or val <= 0:
             continue
-        itens_raw.append({"nome": nome, "quantidade": qtd, "valor": val, "url": url})
+
+        itens_raw.append({"nome": nome, "quantidade": qtd, "valor": val, "url": url or None})
 
     if not itens_raw:
         raise HTTPException(422, "Nenhum item válido encontrado na planilha (verifique o modelo)")
@@ -450,57 +465,82 @@ def exportar_excel(
     font_normal  = Font(size=11)
     font_link    = Font(size=11, color="0563C1", underline="single")
 
-    # ── Linha 1: titulo (A1:D1 merged) ────────────────────────────────────────
-    ws.merge_cells("A1:D1")
+    # ── Linha 1: titulo (A1:E1 merged) ────────────────────────────────────────
+    ws.merge_cells("A1:E1")
     ws["A1"] = req.titulo
     ws["A1"].font      = font_titulo
     ws["A1"].fill      = fill_verde
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 22
 
-    # ── Linha 2: cabecalho ─────────────────────────────────────────────────────
-    cabecalhos = {"A2": "Nome", "B2": "Quantidade", "C2": "Valor Unit. (R$)", "D2": "Subtotal (R$)"}
-    for cel, texto in cabecalhos.items():
-        ws[cel] = texto
-        ws[cel].font      = font_header
-        ws[cel].fill      = fill_dourado
-        ws[cel].alignment = Alignment(horizontal="center", vertical="center")
+    # ── Linha 2: cabecalho (5 colunas) ────────────────────────────────────────
+    # A=Nome | B=Link | C=Qtd | D=Valor Unit. | E=Subtotal
+    cabecalhos = [
+        (1, "Nome"),
+        (2, "Link (URL do produto)"),
+        (3, "Qtd"),
+        (4, "Valor Unit. (R$)"),
+        (5, "Subtotal (R$)"),
+    ]
+    for col, texto in cabecalhos:
+        c = ws.cell(row=2, column=col, value=texto)
+        c.font = font_header; c.fill = fill_dourado
+        c.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[2].height = 18
 
     # ── Linhas dos itens ───────────────────────────────────────────────────────
     for linha, item in enumerate(req.itens, start=3):
         qtd      = item.quantidade or 1.0
-        subtotal = qtd * item.valor
+        subtotal = round(qtd * item.valor, 2)
+
+        # Coluna A — Nome
         c_nome = ws.cell(row=linha, column=1, value=item.nome)
+        c_nome.font = font_normal
+        c_nome.alignment = Alignment(horizontal="left")
+
+        # Coluna B — Link
+        c_url = ws.cell(row=linha, column=2, value=item.url or "")
         if item.url:
-            c_nome.hyperlink = item.url
-            c_nome.font = font_link
+            c_url.hyperlink = item.url
+            c_url.font = font_link
         else:
-            c_nome.font = font_normal
-        c_qtd = ws.cell(row=linha, column=2, value=qtd)
-        c_qtd.font = font_normal; c_qtd.number_format = "#,##0.##"; c_qtd.alignment = Alignment(horizontal="right")
-        c_val = ws.cell(row=linha, column=3, value=item.valor)
-        c_val.font = font_normal; c_val.number_format = "#,##0.00"; c_val.alignment = Alignment(horizontal="right")
-        c_sub = ws.cell(row=linha, column=4, value=subtotal)
-        c_sub.font = font_normal; c_sub.number_format = "#,##0.00"; c_sub.alignment = Alignment(horizontal="right")
+            c_url.font = font_normal
+        c_url.alignment = Alignment(horizontal="left")
+
+        # Coluna C — Qtd
+        c_qtd = ws.cell(row=linha, column=3, value=qtd)
+        c_qtd.font = font_normal; c_qtd.number_format = "#,##0.##"
+        c_qtd.alignment = Alignment(horizontal="right")
+
+        # Coluna D — Valor Unit.
+        c_val = ws.cell(row=linha, column=4, value=item.valor)
+        c_val.font = font_normal; c_val.number_format = "#,##0.00"
+        c_val.alignment = Alignment(horizontal="right")
+
+        # Coluna E — Subtotal
+        c_sub = ws.cell(row=linha, column=5, value=subtotal)
+        c_sub.font = font_normal; c_sub.number_format = "#,##0.00"
+        c_sub.alignment = Alignment(horizontal="right")
 
     # ── Linha de total ─────────────────────────────────────────────────────────
     linha_total = 3 + len(req.itens)
     total = sum((i.quantidade or 1.0) * i.valor for i in req.itens)
 
-    ws.merge_cells(f"A{linha_total}:C{linha_total}")
+    ws.merge_cells(f"A{linha_total}:D{linha_total}")
     cel_label = ws.cell(row=linha_total, column=1, value="TOTAL")
-    cel_label.font = font_total; cel_label.fill = fill_total; cel_label.alignment = Alignment(horizontal="right")
+    cel_label.font = font_total; cel_label.fill = fill_total
+    cel_label.alignment = Alignment(horizontal="right")
 
-    cel_total = ws.cell(row=linha_total, column=4, value=total)
+    cel_total = ws.cell(row=linha_total, column=5, value=round(total, 2))
     cel_total.font = font_total; cel_total.fill = fill_total
     cel_total.number_format = "#,##0.00"; cel_total.alignment = Alignment(horizontal="right")
 
     # Larguras das colunas
-    ws.column_dimensions[get_column_letter(1)].width = 44
-    ws.column_dimensions[get_column_letter(2)].width = 14
-    ws.column_dimensions[get_column_letter(3)].width = 18
-    ws.column_dimensions[get_column_letter(4)].width = 18
+    ws.column_dimensions["A"].width = 36
+    ws.column_dimensions["B"].width = 42
+    ws.column_dimensions["C"].width = 10
+    ws.column_dimensions["D"].width = 18
+    ws.column_dimensions["E"].width = 18
 
     # Serializar em memoria
     buffer = io.BytesIO()

@@ -442,11 +442,20 @@ function iniciarApp(){
     }
   }
 
-  // Navega direto para a página indicada no hash (ex: link de e-mail /#requerimentos)
-  const hashPage = window.location.hash.replace('#', '').trim();
+  // Navega direto para a página indicada no hash (ex: link de e-mail /#requerimentos ou /#requerimentos:sol)
+  const hashRaw  = window.location.hash.replace('#', '').trim();
+  const [hashPage, hashSub] = hashRaw.split(':');
   const paginasValidas = ['dashboard','materiais','retiradas','categorias','ativos',
     'categ-ativos','usuarios','importacao','notificacoes','requerimentos','perfil','relatorios'];
-  if(hashPage && paginasValidas.includes(hashPage)){
+  if(hashPage === 'requerimentos' && hashSub === 'sol'){
+    // Abre direto na aba de Solicitações de Estoque
+    _reqTabAtual = 'sol';
+    $('tab-panel-req') && ($('tab-panel-req').style.display='none');
+    $('tab-panel-sol') && ($('tab-panel-sol').style.display='');
+    $('tab-btn-req')   && ($('tab-btn-req').classList.remove('active'));
+    $('tab-btn-sol')   && ($('tab-btn-sol').classList.add('active'));
+    navegar('requerimentos');
+  } else if(hashPage && paginasValidas.includes(hashPage)){
     navegar(hashPage);
   } else {
     carregarDashboard();

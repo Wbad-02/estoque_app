@@ -164,7 +164,7 @@ def criar_solicitacao(
   {_linha_info("Data", data_fmt)}
 </table>
 <div style="margin-top:24px;padding-top:16px;border-top:1px solid #eee">
-  <a href="{link}/#requerimentos" style="display:inline-block;padding:10px 24px;background:#1B3A2D;color:#fff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600">
+  <a href="{link}/#requerimentos:sol" style="display:inline-block;padding:10px 24px;background:#1B3A2D;color:#fff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600">
     Ver solicitação
   </a>
 </div>

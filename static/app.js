@@ -2882,8 +2882,7 @@ function _badgeReq(status){
 }
 
 function _renderRequerimentos(lista){
-  // Badge já foi atualizado por carregarRequerimentos com ambas as listas
-  _atualizarBadgeReq(lista, null);
+  // Badge já foi atualizado por carregarRequerimentos — não chamar aqui (zeraria badge de solicitações)
   const tbody = $('req-body');
   if(!lista.length){
     tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><span>📋</span>Nenhum requerimento cadastrado</div></td></tr>';

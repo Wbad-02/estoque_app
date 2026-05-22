@@ -201,6 +201,14 @@ def migrar():
     else:
         print("   solicitacoes_estoque.unidade_tag_original já existe — ok")
 
+    # ── 19. requerimentos_itens.url ──────────────────────────────────────
+    if not coluna_existe("requerimentos_itens", "url"):
+        cur.execute("ALTER TABLE requerimentos_itens ADD COLUMN url VARCHAR(500)")
+        print("✅ Coluna adicionada: requerimentos_itens.url (padrão: NULL)")
+        migracoes += 1
+    else:
+        print("   requerimentos_itens.url já existe — ok")
+
     conn.commit()
     conn.close()
 

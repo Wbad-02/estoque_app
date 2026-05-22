@@ -2922,7 +2922,7 @@ function abrirModal(id){ $(id).style.display = 'flex'; }
 
 function _fmtBRL(v){ return 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
-function _addItemReqRow(nome='', qtd='', valor=''){
+function _addItemReqRow(nome='', qtd='', valor='', url=''){
   const tbody = $('req-itens-body');
   $('req-itens-vazio').style.display = 'none';
   const inp = 'padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;width:100%';
@@ -2930,6 +2930,10 @@ function _addItemReqRow(nome='', qtd='', valor=''){
   tr.innerHTML = `
     <td style="padding:3px 4px 3px 0">
       <input type="text" placeholder="Nome do item" value="${esc(nome)}" style="${inp}"/>
+    </td>
+    <td style="padding:3px 4px;width:200px">
+      <input type="url" placeholder="https://... (opcional)" value="${esc(url)}"
+        style="${inp};color:#0563C1" title="URL do produto — ficará como hyperlink no Excel"/>
     </td>
     <td style="padding:3px 4px;width:90px">
       <input type="number" min="0.01" step="0.01" placeholder="1" value="${qtd}"
@@ -2974,14 +2978,16 @@ async function criarRequerimento(){
   const itens = [];
   let valido = true;
   rows.forEach(tr => {
-    const inputs = tr.querySelectorAll('input[type="text"],input[type="number"]');
-    const nome       = inputs[0]?.value.trim();
-    const quantidade = parseFloat(inputs[1]?.value) || 0;
-    const valor      = parseFloat(inputs[2]?.value) || 0;
+    const inpTexto  = tr.querySelectorAll('input[type="text"],input[type="url"]');
+    const inpNum    = tr.querySelectorAll('input[type="number"]');
+    const nome      = inpTexto[0]?.value.trim();
+    const url       = inpTexto[1]?.value.trim() || null;
+    const quantidade = parseFloat(inpNum[0]?.value) || 0;
+    const valor      = parseFloat(inpNum[1]?.value) || 0;
     if(!nome){ valido = false; return; }
     if(quantidade <= 0){ valido = false; toast('Quantidade deve ser maior que zero em todos os itens','error'); return; }
     if(valor <= 0){ valido = false; toast('Valor deve ser maior que zero em todos os itens','error'); return; }
-    itens.push({ nome, quantidade, valor });
+    itens.push({ nome, quantidade, valor, url });
   });
 
   if(!valido){ toast('Preencha todos os campos dos itens corretamente', 'error'); return; }
@@ -3010,11 +3016,18 @@ async function verRequerimento(id){
   $('det-req-itens').innerHTML = (r.itens||[]).map(it => {
     const qtd = it.quantidade || 1;
     const sub = qtd * it.valor;
+    const nomeCell = it.url
+      ? `<a href="${esc(it.url)}" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline;font-weight:500">${esc(it.nome)}</a>`
+      : esc(it.nome);
+    const linkCell = it.url
+      ? `<a href="${esc(it.url)}" target="_blank" rel="noopener" title="${esc(it.url)}" style="color:#0563C1;font-size:16px;text-decoration:none">🔗</a>`
+      : '<span style="color:var(--muted);font-size:12px">—</span>';
     return `<tr>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--border)">${esc(it.nome)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border)">${nomeCell}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">${Number(qtd).toLocaleString('pt-BR',{maximumFractionDigits:2})}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">${_fmtBRL(it.valor)}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;font-weight:600">${_fmtBRL(sub)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center">${linkCell}</td>
     </tr>`;
   }).join('');
 

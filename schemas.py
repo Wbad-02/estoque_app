@@ -453,6 +453,7 @@ class ItemRequerimentoCreate(BaseModel):
     nome:       str
     quantidade: float = 1.0
     valor:      float
+    url:        Optional[str] = None
 
     @field_validator("quantidade")
     @classmethod
@@ -487,7 +488,7 @@ class RejeitarRequerimentoBody(BaseModel):
     observacao: str
 
 class ItemRequerimentoOut(BaseModel):
-    id: int; nome: str; quantidade: float = 1.0; valor: float
+    id: int; nome: str; quantidade: float = 1.0; valor: float; url: Optional[str] = None
     model_config = {"from_attributes": True}
 
     @property

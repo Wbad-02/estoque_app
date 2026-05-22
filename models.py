@@ -272,6 +272,7 @@ class ItemRequerimento(Base):
     nome            = Column(String(200), nullable=False)
     quantidade      = Column(Float, nullable=False, default=1.0)
     valor           = Column(Float, nullable=False)
+    url             = Column(String(500), nullable=True)
     requerimento    = relationship("Requerimento", back_populates="itens")
 
 

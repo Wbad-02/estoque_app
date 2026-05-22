@@ -74,7 +74,7 @@ def _build_out(req: models.Requerimento) -> schemas.RequerimentoOut:
         aprovador_nome=req.aprovador.nome if req.aprovador else "",
         total=total,
         itens=[
-            schemas.ItemRequerimentoOut(id=i.id, nome=i.nome, quantidade=i.quantidade or 1.0, valor=i.valor)
+            schemas.ItemRequerimentoOut(id=i.id, nome=i.nome, quantidade=i.quantidade or 1.0, valor=i.valor, url=i.url)
             for i in req.itens
         ],
     )
@@ -120,6 +120,7 @@ def criar_requerimento(
             nome=item.nome.strip(),
             quantidade=item.quantidade,
             valor=item.valor,
+            url=item.url or None,
         ))
 
     db.commit()
@@ -265,6 +266,7 @@ def exportar_excel(
     font_header  = Font(bold=True, color="000000", size=11)
     font_total   = Font(bold=True, size=11)
     font_normal  = Font(size=11)
+    font_link    = Font(size=11, color="0563C1", underline="single")
 
     # ── Linha 1: titulo (A1:D1 merged) ────────────────────────────────────────
     ws.merge_cells("A1:D1")
@@ -287,7 +289,12 @@ def exportar_excel(
     for linha, item in enumerate(req.itens, start=3):
         qtd      = item.quantidade or 1.0
         subtotal = qtd * item.valor
-        ws.cell(row=linha, column=1, value=item.nome).font = font_normal
+        c_nome = ws.cell(row=linha, column=1, value=item.nome)
+        if item.url:
+            c_nome.hyperlink = item.url
+            c_nome.font = font_link
+        else:
+            c_nome.font = font_normal
         c_qtd = ws.cell(row=linha, column=2, value=qtd)
         c_qtd.font = font_normal; c_qtd.number_format = "#,##0.##"; c_qtd.alignment = Alignment(horizontal="right")
         c_val = ws.cell(row=linha, column=3, value=item.valor)
@@ -337,12 +344,22 @@ def baixar_modelo_excel(
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
 
+    from openpyxl.styles import Border, Side
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Requerimento"
 
     fill_verde   = PatternFill("solid", fgColor="1B3A2D")
     fill_dourado = PatternFill("solid", fgColor="C9A84C")
+    fill_dica    = PatternFill("solid", fgColor="FFF9E6")
+
+    borda_dica = Border(
+        left=Side(style="thin", color="C9A84C"),
+        right=Side(style="thin", color="C9A84C"),
+        top=Side(style="thin", color="C9A84C"),
+        bottom=Side(style="thin", color="C9A84C"),
+    )
 
     ws.merge_cells("A1:D1")
     ws["A1"] = "MODELO — Requerimento de Compra"
@@ -351,28 +368,50 @@ def baixar_modelo_excel(
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 22
 
+    # Linha 2: dica de uso
+    ws.merge_cells("A2:D2")
+    ws["A2"] = (
+        "INSTRUÇÃO: Na coluna 'Nome do Item', cole o link do produto como hiperlink na célula "
+        "(clique direito → Link → cole a URL). O nome do item será o texto visível."
+    )
+    ws["A2"].font      = Font(italic=True, size=9, color="856404")
+    ws["A2"].fill      = fill_dica
+    ws["A2"].border    = borda_dica
+    ws["A2"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    ws.row_dimensions[2].height = 32
+
+    # Linha 3: cabeçalhos
     cabecalhos = ["Nome do Item", "Quantidade", "Valor Unitário (R$)", "Subtotal (R$)"]
     for col, texto in enumerate(cabecalhos, start=1):
-        c = ws.cell(row=2, column=col, value=texto)
+        c = ws.cell(row=3, column=col, value=texto)
         c.font      = Font(bold=True, size=11)
         c.fill      = fill_dourado
         c.alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[2].height = 18
+    ws.row_dimensions[3].height = 18
 
-    # Três linhas de exemplo
+    # Três linhas de exemplo — a primeira com hyperlink de demonstração
     exemplos = [
-        ("Caneta esferográfica azul", 10, 2.50),
-        ("Resma de papel A4", 5, 24.90),
-        ("Pasta arquivo AZ", 3, 18.00),
+        ("Mouse sem fio Logitech M170", "https://www.mercadolivre.com.br/mouse-sem-fio-logitech-m170/p/MLB8588", 2, 89.90),
+        ("Teclado USB padrão ABNT2",   None, 1, 69.90),
+        ("Monitor 21.5\" Full HD",     None, 1, 649.00),
     ]
-    for linha, (nome, qtd, val) in enumerate(exemplos, start=3):
-        ws.cell(row=linha, column=1, value=nome)
+    font_link   = Font(size=11, color="0563C1", underline="single")
+    font_normal = Font(size=11)
+
+    for linha, (nome, url, qtd, val) in enumerate(exemplos, start=4):
+        c_nome = ws.cell(row=linha, column=1, value=nome)
+        if url:
+            c_nome.hyperlink = url
+            c_nome.font = font_link
+        else:
+            c_nome.font = font_normal
+
         c_qtd = ws.cell(row=linha, column=2, value=qtd)
         c_qtd.number_format = "#,##0.##"; c_qtd.alignment = Alignment(horizontal="right")
         c_val = ws.cell(row=linha, column=3, value=val)
         c_val.number_format = "#,##0.00"; c_val.alignment = Alignment(horizontal="right")
         c_sub = ws.cell(row=linha, column=4, value=f"=B{linha}*C{linha}")
-        c_sub.number_format = "#,##0.00"; c_sub.alignment = Alignment(horizontal="right")
+        c_sub.number_format = "#,##0.00"; c_sub.alignment = Alignment(horizontal="right"); c_sub.font = font_normal
 
     ws.column_dimensions[get_column_letter(1)].width = 44
     ws.column_dimensions[get_column_letter(2)].width = 14
@@ -405,24 +444,39 @@ def importar_excel(
 
     try:
         conteudo = arquivo.file.read()
-        wb = load_workbook(io.BytesIO(conteudo), data_only=True)
+        # data_only=False preserva acesso a hyperlinks nas células
+        wb = load_workbook(io.BytesIO(conteudo), data_only=False)
         ws = wb.active
     except Exception:
         raise HTTPException(422, "Arquivo Excel inválido ou corrompido")
 
     itens_raw = []
-    for row in ws.iter_rows(min_row=3, values_only=True):
-        nome = str(row[0]).strip() if row[0] not in (None, "") else ""
-        if not nome or nome.upper() in ("TOTAL", "NOME DO ITEM"):
+    # Detecta a linha de início: pula linha de instrução/dica (linhas 2 e 3 do modelo novo)
+    # Itera célula a célula para capturar hyperlinks
+    for row_cells in ws.iter_rows(min_row=3):
+        c_nome = row_cells[0]
+        # Lê valor da célula — se data_only=False e a célula tem fórmula, value é a fórmula;
+        # para células de texto simples (nome) não há fórmula, então value é o texto correto.
+        raw_nome = c_nome.value
+        nome = str(raw_nome).strip() if raw_nome not in (None, "") else ""
+        if not nome or nome.upper() in ("TOTAL", "NOME DO ITEM", "NOME", "INSTRUÇÃO:",
+                                         "INSTRUCAO:", "MODELO", "MODELO —"):
             continue
+        # Extrai hyperlink se existir
+        url = None
+        if c_nome.hyperlink:
+            url = c_nome.hyperlink.target if hasattr(c_nome.hyperlink, "target") else str(c_nome.hyperlink)
+
         try:
-            qtd = float(row[1]) if row[1] not in (None, "") else 1.0
-            val = float(row[2]) if row[2] not in (None, "") else 0.0
+            raw_qtd = row_cells[1].value if len(row_cells) > 1 else None
+            raw_val = row_cells[2].value if len(row_cells) > 2 else None
+            qtd = float(raw_qtd) if raw_qtd not in (None, "") else 1.0
+            val = float(raw_val) if raw_val not in (None, "") else 0.0
         except (TypeError, ValueError):
             continue
         if qtd <= 0 or val <= 0:
             continue
-        itens_raw.append({"nome": nome, "quantidade": qtd, "valor": val})
+        itens_raw.append({"nome": nome, "quantidade": qtd, "valor": val, "url": url})
 
     if not itens_raw:
         raise HTTPException(422, "Nenhum item válido encontrado na planilha (verifique o modelo)")
@@ -445,6 +499,7 @@ def importar_excel(
             nome=item["nome"],
             quantidade=item["quantidade"],
             valor=item["valor"],
+            url=item.get("url"),
         ))
 
     db.commit()

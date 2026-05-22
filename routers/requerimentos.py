@@ -255,6 +255,60 @@ def baixar_modelo_excel(
     )
 
 
+# ── POST /parse-excel — lê planilha e devolve itens como JSON (sem salvar) ───
+# IMPORTANTE: deve ficar ANTES de GET /{req_id} para evitar conflito de rota
+@router.post("/parse-excel")
+def parse_excel(
+    arquivo: UploadFile = File(...),
+    _: models.Usuario = Depends(get_usuario_atual),
+):
+    """Lê a planilha e retorna os itens como JSON — não cria nada no banco."""
+    from openpyxl import load_workbook
+
+    if not arquivo.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(422, "Envie um arquivo .xlsx")
+
+    try:
+        conteudo = arquivo.file.read()
+        wb = load_workbook(io.BytesIO(conteudo), data_only=False)
+        ws = wb.active
+    except Exception:
+        raise HTTPException(422, "Arquivo Excel inválido ou corrompido")
+
+    _SKIP_NOMES = {"TOTAL", "NOME", "NOME DO ITEM", "REQUERIMENTO DE COMPRA"}
+    itens = []
+
+    for row_cells in ws.iter_rows(min_row=2):
+        if len(row_cells) < 4:
+            continue
+        raw_nome = row_cells[0].value
+        nome = str(raw_nome).strip() if raw_nome not in (None, "") else ""
+        if not nome or nome.upper() in _SKIP_NOMES:
+            continue
+
+        c_url = row_cells[1]
+        raw_url = c_url.value
+        url: str | None = str(raw_url).strip() if raw_url not in (None, "") else None
+        if not url and c_url.hyperlink:
+            url = c_url.hyperlink.target if hasattr(c_url.hyperlink, "target") else str(c_url.hyperlink)
+
+        try:
+            qtd = float(row_cells[2].value) if row_cells[2].value not in (None, "") else 1.0
+            val = float(row_cells[3].value) if row_cells[3].value not in (None, "") else 0.0
+        except (TypeError, ValueError):
+            continue
+
+        if qtd <= 0 or val <= 0:
+            continue
+
+        itens.append({"nome": nome, "url": url or None, "quantidade": qtd, "valor": val})
+
+    if not itens:
+        raise HTTPException(422, "Nenhum item válido encontrado na planilha (verifique o modelo)")
+
+    return itens
+
+
 # ── POST /importar-excel — cria requerimento a partir de planilha ─────────────
 # IMPORTANTE: deve ficar ANTES de GET /{req_id} para evitar conflito de rota
 @router.post("/importar-excel", response_model=schemas.RequerimentoOut, status_code=201)

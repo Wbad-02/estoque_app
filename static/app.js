@@ -3099,30 +3099,36 @@ async function importarExcelReq(input){
   if(!file) return;
   input.value = '';   // permite reimportar o mesmo arquivo
 
-  const titulo = $('req-titulo').value.trim();
-  if(!titulo){ toast('Preencha o título antes de importar', 'error'); return; }
-
   const fd = new FormData();
   fd.append('arquivo', file);
 
-  toast('Importando planilha…');
+  toast('Lendo planilha…');
   try {
-    const resp = await fetch(`/api/requerimentos/importar-excel?titulo=${encodeURIComponent(titulo)}`, {
+    const resp = await fetch('/api/requerimentos/parse-excel', {
       method: 'POST',
       headers: { Authorization: `Bearer ${S.token}` },
       body: fd,
     });
     if(!resp.ok){
       const err = await resp.json().catch(()=>({}));
-      toast(err.detail || 'Erro ao importar planilha', 'error');
+      toast(err.detail || 'Erro ao ler planilha', 'error');
       return;
     }
-    const req = await resp.json();
-    fecharModal('modal-novo-req');
-    toast('Requerimento importado com sucesso!');
-    carregarRequerimentos();
+    const itens = await resp.json();
+
+    // Limpa as linhas existentes e preenche com os itens da planilha
+    $('req-itens-body').innerHTML = '';
+    $('req-itens-vazio').style.display = 'none';
+    itens.forEach(it => _addItemReqRow(
+      it.nome    || '',
+      it.quantidade != null ? it.quantidade : '',
+      it.valor   != null   ? it.valor       : '',
+      it.url     || '',
+    ));
+
+    toast(`${itens.length} item(s) carregado(s) — revise e clique em "Criar requerimento"`);
   } catch {
-    toast('Erro ao importar planilha', 'error');
+    toast('Erro ao ler planilha', 'error');
   }
 }
 

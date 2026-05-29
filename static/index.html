@@ -1355,6 +1355,17 @@
   </div>
 </div>
 
+<!-- MODAL OBSERVAÇÃO GENÉRICO -->
+<div id="modal-obs" class="modal-overlay" style="display:none" onclick="fecharModalSe(event,'modal-obs')">
+  <div class="modal" style="max-width:460px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 id="modal-obs-titulo" style="margin:0;font-size:15px">Observação</h3>
+      <button class="modal-close" onclick="fecharModal('modal-obs')" aria-label="Fechar">✕</button>
+    </div>
+    <p id="modal-obs-corpo" style="margin:0;font-size:14px;color:#333;white-space:pre-wrap;line-height:1.6"></p>
+  </div>
+</div>
+
 <!-- MODAL DETALHE REQUERIMENTO -->
 <div id="modal-detalhe-req" class="modal-overlay" style="display:none" onclick="fecharModalSe(event,'modal-detalhe-req')">
   <div class="modal" style="max-width:640px">

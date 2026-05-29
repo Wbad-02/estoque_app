@@ -1446,6 +1446,17 @@
 
 <div id="toast"></div>
 
-<script src="app.js"></script>
+<script>
+  // Cache-busting: carrega app.js com o hash do arquivo para forçar atualização quando mudar
+  fetch('/api/static-version').then(r=>r.json()).then(d=>{
+    const s=document.createElement('script');
+    s.src='app.js?v='+d.v;
+    document.body.appendChild(s);
+  }).catch(()=>{
+    const s=document.createElement('script');
+    s.src='app.js?v='+Date.now();
+    document.body.appendChild(s);
+  });
+</script>
 </body>
 </html>

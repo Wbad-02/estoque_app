@@ -200,4 +200,13 @@ def poll_estado(
     }
 
 
+@app.get("/api/static-version")
+def static_version():
+    """Retorna hash do app.js para cache-busting no frontend."""
+    import hashlib, pathlib
+    p = pathlib.Path("static/app.js")
+    h = hashlib.md5(p.read_bytes()).hexdigest()[:10] if p.exists() else APP_VERSION
+    return {"v": h}
+
+
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

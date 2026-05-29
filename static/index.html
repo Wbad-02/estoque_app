@@ -1402,8 +1402,8 @@
     <!-- Formulário de aprovação/rejeição (admin + status aguardando) -->
     <div id="det-req-acao-wrap" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
       <div class="form-group" style="margin-bottom:12px">
-        <label>Observação <span style="font-weight:400;color:var(--muted)">(obrigatória para rejeitar)</span></label>
-        <textarea id="det-req-obs-input" rows="2" placeholder="Informe o motivo da decisão…" style="resize:vertical"></textarea>
+        <label>Observação <span style="font-weight:400;color:var(--muted)">(obrigatória — informe o motivo e/ou itens não aprovados)</span></label>
+        <textarea id="det-req-obs-input" rows="2" placeholder="Ex: Notebook do fornecedor B aprovado. Notebook A recusado por preço acima do orçamento." style="resize:vertical"></textarea>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="withBtn(this,()=>aprovarRequerimento(_reqDetalheId))">Aprovar</button>

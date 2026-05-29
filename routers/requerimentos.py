@@ -11,7 +11,7 @@ import models
 import schemas
 from auth import get_usuario_atual, requer_editor_ou_admin, registrar_log
 from database import get_db
-from email_service import disparar_notificacao
+from email_service import disparar_notificacao, _html_email, _linha_info
 from utils import get_app_url
 
 router = APIRouter(prefix="/api/requerimentos", tags=["requerimentos"])
@@ -422,11 +422,66 @@ def obter_requerimento(
     return _build_out(_load(req_id, db))
 
 
+def _email_decisao_html(titulo: str, status: str, aprovador: str, obs: str,
+                        itens_aprovados: list[str], itens_reprovados: list[str]) -> str:
+    cor_status = "#1B7A4B" if status == "aprovado" else "#C0392B"
+    badge_html = (
+        f'<span style="display:inline-block;padding:3px 12px;border-radius:12px;'
+        f'font-size:12px;font-weight:600;background:{cor_status};color:#fff">'
+        f'{status.upper()}</span>'
+    )
+
+    def _lista_itens(itens: list[str], cor: str, icone: str) -> str:
+        if not itens:
+            return ""
+        linhas = "".join(
+            f'<tr><td style="padding:4px 8px;font-size:13px;color:{cor}">{icone}</td>'
+            f'<td style="padding:4px 8px;font-size:13px;color:#333">{item}</td></tr>'
+            for item in itens
+        )
+        return f'<table style="width:100%;border-collapse:collapse;margin-bottom:6px">{linhas}</table>'
+
+    secao_itens = ""
+    if itens_aprovados or itens_reprovados:
+        secao_itens = '<hr style="border:none;border-top:1px solid #eee;margin:16px 0">'
+        if itens_aprovados:
+            secao_itens += (
+                '<p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#1B7A4B">✔ Itens aprovados para compra</p>'
+                + _lista_itens(itens_aprovados, "#1B7A4B", "✔")
+            )
+        if itens_reprovados:
+            secao_itens += (
+                '<p style="margin:12px 0 6px;font-size:13px;font-weight:600;color:#C0392B">✘ Itens não aprovados</p>'
+                + _lista_itens(itens_reprovados, "#C0392B", "✘")
+            )
+
+    corpo = f"""
+<p style="margin:0 0 16px;font-size:15px;color:#444">
+  O requerimento de compra abaixo teve uma decisão registrada.
+</p>
+<table style="width:100%;border-collapse:collapse">
+  {_linha_info("Requerimento", titulo, destaque=True)}
+  {_linha_info("Status", badge_html)}
+  {_linha_info("Decisão por", aprovador)}
+  {_linha_info("Observação", obs)}
+</table>
+{secao_itens}
+<div style="margin-top:24px;padding-top:16px;border-top:1px solid #eee">
+  <a href="{get_app_url()}/#requerimentos"
+     style="display:inline-block;padding:10px 24px;background:#1B3A2D;color:#fff;
+            text-decoration:none;border-radius:6px;font-size:14px;font-weight:600">
+    Ver requerimento
+  </a>
+</div>
+"""
+    return _html_email(f"Requerimento '{titulo}' — {status}", corpo)
+
+
 # ── POST /{id}/aprovar ─────────────────────────────────────────────────────────
 @router.post("/{req_id}/aprovar", response_model=schemas.RequerimentoOut)
 def aprovar_requerimento(
     req_id: int,
-    body: schemas.AprovarRequerimentoBody = schemas.AprovarRequerimentoBody(),
+    body: schemas.AprovarRequerimentoBody,
     db: Session = Depends(get_db),
     atual: models.Usuario = Depends(_requer_aprovador_req),
 ):
@@ -434,7 +489,7 @@ def aprovar_requerimento(
     if req.status != models.StatusRequerimento.aguardando:
         raise HTTPException(409, f"Requerimento ja esta '{req.status.value}'")
 
-    req.status      = models.StatusRequerimento.aprovado
+    req.status       = models.StatusRequerimento.aprovado
     req.aprovado_por = atual.id
     req.observacao   = body.observacao
     db.commit()
@@ -444,12 +499,16 @@ def aprovar_requerimento(
     registrar_log(db, atual.id, "aprovar", "requerimento", req_id)
 
     criador_email = req.criador.email if req.criador else None
+    corpo_html = _email_decisao_html(
+        req.titulo, "aprovado", atual.nome, body.observacao,
+        body.itens_aprovados, body.itens_reprovados,
+    )
     disparar_notificacao(db, "requerimento_decisao", {
         "titulo":     req.titulo,
         "status":     "aprovado",
-        "observacao": body.observacao or "—",
+        "observacao": body.observacao,
         "aprovador":  atual.nome,
-    }, extras=[criador_email] if criador_email else None)
+    }, extras=[criador_email] if criador_email else None, corpo_html=corpo_html)
 
     return _build_out(req)
 
@@ -466,7 +525,7 @@ def rejeitar_requerimento(
     if req.status != models.StatusRequerimento.aguardando:
         raise HTTPException(409, f"Requerimento ja esta '{req.status.value}'")
 
-    req.status      = models.StatusRequerimento.rejeitado
+    req.status       = models.StatusRequerimento.rejeitado
     req.aprovado_por = atual.id
     req.observacao   = body.observacao
     db.commit()
@@ -476,12 +535,16 @@ def rejeitar_requerimento(
     registrar_log(db, atual.id, "rejeitar", "requerimento", req_id, body.observacao)
 
     criador_email = req.criador.email if req.criador else None
+    corpo_html = _email_decisao_html(
+        req.titulo, "rejeitado", atual.nome, body.observacao,
+        body.itens_aprovados, body.itens_reprovados,
+    )
     disparar_notificacao(db, "requerimento_decisao", {
         "titulo":     req.titulo,
         "status":     "rejeitado",
         "observacao": body.observacao,
         "aprovador":  atual.nome,
-    }, extras=[criador_email] if criador_email else None)
+    }, extras=[criador_email] if criador_email else None, corpo_html=corpo_html)
 
     return _build_out(req)
 

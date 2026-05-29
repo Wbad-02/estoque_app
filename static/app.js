@@ -3038,7 +3038,7 @@ async function verRequerimento(id){
       : '<span style="color:var(--muted);font-size:12px">—</span>';
     const selCell = comSelecao
       ? `<td style="padding:8px;border-bottom:1px solid var(--border);text-align:center">
-           <input type="checkbox" checked data-sub="${sub}" onchange="_recalcTotalCheck()"
+           <input type="checkbox" checked data-sub="${sub}" data-nome="${esc(it.nome)}" data-valor="${_fmtBRL(sub)}" onchange="_recalcTotalCheck()"
              style="width:17px;height:17px;accent-color:var(--green);cursor:pointer">
          </td>`
       : '';
@@ -3089,10 +3089,25 @@ function _recalcTotalCheck(){
 async function _abrirDetalheEAprovar(id){ await verRequerimento(id); }
 async function _abrirDetalheERejeitar(id){ await verRequerimento(id); }
 
+function _coletarItensSelecao(){
+  const aprovados = [], reprovados = [];
+  document.querySelectorAll('#det-req-itens input[type="checkbox"]').forEach(cb => {
+    const entrada = `${cb.dataset.nome} (${cb.dataset.valor})`;
+    if(cb.checked) aprovados.push(entrada);
+    else reprovados.push(entrada);
+  });
+  return { aprovados, reprovados };
+}
+
 async function aprovarRequerimento(id){
-  const obs = $('det-req-obs-input')?.value.trim() || '';
-  const body = obs ? { observacao: obs } : {};
-  const r = await api('POST', `/requerimentos/${id}/aprovar`, body);
+  const obs = $('det-req-obs-input')?.value.trim();
+  if(!obs){ toast('Informe a observação antes de aprovar', 'error'); return; }
+  const { aprovados, reprovados } = _coletarItensSelecao();
+  const r = await api('POST', `/requerimentos/${id}/aprovar`, {
+    observacao: obs,
+    itens_aprovados: aprovados,
+    itens_reprovados: reprovados,
+  });
   if(r){
     fecharModal('modal-detalhe-req');
     toast('Requerimento aprovado!');
@@ -3103,7 +3118,12 @@ async function aprovarRequerimento(id){
 async function rejeitarRequerimento(id){
   const obs = $('det-req-obs-input')?.value.trim();
   if(!obs){ toast('Informe o motivo da rejeição', 'error'); return; }
-  const r = await api('POST', `/requerimentos/${id}/rejeitar`, { observacao: obs });
+  const { aprovados, reprovados } = _coletarItensSelecao();
+  const r = await api('POST', `/requerimentos/${id}/rejeitar`, {
+    observacao: obs,
+    itens_aprovados: aprovados,
+    itens_reprovados: reprovados,
+  });
   if(r){
     fecharModal('modal-detalhe-req');
     toast('Requerimento rejeitado');

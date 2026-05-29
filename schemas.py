@@ -482,10 +482,14 @@ class RequerimentoCreate(BaseModel):
         return v
 
 class AprovarRequerimentoBody(BaseModel):
-    observacao: Optional[str] = None
+    observacao: str
+    itens_aprovados:  list[str] = []
+    itens_reprovados: list[str] = []
 
 class RejeitarRequerimentoBody(BaseModel):
     observacao: str
+    itens_aprovados:  list[str] = []
+    itens_reprovados: list[str] = []
 
 class ItemRequerimentoOut(BaseModel):
     id: int; nome: str; quantidade: float = 1.0; valor: float; url: Optional[str] = None

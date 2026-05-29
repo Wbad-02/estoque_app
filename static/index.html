@@ -287,7 +287,7 @@
           <table style="min-width:480px">
             <thead><tr>
               <th>Data</th><th>Material</th><th class="hide-mobile">Grupo</th>
-              <th>Qtd.</th><th>Motivo</th><th class="hide-mobile">Obs.</th><th class="hide-mobile">Usuário</th>
+              <th>Qtd.</th><th>Motivo</th><th>Obs.</th><th class="hide-mobile">Usuário</th>
             </tr></thead>
             <tbody id="hist-body"></tbody>
           </table>
@@ -1365,7 +1365,7 @@
       <h3 id="modal-obs-titulo" style="margin:0;font-size:15px">Observação</h3>
       <button class="modal-close" onclick="fecharModal('modal-obs')" aria-label="Fechar">✕</button>
     </div>
-    <p id="modal-obs-corpo" style="margin:0;font-size:14px;color:#333;white-space:pre-wrap;line-height:1.6"></p>
+    <p id="modal-obs-corpo" style="margin:0;font-size:14px;color:#333;white-space:pre-wrap;line-height:1.6;word-break:break-word;overflow-wrap:anywhere"></p>
   </div>
 </div>
 
@@ -1385,16 +1385,16 @@
     </div>
 
     <!-- Tabela de itens somente leitura -->
-    <div style="overflow-x:auto;margin-bottom:16px">
+    <div style="overflow-x:auto;overflow-y:auto;max-height:308px;margin-bottom:16px;border:1px solid var(--border);border-radius:6px">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
           <tr>
-            <th id="det-req-th-sel" style="display:none;text-align:center;padding:7px 8px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:36px" title="Marque os itens que serão comprados">OK</th>
-            <th style="text-align:left;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border)">Item</th>
-            <th style="text-align:right;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:70px">Qtd</th>
-            <th style="text-align:right;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:110px">Valor unit.</th>
-            <th style="text-align:right;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:110px">Subtotal</th>
-            <th style="text-align:center;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:50px">Link</th>
+            <th id="det-req-th-sel" style="display:none;text-align:center;padding:7px 8px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:36px;position:sticky;top:0;z-index:1" title="Marque os itens que serão comprados">OK</th>
+            <th style="text-align:left;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1">Item</th>
+            <th style="text-align:right;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:70px;position:sticky;top:0;z-index:1">Qtd</th>
+            <th style="text-align:right;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:110px;position:sticky;top:0;z-index:1">Valor unit.</th>
+            <th style="text-align:right;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:110px;position:sticky;top:0;z-index:1">Subtotal</th>
+            <th style="text-align:center;padding:7px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#F0F4F2;border-bottom:1px solid var(--border);width:50px;position:sticky;top:0;z-index:1">Link</th>
           </tr>
         </thead>
         <tbody id="det-req-itens"></tbody>

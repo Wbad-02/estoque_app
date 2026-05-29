@@ -608,7 +608,15 @@ function renderizarMateriais(lista){
         </span>
         <span class="grupo-min-tag">${minTxt}</span>
       </div>
-      <table>
+      <table style="table-layout:fixed;width:100%">
+        <colgroup>
+          <col/>
+          <col style="width:75px"/>
+          <col style="width:125px"/>
+          <col style="width:150px"/>
+          <col style="width:105px"/>
+          ${canEdit?'<col style="width:115px"/>':''}
+        </colgroup>
         <thead><tr>
           <th>Nome</th><th>Qtd.</th><th>Cadastrado em</th><th>Última retirada</th>
           <th>Status</th>${canEdit?'<th>Ações</th>':''}
@@ -619,7 +627,7 @@ function renderizarMateriais(lista){
         :m.tag==='usado'?'<span class="badge badge-usado" style="margin-left:5px">Usado</span>'
         :m.tag==='solicitado'?'<span class="badge badge-solicitado" style="margin-left:5px">Solicitado</span>':'';
       html+=`<tr class="${m.alerta_minimo?'row-alert':''}" style="cursor:pointer;${semEstoque?'opacity:.55;':''}\" onclick="toggleMatDetail(${m.id},this)">
-        <td>
+        <td style="word-break:break-word;overflow-wrap:anywhere">
           <span class="mat-expand-btn" title="Expandir">▶</span>
           <strong style="margin-left:4px">${esc(m.nome)}</strong>${tagBadge}
           ${semEstoque?'<span style="margin-left:6px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Sem estoque</span>':''}
@@ -633,10 +641,10 @@ function renderizarMateriais(lista){
           :m.alerta_minimo
             ?'<span class="badge badge-alert">⚠ Alerta</span>'
             :'<span class="badge badge-ok">✓ OK</span>'}</td>
-        <td style="white-space:nowrap" onclick="event.stopPropagation()">
-          ${canEdit?`<button class="btn btn-secondary btn-sm" onclick="editarMaterial(${m.id})">Editar</button>`:''}
+        ${canEdit?`<td style="white-space:nowrap" onclick="event.stopPropagation()">
+          <button class="btn btn-secondary btn-sm" onclick="editarMaterial(${m.id})">Editar</button>
           ${canAdmin?`<button class="btn btn-danger btn-sm" onclick="removerMaterial(${m.id},'${m.nome.replace(/'/g,"\\'")}')">✕</button>`:''}
-        </td>
+        </td>`:''}
       </tr>
       <tr class="mat-detail-row" id="mat-detail-${m.id}">
         <td class="mat-detail-cell" colspan="${canEdit?6:5}">
@@ -852,7 +860,9 @@ function verObs(titulo, texto){
 
 function _btnObs(titulo, texto){
   const corpo = texto || 'Sem observação registrada.';
-  return `<button class="btn btn-secondary btn-sm" onclick="verObs(${JSON.stringify(titulo)},${JSON.stringify(corpo)})" style="font-size:11px;padding:3px 9px">Ver obs.</button>`;
+  const t = JSON.stringify(titulo).replace(/"/g, '&quot;');
+  const c = JSON.stringify(corpo).replace(/"/g, '&quot;');
+  return `<button class="btn btn-secondary btn-sm" onclick="verObs(${t},${c})" style="font-size:11px;padding:3px 9px">Ver obs.</button>`;
 }
 
 function renderizarHistorico(lista){
@@ -3457,11 +3467,14 @@ async function carregarSolicitacoes(){
       s.motivo    ? `Motivo: ${s.motivo}`       : '',
       s.observacao ? `Observação: ${s.observacao}` : '',
     ].filter(Boolean).join('\n\n') || 'Sem detalhes registrados.';
-    const btnObs = `<button class="btn btn-secondary btn-sm" onclick="verObs(${JSON.stringify('Detalhes — ' + s.material_nome)},${JSON.stringify(_textoSol)})" style="font-size:11px;padding:3px 9px">Ver obs.</button>`;
+    const _t = JSON.stringify('Detalhes — ' + s.material_nome).replace(/"/g, '&quot;');
+    const _c = JSON.stringify(_textoSol).replace(/"/g, '&quot;');
+    const btnObs = s.status !== 'aguardando'
+      ? `<button class="btn btn-secondary btn-sm" onclick="verObs(${_t},${_c})" style="font-size:11px;padding:3px 9px">Ver obs.</button>`
+      : '';
     const acoes = isAdmin && s.status === 'aguardando'
       ? `<button class="btn btn-primary btn-sm" onclick="aprovarSolicitacao(${s.id})">Aprovar</button>
-         <button class="btn btn-danger btn-sm" onclick="rejeitarSolicitacao(${s.id})">Rejeitar</button>
-         ${btnObs}`
+         <button class="btn btn-danger btn-sm" onclick="rejeitarSolicitacao(${s.id})">Rejeitar</button>`
       : btnObs;
     return `<tr>
       <td><strong>${esc(s.material_nome)}</strong></td>

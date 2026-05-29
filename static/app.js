@@ -3020,6 +3020,12 @@ async function verRequerimento(id){
   $('det-req-data').textContent       = fmtDT(r.criado_em);
   $('det-req-total').textContent      = _fmtBRL(r.total);
 
+  const comSelecao = _podeAprovarReq && r.status === 'aguardando';
+
+  // Coluna de seleção: visível apenas para aprovadores em requerimentos aguardando
+  $('det-req-th-sel').style.display   = comSelecao ? '' : 'none';
+  $('det-req-sel-info').style.display = comSelecao ? '' : 'none';
+
   // Itens
   $('det-req-itens').innerHTML = (r.itens||[]).map(it => {
     const qtd = it.quantidade || 1;
@@ -3030,7 +3036,14 @@ async function verRequerimento(id){
     const linkCell = it.url
       ? `<a href="${esc(it.url)}" target="_blank" rel="noopener" title="${esc(it.url)}" style="color:#0563C1;font-size:16px;text-decoration:none">🔗</a>`
       : '<span style="color:var(--muted);font-size:12px">—</span>';
+    const selCell = comSelecao
+      ? `<td style="padding:8px;border-bottom:1px solid var(--border);text-align:center">
+           <input type="checkbox" checked data-sub="${sub}" onchange="_recalcTotalCheck()"
+             style="width:17px;height:17px;accent-color:var(--green);cursor:pointer">
+         </td>`
+      : '';
     return `<tr>
+      ${selCell}
       <td style="padding:8px 10px;border-bottom:1px solid var(--border)">${nomeCell}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">${Number(qtd).toLocaleString('pt-BR',{maximumFractionDigits:2})}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">${_fmtBRL(it.valor)}</td>
@@ -3038,6 +3051,8 @@ async function verRequerimento(id){
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center">${linkCell}</td>
     </tr>`;
   }).join('');
+
+  if(comSelecao) _recalcTotalCheck();
 
   // Observação de rejeição
   const obsWrap = $('det-req-obs-wrap');
@@ -3050,7 +3065,7 @@ async function verRequerimento(id){
 
   // Área de aprovação/rejeição
   const acaoWrap = $('det-req-acao-wrap');
-  if(_podeAprovarReq && r.status === 'aguardando'){
+  if(comSelecao){
     $('det-req-obs-input').value = '';
     acaoWrap.style.display = 'block';
   } else {
@@ -3058,6 +3073,16 @@ async function verRequerimento(id){
   }
 
   abrirModal('modal-detalhe-req');
+}
+
+function _recalcTotalCheck(){
+  const cbs = document.querySelectorAll('#det-req-itens input[type="checkbox"]');
+  let total = 0, marcados = 0;
+  cbs.forEach(cb => {
+    if(cb.checked){ total += parseFloat(cb.dataset.sub) || 0; marcados++; }
+  });
+  $('det-req-total-sel').textContent = _fmtBRL(total);
+  $('det-req-sel-count').textContent = `${marcados} de ${cbs.length} item(s) selecionado(s)`;
 }
 
 // Atalhos internos para abrir detalhe já na ação

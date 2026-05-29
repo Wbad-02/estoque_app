@@ -4,6 +4,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Controle de Estoque</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNiIgZmlsbD0iIzFFM0EzNCIvPjxwb2x5Z29uIHBvaW50cz0iMTYsNSAyNywxMSAxNiwxNyA1LDExIiBmaWxsPSIjNUFBODdBIi8+PHBvbHlnb24gcG9pbnRzPSI1LDExIDE2LDE3IDE2LDI3IDUsMjEiIGZpbGw9IiMyQTUyNDgiLz48cG9seWdvbiBwb2ludHM9IjI3LDExIDE2LDE3IDE2LDI3IDI3LDIxIiBmaWxsPSIjM0Q3QTVFIi8+PGxpbmUgeDE9IjE2IiB5MT0iMTciIHgyPSIxNiIgeTI9IjI3IiBzdHJva2U9IiMxRTNBMzQiIHN0cm9rZS13aWR0aD0iMC41Ii8+PC9zdmc+"/>
 <link rel="stylesheet" href="style.css"/>
@@ -1446,17 +1449,6 @@
 
 <div id="toast"></div>
 
-<script>
-  // Cache-busting: carrega app.js com o hash do arquivo para forçar atualização quando mudar
-  fetch('/api/static-version').then(r=>r.json()).then(d=>{
-    const s=document.createElement('script');
-    s.src='app.js?v='+d.v;
-    document.body.appendChild(s);
-  }).catch(()=>{
-    const s=document.createElement('script');
-    s.src='app.js?v='+Date.now();
-    document.body.appendChild(s);
-  });
-</script>
+<script src="app.js?v=__APPJS_HASH__"></script>
 </body>
 </html>

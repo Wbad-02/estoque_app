@@ -1,8 +1,10 @@
 # © Todos os direitos reservados – github.com/Wbad-02
 import os
+import hashlib, pathlib
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from database import engine, get_db, Base
@@ -200,13 +202,25 @@ def poll_estado(
     }
 
 
+def _appjs_hash() -> str:
+    p = pathlib.Path("static/app.js")
+    return hashlib.md5(p.read_bytes()).hexdigest()[:10] if p.exists() else APP_VERSION
+
+
 @app.get("/api/static-version")
 def static_version():
-    """Retorna hash do app.js para cache-busting no frontend."""
-    import hashlib, pathlib
-    p = pathlib.Path("static/app.js")
-    h = hashlib.md5(p.read_bytes()).hexdigest()[:10] if p.exists() else APP_VERSION
-    return {"v": h}
+    return {"v": _appjs_hash()}
 
 
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def index():
+    """Serve index.html com hash do app.js injetado para cache-busting garantido."""
+    html = pathlib.Path("static/index.html").read_text(encoding="utf-8")
+    html = html.replace("__APPJS_HASH__", _appjs_hash())
+    return HTMLResponse(
+        content=html,
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, private"},
+    )
+
+
+app.mount("/", StaticFiles(directory="static", html=False), name="static")

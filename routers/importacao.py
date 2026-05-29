@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from database import get_db
 from auth import requer_admin, requer_editor_ou_admin, registrar_log
+from email_service import disparar_notificacao
 import models
 
 router = APIRouter(prefix="/api/importacao", tags=["importacao"])
@@ -202,7 +203,7 @@ async def confirmar_importacao(
                 existente.usa_patrimonio = True
             db.flush()
             mat = existente
-            atualizados.append({"nome": mat.nome, "grupo": grupos_cache[grupo_id].nome, "qtd_adicionada": qtd})
+            atualizados.append({"nome": mat.nome, "grupo": grupos_cache[grupo_id].nome, "qtd_adicionada": qtd, "unidade": mat.unidade})
         else:
             mat = models.Material(
                 nome=nome_norm,
@@ -215,7 +216,7 @@ async def confirmar_importacao(
             )
             db.add(mat)
             db.flush()
-            criados.append({"nome": mat.nome, "grupo": grupos_cache[grupo_id].nome, "qtd": qtd})
+            criados.append({"nome": mat.nome, "grupo": grupos_cache[grupo_id].nome, "qtd": qtd, "unidade": mat.unidade})
 
         nfe_numero = dados["nf_numero"]
         mov = models.Movimentacao(
@@ -260,6 +261,17 @@ async def confirmar_importacao(
         f"{dados['emitente']['nome']} | "
         f"criados={len(criados)} atualizados={len(atualizados)} itens={len(dados['itens'])}"
     )
+
+    from models import agora as _agora_br
+    _agora_str = _agora_br().strftime("%d/%m/%Y %H:%M")
+    for it in criados + atualizados:
+        disparar_notificacao(db, "entrada", {
+            "material":   it["nome"],
+            "quantidade": str(it.get("qtd") or it.get("qtd_adicionada", "")),
+            "unidade":    it.get("unidade", ""),
+            "usuario":    atual.nome,
+            "data":       _agora_str,
+        })
 
     return {
         "sucesso":     True,

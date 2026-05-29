@@ -851,8 +851,8 @@ function verObs(titulo, texto){
 }
 
 function _btnObs(titulo, texto){
-  if(!texto) return '<span style="color:var(--muted);font-size:12px">—</span>';
-  return `<button class="btn btn-secondary btn-sm" onclick="verObs(${JSON.stringify(titulo)},${JSON.stringify(texto)})" style="font-size:11px;padding:3px 9px">Ver obs.</button>`;
+  const corpo = texto || 'Sem observação registrada.';
+  return `<button class="btn btn-secondary btn-sm" onclick="verObs(${JSON.stringify(titulo)},${JSON.stringify(corpo)})" style="font-size:11px;padding:3px 9px">Ver obs.</button>`;
 }
 
 function renderizarHistorico(lista){
@@ -3453,14 +3453,16 @@ async function carregarSolicitacoes(){
     const badgeTxt = s.status === 'aguardando' ? '<span class="badge" style="background:#FFF3CD;color:#856404;font-weight:600">Aguardando</span>'
                    : s.status === 'aprovado'   ? '<span class="badge badge-ok">Aprovado</span>'
                    :                             '<span class="badge badge-alert" style="background:#FDECEA;color:var(--danger)">Rejeitado</span>';
-    const btnObs = s.observacao
-      ? `<button class="btn btn-secondary btn-sm" onclick="verObs('Observação — ${esc(s.material_nome)}',${JSON.stringify(s.observacao)})" style="font-size:11px;padding:3px 9px">Ver obs.</button>`
-      : '';
+    const _textoSol = [
+      s.motivo    ? `Motivo: ${s.motivo}`       : '',
+      s.observacao ? `Observação: ${s.observacao}` : '',
+    ].filter(Boolean).join('\n\n') || 'Sem detalhes registrados.';
+    const btnObs = `<button class="btn btn-secondary btn-sm" onclick="verObs(${JSON.stringify('Detalhes — ' + s.material_nome)},${JSON.stringify(_textoSol)})" style="font-size:11px;padding:3px 9px">Ver obs.</button>`;
     const acoes = isAdmin && s.status === 'aguardando'
       ? `<button class="btn btn-primary btn-sm" onclick="aprovarSolicitacao(${s.id})">Aprovar</button>
          <button class="btn btn-danger btn-sm" onclick="rejeitarSolicitacao(${s.id})">Rejeitar</button>
          ${btnObs}`
-      : btnObs || '—';
+      : btnObs;
     return `<tr>
       <td><strong>${esc(s.material_nome)}</strong></td>
       <td style="font-size:12px;color:var(--muted)">${esc(s.ativo_nome||'—')}</td>

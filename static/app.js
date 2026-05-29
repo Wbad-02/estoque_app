@@ -409,8 +409,16 @@ function iniciarApp(){
   $('login-screen').style.display='none'; $('app').style.display='block';
   $('topbar').style.display='';
   $('sidebar-user').textContent=S.nome;
-  const grupoLabel={mestre:'Mestre',admin:'Admin',editor:'Editor',viewer:'Viewer'};
-  $('sidebar-grupo').textContent=grupoLabel[S.grupo]||'';
+  const grupoLabel={mestre:'Mestre',admin:'Administrador',editor:'Editor',viewer:'Visualizador'};
+  const grupoDesc={
+    mestre:'Acesso total ao sistema, incluindo configurações avançadas.',
+    admin:'Acesso total — pode aprovar pedidos, gerenciar usuários e configurar notificações.',
+    editor:'Pode registrar saídas, criar pedidos e solicitações, mas não gerencia usuários.',
+    viewer:'Acesso somente leitura — pode consultar o estoque e exportar relatórios.',
+  };
+  const el=$('sidebar-grupo');
+  el.textContent=grupoLabel[S.grupo]||'';
+  el.title=grupoDesc[S.grupo]||'';
 
   const isMestre=S.grupo==='mestre';
   const isAdmin =S.grupo==='admin'||isMestre;
@@ -475,7 +483,37 @@ function iniciarApp(){
 // ═══════════════════════════════════════════════════
 // Navegação
 // ═══════════════════════════════════════════════════
+function _paginaPermitida(p){
+  const isAdmin  = S.grupo==='admin'||S.grupo==='mestre';
+  const isEditor = S.grupo==='editor'||isAdmin;
+  const adminOnly  = ['notificacoes','usuarios'];
+  const editorOnly = ['materiais','ativos','categorias','categ-ativos','retiradas','importacao','requerimentos'];
+  if(adminOnly.includes(p)  && !isAdmin)  return false;
+  if(editorOnly.includes(p) && !isEditor) return false;
+  return true;
+}
+
+function _mostrarBarreiraPermissao(pagina){
+  const nomes={notificacoes:'Notificações',usuarios:'Usuários',materiais:'Materiais',
+    ativos:'Ativos',categorias:'Categ. de Materiais','categ-ativos':'Categ. de Ativos',
+    retiradas:'Saídas de Estoque',importacao:'Importar NF-e',requerimentos:'Pedidos / Solicitações'};
+  const isEditor = S.grupo==='editor'||S.grupo==='admin'||S.grupo==='mestre';
+  const nivelNecessario = ['notificacoes','usuarios'].includes(pagina) ? 'Administrador' : 'Editor';
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  const pEl=$('page-'+pagina);
+  if(!pEl) return;
+  pEl.classList.add('active');
+  pEl.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;color:var(--muted)">
+    <div style="font-size:48px;margin-bottom:16px">🔒</div>
+    <h2 style="color:var(--text);margin-bottom:8px">${nomes[pagina]||pagina}</h2>
+    <p style="font-size:14px;max-width:360px;line-height:1.6">Esta página requer perfil <strong>${nivelNecessario}</strong> ou superior.<br>Você está conectado como <strong>${{admin:'Administrador',editor:'Editor',viewer:'Visualizador',mestre:'Mestre'}[S.grupo]||S.grupo}</strong>.</p>
+    <p style="font-size:12px;margin-top:12px">Solicite ao administrador do sistema que ajuste seu nível de acesso.</p>
+    <button class="btn btn-secondary" style="margin-top:20px" onclick="navegar('dashboard')">← Voltar ao Dashboard</button>
+  </div>`;
+}
+
 function navegar(p){
+  if(!_paginaPermitida(p)){ _mostrarBarreiraPermissao(p); return; }
   _paginaAtual = p;
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.nav-item,.nav-sub-item').forEach(x=>x.classList.remove('active'));
@@ -520,25 +558,49 @@ function toggleNavGroup(grupo){
 // ═══════════════════════════════════════════════════
 // Dashboard
 // ═══════════════════════════════════════════════════
+function dashVerAlertas(){
+  $('dash-apenas-alerta').checked=true;
+  filtrarDashboard();
+  $('dash-body').closest('.table-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 async function carregarDashboard(){
   const mats=await api('GET','/materiais/'); if(!mats) return;
   const totalAlertas=mats.filter(m=>m.alerta_minimo).length;
   const cats=new Set(mats.map(m=>m.grupo.categoria.nome)).size;
+  const semEstoque=mats.filter(m=>m.quantidade<=0).length;
 
   const totalValorEstoque = mats.reduce((acc,m)=>acc+(m.valor_total||0),0);
   const valorStr = totalValorEstoque>0 ? 'R$ '+totalValorEstoque.toFixed(2) : '—';
 
+  const primeiroNome = (S.nome||'').split(' ')[0] || 'bem-vindo';
+  if($('dash-greeting-name')) $('dash-greeting-name').textContent = primeiroNome;
+
   $('dash-summary').innerHTML=`
-    <div class="summary-card"><div class="val">${mats.length}</div><div class="lbl">Itens cadastrados</div></div>
-    <div class="summary-card"><div class="val">${cats}</div><div class="lbl">Categorias</div></div>
-    <div class="summary-card ${totalAlertas>0?'warn':''}">
-      <div class="val">${totalAlertas}</div><div class="lbl">Itens em alerta</div></div>
     <div class="summary-card">
-      <div class="val" style="font-size:22px">${valorStr}</div>
-      <div class="lbl">Valor total em estoque</div></div>`;
+      <div style="font-size:24px;margin-bottom:6px">📦</div>
+      <div class="val">${mats.length}</div>
+      <div class="lbl">Itens cadastrados</div>
+    </div>
+    <div class="summary-card">
+      <div style="font-size:24px;margin-bottom:6px">🗂️</div>
+      <div class="val">${cats}</div>
+      <div class="lbl">Categorias ativas</div>
+    </div>
+    <div class="summary-card ${totalAlertas>0?'warn':''}">
+      <div style="font-size:24px;margin-bottom:6px">${totalAlertas>0?'⚠️':'✅'}</div>
+      <div class="val">${totalAlertas}</div>
+      <div class="lbl">Itens em alerta</div>
+      ${totalAlertas>0?`<button class="btn btn-secondary btn-sm" style="margin-top:10px;font-size:11px;width:100%" onclick="dashVerAlertas()">Ver alertas</button>`:''}
+    </div>
+    <div class="summary-card">
+      <div style="font-size:24px;margin-bottom:6px">💰</div>
+      <div class="val" style="font-size:${totalValorEstoque>0?'20px':'28px'}">${valorStr}</div>
+      <div class="lbl">Valor total em estoque</div>
+    </div>`;
 
   $('dash-alert-banner').innerHTML=totalAlertas>0
-    ?`<div class="alert-banner">⚠ ${totalAlertas} item(s) abaixo do estoque mínimo do grupo</div>`:'';
+    ?`<div class="alert-banner">⚠ ${totalAlertas} item(s) abaixo do estoque mínimo — <button onclick="dashVerAlertas()" style="background:none;border:none;color:var(--warn);font-weight:700;cursor:pointer;text-decoration:underline;font-size:inherit;padding:0">filtrar agora</button></div>`:'';
   $('dash-alerta-tag').textContent=totalAlertas>0?`(${totalAlertas} em alerta ⚠)`:'';
   _atualizarTopbarBadge(totalAlertas);
 
@@ -588,7 +650,15 @@ function renderizarMateriais(lista){
   const canEdit=S.grupo==='admin'||S.grupo==='editor'||S.grupo==='mestre';
   const canAdmin=S.grupo==='admin'||S.grupo==='mestre';
   const container=$('mat-lista');
-  if(!lista.length){container.innerHTML='<div class="empty"><span>📭</span>Nenhum material</div>';return;}
+  if(!lista.length){
+    container.innerHTML=`<div class="empty">
+      <span>📭</span>
+      <strong>Nenhum material cadastrado</strong>
+      <p style="font-size:12px;margin-top:6px;font-weight:400">Adicione materiais para começar a controlar o estoque por categoria e grupo.</p>
+      ${canAdmin?`<button class="btn btn-primary" style="margin-top:14px" onclick="abrirModalAdicionarMaterial()">+ Adicionar Material</button>`:''}
+    </div>`;
+    return;
+  }
 
   const porGrupo={};
   lista.forEach(m=>{
@@ -618,7 +688,7 @@ function renderizarMateriais(lista){
           ${canEdit?'<col style="width:115px"/>':''}
         </colgroup>
         <thead><tr>
-          <th>Nome</th><th>Qtd.</th><th>Cadastrado em</th><th>Última retirada</th>
+          <th>Nome</th><th>Qtd.</th><th>Cadastrado em</th><th>Última saída</th>
           <th>Status</th>${canEdit?'<th>Ações</th>':''}
         </tr></thead><tbody>`;
     itens.forEach(m=>{
@@ -838,7 +908,7 @@ async function registrarRetirada(){
     unidade_id:unidadeId, motivo, observacao:obs||null,
   });
   if(r){
-    toast('Retirada registrada!');
+    toast('Saída registrada!');
     $('ret-obs').value='';
     await mostrarEstoqueAtual();
     const hist=await api('GET','/retiradas/');
@@ -868,7 +938,11 @@ function _btnObs(titulo, texto){
 function renderizarHistorico(lista){
   const tbody=$('hist-body');
   if(!lista.length){
-    tbody.innerHTML='<tr><td colspan="7"><div class="empty"><span>📋</span>Nenhuma retirada registrada</div></td></tr>';
+    tbody.innerHTML=`<tr><td colspan="7"><div class="empty">
+      <span>📋</span>
+      <strong>Nenhuma saída registrada</strong>
+      <p style="font-size:12px;margin-top:6px;font-weight:400">Use o formulário acima para registrar a primeira saída de material.</p>
+    </div></td></tr>`;
     return;
   }
   const _lbl={colaborador:'Colaborador',defeito:'Defeito'};
@@ -901,7 +975,12 @@ function renderizarCategorias(){
   const canEdit=S.grupo==='admin'||S.grupo==='editor';
   const container=$('cat-lista');
   if(!S.categorias.length){
-    container.innerHTML='<div class="empty"><span>📂</span>Nenhuma categoria cadastrada</div>';
+    container.innerHTML=`<div class="empty">
+      <span>📂</span>
+      <strong>Nenhuma categoria cadastrada</strong>
+      <p style="font-size:12px;margin-top:6px;font-weight:400">Crie categorias para organizar os materiais por tipo ou área de uso.</p>
+      ${canEdit?`<button class="btn btn-primary" style="margin-top:14px" onclick="abrirModalCategoria()">+ Nova categoria</button>`:''}
+    </div>`;
     return;
   }
 
@@ -1372,7 +1451,7 @@ async function _carregarCardsUnidades(){
 
   const ativas    = unidades.filter(u=>u.status==='ativo');
   const retiradas = unidades.filter(u=>u.status==='retirado');
-  $('unid-resumo').textContent = `${ativas.length} em estoque · ${retiradas.length} retirada(s)`;
+  $('unid-resumo').textContent = `${ativas.length} em estoque · ${retiradas.length} saída(s)`;
 
   const container = $('unid-lista-cards');
   if(!unidades.length){
@@ -1666,7 +1745,7 @@ function _renderizarTimeline(eventos, usaPatrimonio, qtdAtual, canEdit){
             <div class="tl-dot saida"></div>
             <div class="tl-card saida">
               <div class="tl-data">${data}</div>
-              <div class="tl-titulo">↓ Retirada — ${motivo_label[e.motivo]||e.motivo}</div>
+              <div class="tl-titulo">↓ Saída — ${motivo_label[e.motivo]||e.motivo}</div>
               <div class="tl-detalhe">
                 ${e.observacao?esc(e.observacao)+' · ':''} por ${esc(e.usuario||'Sistema')}
               </div>
@@ -1765,7 +1844,7 @@ async function confirmarRetiradaUnidade(){
     unidade_id: unidadeId, motivo, observacao: obs||null,
   });
   if(r){
-    toast('Retirada registrada!');
+    toast('Saída registrada!');
     $('ret-uni-obs').value = '';
     await abrirDetalhes(_detMatId);
     if(S.materiais.length) await carregarMateriais();
@@ -1847,8 +1926,12 @@ function filtrarDashboard(){
 }
 
 function _renderizarDashBody(lista){
+  const _filtroAtivo = $('dash-cat-filtro').value || $('dash-grp-filtro').value || $('dash-apenas-alerta').checked;
+  const _emptyMsg = _filtroAtivo
+    ? `<div class="empty"><span>🔍</span><strong>Nenhum material encontrado</strong><p style="font-size:12px;margin-top:6px;font-weight:400">Tente ajustar os filtros aplicados.</p><button class="btn btn-secondary" style="margin-top:14px" onclick="$('dash-cat-filtro').value='';$('dash-grp-filtro').value='';$('dash-apenas-alerta').checked=false;filtrarDashboard()">Limpar filtros</button></div>`
+    : `<div class="empty"><span>📭</span><strong>Nenhum material cadastrado</strong><p style="font-size:12px;margin-top:6px;font-weight:400">Acesse <strong>Materiais</strong> para cadastrar o primeiro item do estoque.</p><button class="btn btn-primary" style="margin-top:14px" onclick="navegar('materiais')">Ir para Materiais</button></div>`;
   $('dash-body').innerHTML = !lista.length
-    ? '<tr><td colspan="8"><div class="empty"><span>📭</span>Nenhum item encontrado</div></td></tr>'
+    ? `<tr><td colspan="8">${_emptyMsg}</td></tr>`
     : lista.map(m=>`
       <tr class="${m.alerta_minimo?'row-alert':''}">
         <td><strong>${esc(m.nome)}</strong></td>
@@ -2005,7 +2088,7 @@ async function toggleMatDetail(id, tr, forceReload){
     const retiradas  = unidades.filter(u=>u.status==='retirado').length;
     cell.innerHTML = `
       <div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:8px">
-        ${ativas} em estoque · ${atribuidas} atribuída(s) · ${retiradas} retirada(s)
+        ${ativas} em estoque · ${atribuidas} atribuída(s) · ${retiradas} saída(s)
       </div>
       <div style="overflow-x:auto">
       <table style="${tblStyle}">
@@ -2117,7 +2200,12 @@ function renderizarCategoriasAtivo(){
   const canEdit=S.grupo==='admin'||S.grupo==='editor';
   const container=$('cat-ativo-lista');
   if(!SA.cats.length){
-    container.innerHTML='<div class="empty"><span>📂</span>Nenhuma categoria cadastrada</div>';
+    container.innerHTML=`<div class="empty">
+      <span>📂</span>
+      <strong>Nenhuma categoria de ativo cadastrada</strong>
+      <p style="font-size:12px;margin-top:6px;font-weight:400">Crie categorias para classificar seus equipamentos e patrimônios.</p>
+      ${canEdit?`<button class="btn btn-primary" style="margin-top:14px" onclick="abrirModalCatAtivo()">+ Nova categoria</button>`:''}
+    </div>`;
     return;
   }
   let html='';
@@ -2309,7 +2397,13 @@ function filtrarAtivos(){
 function renderizarAtivos(lista){
   const container=$('atv-lista');
   if(!lista.length){
-    container.innerHTML='<div class="empty" style="background:var(--surface);border-radius:var(--radius);padding:40px"><span>◉</span>Nenhum ativo cadastrado</div>';
+    const _ce=S.grupo==='admin'||S.grupo==='editor'||S.grupo==='mestre';
+    container.innerHTML=`<div class="empty" style="background:var(--surface);border-radius:var(--radius);padding:40px">
+      <span>🏢</span>
+      <strong>Nenhum ativo cadastrado</strong>
+      <p style="font-size:12px;margin-top:6px;font-weight:400">Ativos são equipamentos, salas ou veículos que recebem materiais do estoque.</p>
+      ${_ce?`<button class="btn btn-primary" style="margin-top:14px" onclick="abrirModalAtivo()">+ Novo ativo</button>`:''}
+    </div>`;
     return;
   }
   const canEdit=S.grupo==='admin'||S.grupo==='editor';
@@ -2915,7 +3009,13 @@ function _renderRequerimentos(lista){
   // Badge já foi atualizado por carregarRequerimentos — não chamar aqui (zeraria badge de solicitações)
   const tbody = $('req-body');
   if(!lista.length){
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><span>📋</span>Nenhum requerimento cadastrado</div></td></tr>';
+    const _canReq=S.grupo==='admin'||S.grupo==='editor'||S.grupo==='mestre';
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty">
+      <span>🛒</span>
+      <strong>Nenhum pedido de compra cadastrado</strong>
+      <p style="font-size:12px;margin-top:6px;font-weight:400">Crie um pedido para solicitar materiais ao financeiro ou almoxarifado.</p>
+      ${_canReq?`<button class="btn btn-primary" style="margin-top:14px" onclick="abrirNovoRequerimento()">+ Novo pedido de compra</button>`:''}
+    </div></td></tr>`;
     return;
   }
   tbody.innerHTML = lista.map(r => {
@@ -3448,13 +3548,26 @@ function switchReqTab(tab){
 
 async function carregarSolicitacoes(){
   const isAdmin = S.grupo === 'admin' || S.grupo === 'mestre';
-  if(S.grupo === 'viewer'){ return; }
+  if(S.grupo === 'viewer'){
+    const tbody=$('sol-body');
+    if(tbody) tbody.innerHTML=`<tr><td colspan="7"><div class="empty">
+      <span>🔒</span>
+      <strong>Acesso restrito</strong>
+      <p style="font-size:12px;margin-top:6px;font-weight:400">Solicitações de estoque requerem perfil <strong>Editor</strong> ou superior.<br>Solicite ao administrador que ajuste seu nível de acesso.</p>
+    </div></td></tr>`;
+    return;
+  }
   const lista = await api('GET', '/solicitacoes/');
   if(!lista) return;
   const tbody = $('sol-body');
   if(!tbody) return;
   if(!lista.length){
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><span>📦</span>Nenhuma solicitação cadastrada</div></td></tr>';
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty">
+      <span>📦</span>
+      <strong>Nenhuma solicitação de material</strong>
+      <p style="font-size:12px;margin-top:6px;font-weight:400">Solicite materiais do estoque para uso em um ativo ou projeto.</p>
+      <button class="btn btn-primary" style="margin-top:14px" onclick="abrirNovaSolicitacao()">+ Nova solicitação</button>
+    </div></td></tr>`;
     return;
   }
   tbody.innerHTML = lista.map(s=>{

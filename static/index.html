@@ -48,42 +48,42 @@
         font-size:18px;cursor:pointer;padding:0;line-height:1;margin-top:-2px"
         class="sidebar-close-btn" aria-label="Fechar menu">✕</button>
     </div>
-    <div class="nav-item active" onclick="navegar('dashboard')" data-page="dashboard">
-      <span class="nav-icon">◼</span> Dashboard</div>
-    <div class="nav-item editor-only" onclick="navegar('materiais')" data-page="materiais">
-      <span class="nav-icon">▣</span> Materiais</div>
-    <div class="nav-item editor-only" onclick="navegar('ativos')" data-page="ativos">
-      <span class="nav-icon">◉</span> Ativos</div>
+    <div class="nav-item active" onclick="navegar('dashboard')" data-page="dashboard" title="Visão geral do estoque">
+      <span class="nav-icon">🏠</span> Dashboard</div>
+    <div class="nav-item editor-only" onclick="navegar('materiais')" data-page="materiais" title="Consultar e gerenciar materiais em estoque">
+      <span class="nav-icon">📦</span> Materiais</div>
+    <div class="nav-item editor-only" onclick="navegar('ativos')" data-page="ativos" title="Equipamentos e bens patrimoniais">
+      <span class="nav-icon">🏢</span> Ativos</div>
 
     <!-- Grupo expansível: Cadastros -->
-    <div class="nav-group-header editor-only" id="nav-cadastros-header" onclick="toggleNavGroup('cadastros')">
-      <span><span class="nav-icon" style="margin-right:10px">◈</span>Cadastros</span>
+    <div class="nav-group-header editor-only" id="nav-cadastros-header" onclick="toggleNavGroup('cadastros')" title="Cadastros e configurações">
+      <span><span class="nav-icon" style="margin-right:10px">🗂️</span>Cadastros</span>
       <span class="nav-group-chevron" id="nav-cadastros-chev">▶</span>
     </div>
     <div class="nav-sub-items" id="nav-cadastros-items">
-      <div class="nav-sub-item" onclick="navegar('categorias')" data-page="categorias">
-        <span class="nav-icon">◈</span> Categ. / Grupos
+      <div class="nav-sub-item" onclick="navegar('categorias')" data-page="categorias" title="Categorias e grupos de materiais">
+        <span class="nav-icon">📂</span> Categ. de Materiais
       </div>
-      <div class="nav-sub-item" onclick="navegar('categ-ativos')" data-page="categ-ativos">
-        <span class="nav-icon">⬡</span> Categ. / Grupos Ativos
+      <div class="nav-sub-item" onclick="navegar('categ-ativos')" data-page="categ-ativos" title="Categorias e grupos de ativos">
+        <span class="nav-icon">📂</span> Categ. de Ativos
       </div>
     </div>
 
-    <div class="nav-item editor-only" onclick="navegar('retiradas')" data-page="retiradas">
-      <span class="nav-icon">↓</span> Retiradas</div>
-    <div class="nav-item admin-only" onclick="navegar('notificacoes')" data-page="notificacoes">
+    <div class="nav-item editor-only" onclick="navegar('retiradas')" data-page="retiradas" title="Registrar e consultar saídas de estoque">
+      <span class="nav-icon">📤</span> Saídas de Estoque</div>
+    <div class="nav-item admin-only" onclick="navegar('notificacoes')" data-page="notificacoes" title="Configurar alertas e e-mails automáticos">
       <span class="nav-icon">🔔</span> Notificações</div>
-    <div class="nav-item admin-only" onclick="navegar('usuarios')" data-page="usuarios">
-      <span class="nav-icon">◎</span> Usuários</div>
-    <div class="nav-item editor-only" onclick="navegar('importacao')" data-page="importacao">
-      <span class="nav-icon">⊕</span> Importar NF-e</div>
-    <div class="nav-item editor-only" onclick="navegar('requerimentos')" data-page="requerimentos">
-      <span class="nav-icon">📋</span> Requerimentos
+    <div class="nav-item admin-only" onclick="navegar('usuarios')" data-page="usuarios" title="Gerenciar usuários e permissões">
+      <span class="nav-icon">👥</span> Usuários</div>
+    <div class="nav-item editor-only" onclick="navegar('importacao')" data-page="importacao" title="Importar notas fiscais eletrônicas (NF-e)">
+      <span class="nav-icon">📥</span> Importar NF-e</div>
+    <div class="nav-item editor-only" onclick="navegar('requerimentos')" data-page="requerimentos" title="Pedidos de compra e solicitações de estoque">
+      <span class="nav-icon">🛒</span> Pedidos / Solicitações
       <span id="nav-badge-req" class="nav-badge" style="display:none"></span></div>
-    <div class="nav-item" onclick="navegar('relatorios')" data-page="relatorios">
-      <span class="nav-icon">◧</span> Relatórios</div>
-    <div class="nav-item" onclick="navegar('perfil')" data-page="perfil">
-      <span class="nav-icon">◐</span> Perfil
+    <div class="nav-item" onclick="navegar('relatorios')" data-page="relatorios" title="Relatórios de saídas e movimentações">
+      <span class="nav-icon">📊</span> Relatórios</div>
+    <div class="nav-item" onclick="navegar('perfil')" data-page="perfil" title="Configurações da sua conta">
+      <span class="nav-icon">👤</span> Perfil
     </div>
     <div class="sidebar-footer">
       <div id="sidebar-grupo">—</div>
@@ -96,7 +96,21 @@
 
     <!-- DASHBOARD -->
     <section id="page-dashboard" class="page active">
-      <div class="page-header"><h2>Dashboard</h2></div>
+      <div class="page-header">
+        <div>
+          <h2>Dashboard</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Olá, <span id="dash-greeting-name" style="font-weight:600;color:var(--green)">—</span> — aqui está o resumo do seu estoque.</p>
+        </div>
+      </div>
+
+      <!-- Ações rápidas -->
+      <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+        <button class="btn btn-primary editor-only" onclick="navegar('retiradas')" title="Registrar uma saída de material">📤 Registrar saída</button>
+        <button class="btn btn-secondary editor-only" onclick="navegar('requerimentos')" title="Abrir um pedido de compra ou solicitação">🛒 Pedidos / Solicitações</button>
+        <button class="btn btn-secondary" onclick="navegar('relatorios')" title="Exportar relatórios de movimentação">📊 Relatórios</button>
+        <button class="btn btn-secondary admin-only" onclick="navegar('importacao')" title="Importar nota fiscal eletrônica">📥 Importar NF-e</button>
+      </div>
+
       <div id="dash-alert-banner"></div>
       <div class="summary-grid" id="dash-summary"></div>
       <div id="dash-filter-summary" style="display:none"></div>
@@ -121,7 +135,7 @@
           <table style="min-width:600px">
             <thead><tr>
               <th>Material</th><th>Categoria</th><th>Grupo</th>
-              <th>Quantidade</th><th>Mínimo</th><th>Cadastrado em</th><th>Última retirada</th><th>Status</th>
+              <th>Quantidade</th><th>Mínimo</th><th>Cadastrado em</th><th>Última saída</th><th>Status</th>
             </tr></thead>
             <tbody id="dash-body"></tbody>
           </table>
@@ -133,7 +147,10 @@
     <!-- MATERIAIS -->
     <section id="page-materiais" class="page">
       <div class="page-header">
-        <h2>Materiais</h2>
+        <div>
+          <h2>Materiais</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Consulte e gerencie os materiais em estoque, organizados por categoria e grupo.</p>
+        </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary admin-only" onclick="abrirModalAdicionarMaterial()">+ Adicionar Material</button>
         </div>
@@ -162,7 +179,10 @@
     <!-- ATIVOS -->
     <section id="page-ativos" class="page">
       <div class="page-header">
-        <h2>Ativos</h2>
+        <div>
+          <h2>Ativos</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Controle equipamentos e patrimônios — veja quais itens estão em uso em cada ativo.</p>
+        </div>
         <button class="btn btn-primary editor-only" onclick="abrirModalAtivo()">+ Novo ativo</button>
       </div>
       <div class="inner-tabs" style="margin-bottom:0">
@@ -225,7 +245,10 @@
     <!-- CATEG. / GRUPOS ATIVOS -->
     <section id="page-categ-ativos" class="page">
       <div class="page-header">
-        <h2>Categ. / Grupos Ativos</h2>
+        <div>
+          <h2>Categ. de Ativos</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Defina as categorias e grupos que classificam seus equipamentos e patrimônios.</p>
+        </div>
         <button class="btn btn-primary editor-only" onclick="abrirModalCatAtivo()">+ Nova categoria</button>
       </div>
       <div class="table-wrap" id="cat-ativo-lista"></div>
@@ -234,11 +257,16 @@
 
     <!-- RETIRADAS -->
     <section id="page-retiradas" class="page">
-      <div class="page-header"><h2>Retiradas de estoque</h2></div>
+      <div class="page-header">
+        <div>
+          <h2>Saídas de Estoque</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Registre saídas de material e consulte o histórico completo de movimentações.</p>
+        </div>
+      </div>
 
       <!-- Formulário compacto (horizontal) — visível só para editor+ -->
       <div class="table-wrap editor-only" style="padding:20px;margin-bottom:20px">
-        <h3 style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:16px">Registrar retirada</h3>
+        <h3 style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:16px">Registrar saída</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end">
           <div class="form-group" style="margin:0"><label for="ret-cat">Categoria</label>
             <select id="ret-cat" onchange="carregarGruposRet()">
@@ -268,7 +296,7 @@
             <input type="text" id="ret-obs" placeholder="Colaborador, chamado…"/></div>
           <div style="display:flex;flex-direction:column;gap:6px">
             <div id="ret-estoque-info" class="info-box" style="display:none;font-size:12px"></div>
-            <button class="btn btn-danger" style="width:100%" onclick="withBtn(this,registrarRetirada)">↓ Confirmar retirada</button>
+            <button class="btn btn-danger" style="width:100%" onclick="withBtn(this,registrarRetirada)">↓ Confirmar saída</button>
           </div>
         </div>
       </div>
@@ -276,7 +304,7 @@
       <!-- Histórico (largura total) -->
       <div class="table-wrap">
         <div class="table-toolbar">
-          <strong style="font-size:13px">Histórico de retiradas</strong>
+          <strong style="font-size:13px">Histórico de saídas</strong>
           <div class="filter-row" style="flex:1;margin-left:8px">
             <select id="hist-motivo-filtro" onchange="filtrarHistorico()" style="max-width:200px">
               <option value="">Todos os motivos</option>
@@ -299,7 +327,10 @@
     <!-- CATEGORIAS / GRUPOS -->
     <section id="page-categorias" class="page">
       <div class="page-header">
-        <h2>Categorias e Grupos</h2>
+        <div>
+          <h2>Categ. de Materiais</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Organize os materiais em categorias e grupos para facilitar a busca e os relatórios.</p>
+        </div>
         <button class="btn btn-primary editor-only" onclick="abrirModalCategoria()">+ Nova categoria</button>
       </div>
       <div class="table-wrap" id="cat-lista"></div>
@@ -308,7 +339,12 @@
 
     <!-- USUÁRIOS -->
     <section id="page-usuarios" class="page">
-      <div class="page-header"><h2>Usuários</h2></div>
+      <div class="page-header">
+        <div>
+          <h2>Usuários</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Crie e gerencie usuários com diferentes níveis de acesso ao sistema.</p>
+        </div>
+      </div>
       <div class="two-col">
         <div class="table-wrap" style="padding:24px">
           <h3 id="usr-form-title" style="font-size:16px;color:var(--green);margin-bottom:20px">Novo usuário</h3>
@@ -343,7 +379,12 @@
 
     <!-- IMPORTAÇÃO NF-e -->
     <section id="page-importacao" class="page">
-      <div class="page-header"><h2>Importar NF-e</h2></div>
+      <div class="page-header">
+        <div>
+          <h2>Importar NF-e</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Importe notas fiscais eletrônicas para dar entrada automática de materiais no estoque.</p>
+        </div>
+      </div>
 
       <!-- Card upload + info emitente -->
       <div class="table-wrap" style="padding:20px 24px;margin-bottom:20px">
@@ -404,9 +445,14 @@
 
     <!-- NOTIFICAÇÕES -->
     <section id="page-notificacoes" class="page">
-      <div class="page-header"><h2>Notificações</h2></div>
+      <div class="page-header">
+        <div>
+          <h2>Notificações</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Configure quais eventos disparam e-mails automáticos e para quais destinatários.</p>
+        </div>
+      </div>
       <div class="inner-tabs">
-        <div class="inner-tab active" onclick="trocarAbaNotif('retiradas')">Retiradas</div>
+        <div class="inner-tab active" onclick="trocarAbaNotif('retiradas')">Saídas</div>
         <div class="inner-tab" onclick="trocarAbaNotif('entradas')">Entradas</div>
         <div class="inner-tab" onclick="trocarAbaNotif('alertas')">Alertas</div>
         <div class="inner-tab" onclick="trocarAbaNotif('requerimento')">Requerimento</div>
@@ -418,7 +464,7 @@
       <div class="inner-tab-pane active" id="notif-pane-retiradas">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:16px">E-mails — Retiradas</h3>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:16px">E-mails — Saídas</h3>
             <div style="display:flex;gap:8px;margin-bottom:12px">
               <input type="email" id="notif-email-retirada" placeholder="email@empresa.local" style="flex:1"/>
               <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('retirada'))">Adicionar</button>
@@ -426,7 +472,7 @@
             <div id="notif-list-retirada"></div>
           </div>
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Retiradas</h3>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Saídas</h3>
             <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Use {material}, {quantidade}, {usuario}, {data}, {motivo}, {observacao}</p>
             <div class="form-group"><label for="notif-tpl-retirada-assunto">Assunto</label>
               <input type="text" id="notif-tpl-retirada-assunto"/></div>
@@ -611,7 +657,12 @@
 
     <!-- RELATÓRIOS -->
     <section id="page-relatorios" class="page">
-      <div class="page-header"><h2>Relatórios</h2></div>
+      <div class="page-header">
+        <div>
+          <h2>Relatórios</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Exporte relatórios de saídas e movimentações em formato Excel ou PDF.</p>
+        </div>
+      </div>
 
       <!-- Seção: Estoque -->
       <p class="rel-section-label">Estoque</p>
@@ -639,7 +690,7 @@
       <div style="margin-bottom:28px">
         <div class="table-wrap rel-card">
           <h3>Saídas</h3>
-          <p>Histórico de retiradas com filtros por motivo e período.</p>
+          <p>Histórico de saídas com filtros por motivo e período.</p>
           <div class="rel-filter-row">
             <div class="rel-filter-item">
               <label for="rel-saida-motivo">Motivo</label>
@@ -825,9 +876,12 @@
     <!-- REQUERIMENTOS DE COMPRA -->
     <section id="page-requerimentos" class="page">
       <div class="page-header">
-        <h2>Requerimentos</h2>
+        <div>
+          <h2>Pedidos / Solicitações</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Gerencie pedidos de compra para o financeiro e solicitações de material da equipe.</p>
+        </div>
         <div style="display:flex;gap:8px">
-          <button id="btn-novo-req" class="btn btn-primary" onclick="abrirNovoRequerimento()" style="display:none">+ Novo requerimento</button>
+          <button id="btn-novo-req" class="btn btn-primary" onclick="abrirNovoRequerimento()" style="display:none">+ Novo pedido de compra</button>
           <button id="btn-nova-sol" class="btn btn-primary" onclick="abrirNovaSolicitacao()" style="display:none">+ Nova solicitação</button>
         </div>
       </div>
@@ -940,7 +994,12 @@
 
     <!-- PERFIL -->
     <section id="page-perfil" class="page">
-      <div class="page-header"><h2>Meu Perfil</h2></div>
+      <div class="page-header">
+        <div>
+          <h2>Meu Perfil</h2>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Atualize seus dados pessoais e altere sua senha de acesso.</p>
+        </div>
+      </div>
       <div style="max-width:480px;display:flex;flex-direction:column;gap:20px">
 
         <!-- Card: dados pessoais -->
@@ -1239,7 +1298,7 @@
       <div class="form-group" style="margin:10px 0 0"><label>Observação</label>
         <input type="text" id="ret-uni-obs" placeholder="Nome do colaborador, chamado…"/></div>
       <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="btn btn-danger" onclick="withBtn(this,confirmarRetiradaUnidade)">↓ Confirmar retirada</button>
+        <button class="btn btn-danger" onclick="withBtn(this,confirmarRetiradaUnidade)">↓ Confirmar saída</button>
         <button class="btn btn-secondary btn-sm" onclick="$('det-form-retirada-unidade').style.display='none'">Cancelar</button>
       </div>
     </div>
@@ -1435,7 +1494,7 @@
 <!-- MODAL MOTIVOS PERSONALIZADOS -->
 <div id="modal-motivo" class="modal-overlay" style="display:none" onclick="fecharModalSe(event,'modal-motivo')">
   <div class="modal" style="max-width:420px">
-    <h3>Motivos de retirada</h3>
+    <h3>Motivos de saída</h3>
     <div id="motivo-lista" style="margin-bottom:16px;max-height:260px;overflow-y:auto"></div>
     <div style="display:flex;gap:8px">
       <input type="text" id="motivo-novo-nome" placeholder="Nome do novo motivo…" style="flex:1"/>

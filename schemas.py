@@ -492,10 +492,22 @@ class RequerimentoCreate(BaseModel):
             raise ValueError("Título não pode ser vazio")
         return v
 
+class ItemQuantidadeAprovacao(BaseModel):
+    id: int
+    quantidade: float
+
+    @field_validator("quantidade")
+    @classmethod
+    def qtd_positiva(cls, v):
+        if v <= 0:
+            raise ValueError("Quantidade deve ser maior que zero")
+        return v
+
 class AprovarRequerimentoBody(BaseModel):
     observacao: str
-    itens_aprovados:  list[str] = []
-    itens_reprovados: list[str] = []
+    itens_aprovados:   list[str] = []
+    itens_reprovados:  list[str] = []
+    itens_quantidades: list[ItemQuantidadeAprovacao] = []
 
 class RejeitarRequerimentoBody(BaseModel):
     observacao: str

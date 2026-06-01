@@ -1322,7 +1322,16 @@ async function previewNFe(){
     $('nfe-preview-body').innerHTML=dados.itens.map((it,idx)=>`
       <tr>
         <td style="font-size:12px;color:var(--muted)">${it.codigo}</td>
-        <td><input type="text" class="nfe-nome-input" value="${esc(it.nome)}" style="width:100%;padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:600"/></td>
+        <td style="max-width:220px">
+          <div style="display:flex;align-items:center;gap:4px">
+            <span class="nfe-nome-display" title="${esc(it.nome)}"
+              style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:13px">${esc(it.nome)}</span>
+            <button onclick="nfeAbrirPopover(this)"
+              style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;padding:0 2px;flex-shrink:0;line-height:1"
+              title="Editar nome do material">✏</button>
+          </div>
+          <input type="hidden" class="nfe-nome-input" value="${esc(it.nome)}"/>
+        </td>
         <td>${it.quantidade}</td><td>${it.unidade}</td>
         <td>R$ ${it.valor_unit.toFixed(2)}</td>
         <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" checked title="Marcar como patrimônio individual"/></td>
@@ -1340,6 +1349,68 @@ async function previewNFe(){
       </tr>`).join('');
     $('nfe-btn-confirmar').style.display='block';
   }catch{toast('Falha ao enviar arquivo','error');}
+}
+
+let _nfePopoverTd = null;
+
+function nfeAbrirPopover(btn){
+  let pop = $('nfe-nome-popover');
+  if(!pop){
+    pop = document.createElement('div');
+    pop.id = 'nfe-nome-popover';
+    pop.style.cssText = 'position:fixed;z-index:9999;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:12px;min-width:480px;display:none';
+    pop.innerHTML = `
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Nome do material</div>
+      <input id="nfe-nome-popover-input" type="text"
+        style="width:100%;padding:7px 10px;border:1.5px solid var(--green);border-radius:8px;font-size:13px;font-weight:600;outline:none"
+        onkeydown="if(event.key==='Enter')nfeConfirmarPopover();if(event.key==='Escape')nfeFecharPopover()"/>
+      <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+        <button class="btn btn-secondary btn-sm" onclick="nfeFecharPopover()">Cancelar</button>
+        <button class="btn btn-primary btn-sm" onclick="nfeConfirmarPopover()">Confirmar</button>
+      </div>`;
+    document.body.appendChild(pop);
+    document.addEventListener('mousedown', e=>{
+      if(pop.style.display!=='none' && !pop.contains(e.target) && !e.target.closest('.nfe-nome-display') && e.target.title!=='Editar nome do material')
+        nfeFecharPopover();
+    });
+  }
+
+  _nfePopoverTd = btn.closest('td');
+  const input = _nfePopoverTd.querySelector('.nfe-nome-input');
+  const rect  = btn.getBoundingClientRect();
+
+  pop.style.display = 'block';
+  const popW = 480;
+  let left = rect.left;
+  if(left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
+  let top = rect.bottom + 6;
+  if(top + 120 > window.innerHeight) top = rect.top - 126;
+  pop.style.left = left + 'px';
+  pop.style.top  = top  + 'px';
+
+  const pi = $('nfe-nome-popover-input');
+  pi.value = input.value;
+  pi.focus();
+  pi.select();
+}
+
+function nfeConfirmarPopover(){
+  if(!_nfePopoverTd) return;
+  const pi    = $('nfe-nome-popover-input');
+  const nome  = pi.value.trim();
+  if(!nome){ toast('Informe um nome para o material','error'); pi.focus(); return; }
+  const input = _nfePopoverTd.querySelector('.nfe-nome-input');
+  const span  = _nfePopoverTd.querySelector('.nfe-nome-display');
+  input.value    = nome;
+  span.textContent = nome;
+  span.title       = nome;
+  nfeFecharPopover();
+}
+
+function nfeFecharPopover(){
+  const pop = $('nfe-nome-popover');
+  if(pop) pop.style.display = 'none';
+  _nfePopoverTd = null;
 }
 
 function atualizarQtdRealNfe(input){
@@ -3185,16 +3256,25 @@ async function verRequerimento(id){
       : '<span style="color:var(--muted);font-size:12px">—</span>';
     const selCell = comSelecao
       ? `<td style="padding:8px;border-bottom:1px solid var(--border);text-align:center">
-           <input type="checkbox" checked data-sub="${sub}" data-nome="${esc(it.nome)}" data-valor="${_fmtBRL(sub)}" onchange="_recalcTotalCheck()"
+           <input type="checkbox" checked data-sub="${sub}" data-item-id="${it.id}" data-nome="${esc(it.nome)}" data-valor="${_fmtBRL(sub)}" onchange="_recalcTotalCheck()"
              style="width:17px;height:17px;accent-color:var(--green);cursor:pointer">
          </td>`
       : '';
+    const qtdCell = comSelecao
+      ? `<td style="padding:4px 8px;border-bottom:1px solid var(--border);text-align:right">
+           <input type="number" min="0.01" step="0.01" value="${qtd}"
+             data-item-id="${it.id}" data-valor-unit="${it.valor}"
+             class="req-qtd-input"
+             oninput="reqAtualizarSubtotal(this)"
+             style="width:75px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;text-align:right;font-size:13px"/>
+         </td>`
+      : `<td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">${Number(qtd).toLocaleString('pt-BR',{maximumFractionDigits:2})}</td>`;
     return `<tr>
       ${selCell}
       <td style="padding:8px 10px;border-bottom:1px solid var(--border)">${nomeCell}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">${Number(qtd).toLocaleString('pt-BR',{maximumFractionDigits:2})}</td>
+      ${qtdCell}
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">${_fmtBRL(it.valor)}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;font-weight:600">${_fmtBRL(sub)}</td>
+      <td class="req-subtotal-cell" style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;font-weight:600">${_fmtBRL(sub)}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center">${linkCell}</td>
     </tr>`;
   }).join('');
@@ -3220,6 +3300,18 @@ async function verRequerimento(id){
   }
 
   abrirModal('modal-detalhe-req');
+}
+
+function reqAtualizarSubtotal(input){
+  const qtd      = parseFloat(input.value) || 0;
+  const valorUnit = parseFloat(input.dataset.valorUnit) || 0;
+  const sub      = qtd * valorUnit;
+  const row      = input.closest('tr');
+  const cb       = row.querySelector('input[type="checkbox"]');
+  if(cb){ cb.dataset.sub = sub; cb.dataset.valor = _fmtBRL(sub); }
+  const subCell  = row.querySelector('.req-subtotal-cell');
+  if(subCell) subCell.textContent = _fmtBRL(sub);
+  _recalcTotalCheck();
 }
 
 function _recalcTotalCheck(){
@@ -3250,10 +3342,15 @@ async function aprovarRequerimento(id){
   const obs = $('det-req-obs-input')?.value.trim();
   if(!obs){ toast('Informe a observação antes de aprovar', 'error'); return; }
   const { aprovados, reprovados } = _coletarItensSelecao();
+  const itensQuantidades = [...document.querySelectorAll('.req-qtd-input')].map(inp => ({
+    id: parseInt(inp.dataset.itemId),
+    quantidade: parseFloat(inp.value) || 1,
+  })).filter(m => m.id && m.quantidade > 0);
   const r = await api('POST', `/requerimentos/${id}/aprovar`, {
     observacao: obs,
     itens_aprovados: aprovados,
     itens_reprovados: reprovados,
+    itens_quantidades: itensQuantidades,
   });
   if(r){
     fecharModal('modal-detalhe-req');

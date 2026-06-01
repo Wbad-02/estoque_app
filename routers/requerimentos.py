@@ -500,6 +500,16 @@ def aprovar_requerimento(
     if req.status != models.StatusRequerimento.aguardando:
         raise HTTPException(409, f"Requerimento ja esta '{req.status.value}'")
 
+    if body.itens_quantidades:
+        for mod in body.itens_quantidades:
+            item = db.query(models.ItemRequerimento).filter(
+                models.ItemRequerimento.id == mod.id,
+                models.ItemRequerimento.requerimento_id == req_id,
+            ).first()
+            if item and mod.quantidade > 0:
+                item.quantidade = mod.quantidade
+        db.flush()
+
     req.status       = models.StatusRequerimento.aprovado
     req.aprovado_por = atual.id
     req.observacao   = body.observacao

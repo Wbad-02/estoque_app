@@ -1322,7 +1322,7 @@ async function previewNFe(){
     $('nfe-preview-body').innerHTML=dados.itens.map((it,idx)=>`
       <tr>
         <td style="font-size:12px;color:var(--muted)">${it.codigo}</td>
-        <td><strong>${esc(it.nome)}</strong></td>
+        <td><input type="text" class="nfe-nome-input" value="${esc(it.nome)}" style="width:100%;padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:600"/></td>
         <td>${it.quantidade}</td><td>${it.unidade}</td>
         <td>R$ ${it.valor_unit.toFixed(2)}</td>
         <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" checked title="Marcar como patrimônio individual"/></td>
@@ -1360,10 +1360,13 @@ async function confirmarNFe(){
     .map(cb=>cb.dataset.idx).join(',');
   const fatores=Array.from(document.querySelectorAll('.nfe-fator-input'))
     .map(el=>parseFloat(el.value)||1).join(',');
+  const nomes=Array.from(document.querySelectorAll('.nfe-nome-input'))
+    .map(el=>el.value.trim()).join('||');
   const form=new FormData(); form.append('arquivo',_nfeArquivo);
   form.append('patrimonio_indices', patrimonioIndices);
   form.append('grupo_ids', grupoIds);
   form.append('fatores', fatores);
+  form.append('nomes', nomes);
   try{
     const r=await fetch('/api/importacao/confirmar',
       {method:'POST',headers:{Authorization:`Bearer ${S.token}`},body:form});

@@ -144,6 +144,7 @@ async def confirmar_importacao(
     grupo_ids:           str = Form(""),
     patrimonio_indices:  str = Form(""),
     fatores:             str = Form(""),
+    nomes:               str = Form(""),
     db:                  Session = Depends(get_db),
     atual:               models.Usuario = Depends(requer_editor_ou_admin),
 ):
@@ -182,6 +183,10 @@ async def confirmar_importacao(
     while len(fatores_lista) < len(dados["itens"]):
         fatores_lista.append(1.0)
 
+    nomes_lista = [n.strip() for n in nomes.split("||")] if nomes.strip() else []
+    while len(nomes_lista) < len(dados["itens"]):
+        nomes_lista.append("")
+
     # Pré-valida todos os grupos antes de gravar qualquer coisa
     grupos_cache = {}
     for gid in set(ids_por_item):
@@ -209,7 +214,7 @@ async def confirmar_importacao(
 
     for idx, item in enumerate(dados["itens"]):
         grupo_id  = ids_por_item[idx]
-        nome_norm = item["nome"].strip()
+        nome_norm = (nomes_lista[idx] or item["nome"]).strip()
         fator     = fatores_lista[idx]
         qtd       = item["quantidade"] * fator
 

@@ -2905,6 +2905,11 @@ async function removerEmailNotif(id, tipo){
   }
 }
 
+async function enviarEntradasAgora(){
+  const r=await api('POST','/notificacoes/entradas/enviar');
+  if(r) toast(r.mensagem, r.ok===false?'error':'success');
+}
+
 async function enviarAlertasAgora(){
   const r=await api('POST','/notificacoes/alertas/enviar');
   if(r) toast(r.mensagem||(r.alertas_enviados+' alerta(s) enviado(s)'), r.ok===false?'error':'success');

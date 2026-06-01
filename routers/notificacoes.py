@@ -243,6 +243,21 @@ def testar_smtp(atual: models.Usuario = Depends(requer_admin)):
         raise HTTPException(500, f"Erro ao enviar: {exc}")
 
 
+# ── Flush manual do batch de entradas ─────────────────
+
+@router.post("/entradas/enviar")
+def enviar_entradas_manual(
+    _: models.Usuario = Depends(requer_admin),
+):
+    """Força o disparo imediato do lote de notificações de entrada pendentes."""
+    import email_service as _es
+    pendentes = len(_es._batch_pending)
+    if not pendentes:
+        return {"ok": False, "mensagem": "Nenhuma entrada pendente no lote atual."}
+    _es._flush_batch()
+    return {"ok": True, "mensagem": f"{pendentes} entrada(s) enviada(s) agora."}
+
+
 # ── Envio manual de alertas ───────────────────────────
 
 @router.post("/alertas/enviar")

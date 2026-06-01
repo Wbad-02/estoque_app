@@ -504,6 +504,10 @@
               <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('entrada'))">Adicionar</button>
             </div>
             <div id="notif-list-entrada"></div>
+            <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+              <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Entradas ficam em fila por até 30 min antes do envio. Dispare agora se necessário.</p>
+              <button class="btn btn-secondary btn-sm" onclick="withBtn(this,enviarEntradasAgora)">Enviar entradas agora</button>
+            </div>
           </div>
           <div class="table-wrap" style="padding:20px">
             <h3 style="font-size:14px;color:var(--green);margin-bottom:6px">Modelo do e-mail de entrada</h3>

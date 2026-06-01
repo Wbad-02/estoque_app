@@ -19,6 +19,7 @@ _BR = timezone(timedelta(hours=-3))
 def _agora_br(): return datetime.now(_BR).replace(tzinfo=None)
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr
 from pathlib import Path
 
 # ── Batch de notificações de entrada ──────────────────────────────────────────
@@ -144,7 +145,8 @@ def _enviar(
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = assunto
-    msg["From"]    = cfg.get("remetente") or cfg.get("usuario", "")
+    _email_from = cfg.get("remetente") or cfg.get("usuario", "")
+    msg["From"]  = formataddr(("ESTOQUE", _email_from))
     msg["To"]      = ", ".join(destinatarios)
     msg.attach(MIMEText(corpo_texto, "plain", "utf-8"))
     if corpo_html:

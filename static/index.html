@@ -463,9 +463,14 @@
 
       <!-- Aba: Retiradas -->
       <div class="inner-tab-pane active" id="notif-pane-retiradas">
+        <div style="background:#F0F4F2;border-left:3px solid var(--gold);border-radius:4px;padding:10px 14px;margin-bottom:18px">
+          <p style="font-size:13px;color:var(--green);margin:0;font-weight:600">Notificacao de saida de estoque</p>
+          <p style="font-size:13px;color:var(--muted);margin:4px 0 0">Disparada sempre que um material e retirado do estoque. Configure abaixo quem recebe o aviso e como o e-mail sera formatado.</p>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:16px">E-mails — Saídas</h3>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:6px">Quem recebe o aviso de saida</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Adicione os e-mails que devem ser notificados a cada retirada registrada.</p>
             <div style="display:flex;gap:8px;margin-bottom:12px">
               <input type="email" id="notif-email-retirada" placeholder="email@empresa.local" style="flex:1"/>
               <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('retirada'))">Adicionar</button>
@@ -473,8 +478,8 @@
             <div id="notif-list-retirada"></div>
           </div>
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Saídas</h3>
-            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Use {material}, {quantidade}, {usuario}, {data}, {motivo}, {observacao}</p>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:6px">Modelo do e-mail de saida</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Variaveis disponiveis: {material}, {quantidade}, {usuario}, {data}, {motivo}, {observacao}</p>
             <div class="form-group"><label for="notif-tpl-retirada-assunto">Assunto</label>
               <input type="text" id="notif-tpl-retirada-assunto"/></div>
             <div class="form-group"><label for="notif-tpl-retirada-corpo">Corpo</label>
@@ -486,9 +491,14 @@
 
       <!-- Aba: Entradas -->
       <div class="inner-tab-pane" id="notif-pane-entradas">
+        <div style="background:#F0F4F2;border-left:3px solid var(--gold);border-radius:4px;padding:10px 14px;margin-bottom:18px">
+          <p style="font-size:13px;color:var(--green);margin:0;font-weight:600">Notificacao de entrada de estoque</p>
+          <p style="font-size:13px;color:var(--muted);margin:4px 0 0">Disparada quando um material tem sua quantidade aumentada (reposicao ou ajuste). Configure quem acompanha as entradas e o formato do e-mail.</p>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:16px">E-mails — Entradas</h3>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:6px">Quem recebe o aviso de entrada</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Adicione os e-mails que devem ser notificados a cada entrada registrada no estoque.</p>
             <div style="display:flex;gap:8px;margin-bottom:12px">
               <input type="email" id="notif-email-entrada" placeholder="email@empresa.local" style="flex:1"/>
               <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('entrada'))">Adicionar</button>
@@ -496,8 +506,8 @@
             <div id="notif-list-entrada"></div>
           </div>
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Entradas</h3>
-            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Use {material}, {quantidade}, {usuario}, {data}</p>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:6px">Modelo do e-mail de entrada</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Variaveis disponiveis: {material}, {quantidade}, {usuario}, {data}</p>
             <div class="form-group"><label for="notif-tpl-entrada-assunto">Assunto</label>
               <input type="text" id="notif-tpl-entrada-assunto"/></div>
             <div class="form-group"><label for="notif-tpl-entrada-corpo">Corpo</label>
@@ -509,9 +519,14 @@
 
       <!-- Aba: Alertas -->
       <div class="inner-tab-pane" id="notif-pane-alertas">
+        <div style="background:#F0F4F2;border-left:3px solid var(--gold);border-radius:4px;padding:10px 14px;margin-bottom:18px">
+          <p style="font-size:13px;color:var(--green);margin:0;font-weight:600">Alerta de estoque baixo</p>
+          <p style="font-size:13px;color:var(--muted);margin:4px 0 0">Enviado automaticamente quando um material atinge ou fica abaixo do nivel minimo definido no grupo. O campo "Dias" define o intervalo minimo entre alertas repetidos para o mesmo item.</p>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:16px">E-mails — Alertas de estoque</h3>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:6px">Quem recebe o alerta de estoque baixo</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Adicione o e-mail e, opcionalmente, o intervalo em dias para nao receber alertas repetidos com frequencia.</p>
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
               <input type="email" id="notif-email-alerta" placeholder="email@empresa.local" style="flex:1;min-width:160px"/>
               <input type="number" id="notif-int-alerta" min="1" placeholder="Dias" title="Intervalo em dias (opcional)" style="width:70px"/>
@@ -519,12 +534,13 @@
             </div>
             <div id="notif-list-alerta"></div>
             <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+              <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Dispare os alertas manualmente sem esperar o proximo ciclo automatico.</p>
               <button class="btn btn-secondary btn-sm" onclick="withBtn(this,enviarAlertasAgora)">Enviar alertas agora</button>
             </div>
           </div>
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Alertas</h3>
-            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Use {material}, {quantidade}, {minimo}, {grupo}, {data}</p>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:6px">Modelo do e-mail de alerta</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Variaveis disponiveis: {material}, {quantidade}, {minimo}, {grupo}, {data}</p>
             <div class="form-group"><label for="notif-tpl-alerta-assunto">Assunto</label>
               <input type="text" id="notif-tpl-alerta-assunto"/></div>
             <div class="form-group"><label for="notif-tpl-alerta-corpo">Corpo</label>
@@ -536,9 +552,14 @@
 
       <!-- Aba: Requerimento -->
       <div class="inner-tab-pane" id="notif-pane-requerimento">
+        <div style="background:#F0F4F2;border-left:3px solid var(--gold);border-radius:4px;padding:10px 14px;margin-bottom:18px">
+          <p style="font-size:13px;color:var(--green);margin:0;font-weight:600">Notificacoes de pedido de compra (Requerimento)</p>
+          <p style="font-size:13px;color:var(--muted);margin:4px 0 0">Dois momentos geram e-mail: (1) quando um novo pedido de compra e criado — notifica o grupo Financeiro para analise; (2) quando o Financeiro aprova ou rejeita — notifica o criador do pedido com o resultado.</p>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:16px">E-mails — Requerimentos</h3>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:6px">Quem recebe o aviso de novo pedido de compra</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Normalmente os e-mails do grupo <strong>Financeiro</strong>, que sao responsaveis por aprovar ou rejeitar o pedido.</p>
             <div style="display:flex;gap:8px;margin-bottom:12px">
               <input type="email" id="notif-email-requerimento" placeholder="email@empresa.local" style="flex:1"/>
               <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('requerimento'))">Adicionar</button>
@@ -546,8 +567,8 @@
             <div id="notif-list-requerimento"></div>
           </div>
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Novo requerimento</h3>
-            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Variáveis: {titulo}, {criador}, {total}, {itens_count}, {link}</p>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:6px">Modelo do e-mail — Novo pedido de compra</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Enviado ao Financeiro quando um pedido e criado. Variaveis: {titulo}, {criador}, {total}, {itens_count}, {link}</p>
             <div class="form-group"><label for="notif-tpl-requerimento-assunto">Assunto</label>
               <input type="text" id="notif-tpl-requerimento-assunto"/></div>
             <div class="form-group"><label for="notif-tpl-requerimento-corpo">Corpo</label>
@@ -555,37 +576,34 @@
             <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('requerimento'))">Salvar template</button>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;margin-top:20px">
+        <div style="margin-top:20px">
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:16px">E-mails — Decisão (aprovação/rejeição)</h3>
-            <div style="display:flex;gap:8px;margin-bottom:12px">
-              <input type="email" id="notif-email-requerimento_decisao" placeholder="email@empresa.local" style="flex:1"/>
-              <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('requerimento_decisao'))">Adicionar</button>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:4px">Modelo do e-mail — Resultado da decisao</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Enviado automaticamente ao <strong>criador do pedido</strong> apos aprovacao ou rejeicao pelo Financeiro. Variaveis: {titulo}, {status}, {aprovador}, {observacao}</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div class="form-group" style="margin:0"><label for="notif-tpl-requerimento_decisao-assunto">Assunto</label>
+                <input type="text" id="notif-tpl-requerimento_decisao-assunto"/></div>
+              <div></div>
             </div>
-            <div id="notif-list-requerimento_decisao"></div>
-          </div>
-          <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">Template — Decisão</h3>
-            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Variáveis: {titulo}, {status}, {aprovador}, {observacao}</p>
-            <div class="form-group"><label for="notif-tpl-requerimento_decisao-assunto">Assunto</label>
-              <input type="text" id="notif-tpl-requerimento_decisao-assunto"/></div>
-            <div class="form-group"><label for="notif-tpl-requerimento_decisao-corpo">Corpo</label>
-              <textarea id="notif-tpl-requerimento_decisao-corpo" rows="6" style="resize:vertical"></textarea></div>
-            <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>salvarTemplateNotif('requerimento_decisao'))">Salvar template</button>
+            <div class="form-group" style="margin-top:12px"><label for="notif-tpl-requerimento_decisao-corpo">Corpo</label>
+              <textarea id="notif-tpl-requerimento_decisao-corpo" rows="5" style="resize:vertical"></textarea></div>
+            <button class="btn btn-primary btn-sm" style="margin-top:4px" onclick="withBtn(this,()=>salvarTemplateNotif('requerimento_decisao'))">Salvar template</button>
           </div>
         </div>
       </div>
 
       <!-- Aba: Solicitações -->
       <div class="inner-tab-pane" id="notif-pane-solicitacao">
+        <div style="background:#F0F4F2;border-left:3px solid var(--gold);border-radius:4px;padding:10px 14px;margin-bottom:18px">
+          <p style="font-size:13px;color:var(--green);margin:0;font-weight:600">Notificacoes de solicitacao de estoque</p>
+          <p style="font-size:13px;color:var(--muted);margin:4px 0 0">Dois momentos geram e-mail: (1) quando um editor abre uma nova solicitacao — notifica os administradores para analise; (2) quando o admin aprova ou rejeita — o criador da solicitacao ja e notificado automaticamente, mas voce pode adicionar outros destinatarios abaixo.</p>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
 
           <!-- E-mails para nova solicitação (notifica admins) -->
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">E-mails — Nova solicitação</h3>
-            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
-              Destinatários notificados quando um editor abre uma nova solicitação de estoque.
-            </p>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:6px">Quem recebe o aviso de nova solicitacao</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Normalmente os administradores responsaveis por aprovar ou rejeitar solicitacoes de estoque abertas pelo grupo <strong>Editor</strong>.</p>
             <div style="display:flex;gap:8px;margin-bottom:12px">
               <input type="email" id="notif-email-solicitacao" placeholder="email@empresa.local" style="flex:1"/>
               <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('solicitacao'))">Adicionar</button>
@@ -593,12 +611,10 @@
             <div id="notif-list-solicitacao"></div>
           </div>
 
-          <!-- E-mails para decisão de solicitação -->
+          <!-- E-mails adicionais para decisão de solicitação -->
           <div class="table-wrap" style="padding:20px">
-            <h3 style="font-size:14px;color:var(--green);margin-bottom:8px">E-mails — Decisão de solicitação</h3>
-            <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
-              O criador da solicitação é notificado automaticamente. Adicione aqui outros e-mails que devem receber a decisão.
-            </p>
+            <h3 style="font-size:14px;color:var(--green);margin-bottom:6px">Copias adicionais na decisao da solicitacao</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:14px">O criador da solicitacao e notificado automaticamente. Adicione aqui outros e-mails que devem receber uma copia do resultado (aprovacao ou rejeicao).</p>
             <div style="display:flex;gap:8px;margin-bottom:12px">
               <input type="email" id="notif-email-solicitacao_decisao" placeholder="email@empresa.local" style="flex:1"/>
               <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>adicionarEmailNotif('solicitacao_decisao'))">Adicionar</button>
@@ -611,10 +627,14 @@
 
       <!-- Aba: Config. SMTP -->
       <div class="inner-tab-pane" id="notif-pane-smtp">
+        <div style="background:#F0F4F2;border-left:3px solid var(--gold);border-radius:4px;padding:10px 14px;margin-bottom:18px;max-width:520px">
+          <p style="font-size:13px;color:var(--green);margin:0;font-weight:600">Configuracao do servidor de e-mail</p>
+          <p style="font-size:13px;color:var(--muted);margin:4px 0 0">Estas credenciais sao usadas para o envio de todas as notificacoes do sistema. Configure uma vez e use o botao "Testar envio" para validar.</p>
+        </div>
         <div style="max-width:520px">
           <div class="table-wrap" style="padding:24px">
             <h3 style="font-size:14px;color:var(--green);margin-bottom:4px">Servidor de e-mail (SMTP)</h3>
-            <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Configurações usadas para envio de todas as notificações.</p>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Configuracoes usadas para envio de todas as notificacoes.</p>
             <div class="form-group">
               <label for="smtp-host">Host</label>
               <input type="text" id="smtp-host" placeholder="smtp.gmail.com"/>

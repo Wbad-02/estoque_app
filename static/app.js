@@ -2838,8 +2838,7 @@ async function _carregarEmailsRequerimento(){
     api('GET', '/notificacoes/emails'),
     api('GET', '/notificacoes/templates'),
   ]);
-  _renderizarEmailsNotif('requerimento',          (emails||[]).filter(e=>e.tipo==='requerimento'));
-  _renderizarEmailsNotif('requerimento_decisao',  (emails||[]).filter(e=>e.tipo==='requerimento_decisao'));
+  _renderizarEmailsNotif('requerimento', (emails||[]).filter(e=>e.tipo==='requerimento'));
   if(!tpls) return;
   ['requerimento','requerimento_decisao'].forEach(tipo=>{
     const tpl = tpls.find(t=>t.tipo===tipo);

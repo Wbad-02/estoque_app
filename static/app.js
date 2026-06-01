@@ -1036,7 +1036,7 @@ function renderizarCategorias(){
         </div>
         <div class="novo-grupo-form" id="form-grp-${c.id}">
           <input type="text" id="novo-grp-nome-${c.id}" placeholder="Nome do grupo" style="flex:2"/>
-          <input type="number" id="novo-grp-min-${c.id}" placeholder="Mínimo (0=sem alerta)" min="0" step="0.01" value="0" style="flex:1"/>
+          <input type="number" id="novo-grp-min-${c.id}" placeholder="Mínimo (0=sem alerta)" min="0" step="1" value="0" style="flex:1"/>
           <button class="btn btn-primary btn-sm" onclick="withBtn(this,()=>criarGrupoInline(${c.id}))">Criar</button>
         </div>`
       );
@@ -3162,7 +3162,7 @@ function _addItemReqRow(nome='', qtd='', valor='', url=''){
         style="${inp};color:#0563C1" title="URL do produto — ficará como hyperlink no Excel"/>
     </td>
     <td style="padding:3px 4px;width:90px">
-      <input type="number" min="0.01" step="0.01" placeholder="1" value="${qtd}"
+      <input type="number" min="1" step="1" placeholder="1" value="${qtd}"
         style="${inp};text-align:right" oninput="_atualizarTotalReq(this)"/>
     </td>
     <td style="padding:3px 4px;width:120px">
@@ -3262,7 +3262,7 @@ async function verRequerimento(id){
       : '';
     const qtdCell = comSelecao
       ? `<td style="padding:4px 8px;border-bottom:1px solid var(--border);text-align:right">
-           <input type="number" min="0.01" step="0.01" value="${qtd}"
+           <input type="number" min="1" step="1" value="${Math.round(qtd)}"
              data-item-id="${it.id}" data-valor-unit="${it.valor}"
              class="req-qtd-input"
              oninput="reqAtualizarSubtotal(this)"
@@ -3303,7 +3303,8 @@ async function verRequerimento(id){
 }
 
 function reqAtualizarSubtotal(input){
-  const qtd      = parseFloat(input.value) || 0;
+  const qtd      = Math.max(1, Math.round(parseFloat(input.value) || 1));
+  input.value    = qtd;
   const valorUnit = parseFloat(input.dataset.valorUnit) || 0;
   const sub      = qtd * valorUnit;
   const row      = input.closest('tr');
@@ -3344,8 +3345,8 @@ async function aprovarRequerimento(id){
   const { aprovados, reprovados } = _coletarItensSelecao();
   const itensQuantidades = [...document.querySelectorAll('.req-qtd-input')].map(inp => ({
     id: parseInt(inp.dataset.itemId),
-    quantidade: parseFloat(inp.value) || 1,
-  })).filter(m => m.id && m.quantidade > 0);
+    quantidade: Math.max(1, Math.round(parseFloat(inp.value) || 1)),
+  })).filter(m => m.id);
   const r = await api('POST', `/requerimentos/${id}/aprovar`, {
     observacao: obs,
     itens_aprovados: aprovados,

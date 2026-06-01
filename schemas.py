@@ -149,7 +149,8 @@ class MaterialCreate(BaseModel):
     @classmethod
     def nao_neg(cls, v):
         if v < 0: raise ValueError("Não pode ser negativo")
-        return v
+        if v != int(v): raise ValueError("Quantidade deve ser um número inteiro")
+        return int(v)
 
     @field_validator("codigo_patrimonio")
     @classmethod
@@ -177,8 +178,10 @@ class MaterialUpdate(BaseModel):
     @field_validator("quantidade", mode="before")
     @classmethod
     def nao_neg(cls, v):
-        if v is not None and v < 0: raise ValueError("Não pode ser negativo")
-        return v
+        if v is None: return v
+        if v < 0: raise ValueError("Não pode ser negativo")
+        if v != int(v): raise ValueError("Quantidade deve ser um número inteiro")
+        return int(v)
 
 class MaterialOut(BaseModel):
     id: int; nome: str; descricao: Optional[str]
@@ -348,7 +351,8 @@ class RetiradaCreate(BaseModel):
     @classmethod
     def maior_zero(cls, v):
         if v <= 0: raise ValueError("Quantidade deve ser maior que zero")
-        return v
+        if v != int(v): raise ValueError("Quantidade deve ser um número inteiro")
+        return int(v)
 
     @field_validator("motivo")
     @classmethod
@@ -382,7 +386,8 @@ class EntradaMaterialCreate(BaseModel):
     @classmethod
     def maior_zero(cls, v):
         if v <= 0: raise ValueError("Quantidade deve ser maior que zero")
-        return v
+        if v != int(v): raise ValueError("Quantidade deve ser um número inteiro")
+        return int(v)
 
     @field_validator("codigo_patrimonio")
     @classmethod
@@ -471,7 +476,9 @@ class ItemRequerimentoCreate(BaseModel):
     def qtd_positiva(cls, v):
         if v <= 0:
             raise ValueError("Quantidade deve ser maior que zero")
-        return v
+        if v != int(v):
+            raise ValueError("Quantidade deve ser um número inteiro")
+        return int(v)
 
     @field_validator("valor")
     @classmethod
@@ -501,7 +508,9 @@ class ItemQuantidadeAprovacao(BaseModel):
     def qtd_positiva(cls, v):
         if v <= 0:
             raise ValueError("Quantidade deve ser maior que zero")
-        return v
+        if v != int(v):
+            raise ValueError("Quantidade deve ser um número inteiro")
+        return int(v)
 
 class AprovarRequerimentoBody(BaseModel):
     observacao: str

@@ -751,6 +751,7 @@ async function abrirModalMaterial(){
   if(!S.categorias.length) S.categorias=await api('GET','/categorias/')||[];
   $('mat-id').value=''; $('mat-nome').value=''; $('mat-desc').value='';
   $('mat-qtd').value=0; $('mat-un').value='un'; $('mat-valor').value='';
+  $('mat-fator').value=1;
   $('modal-mat-title').textContent='Novo material';
   $('mat-qty-un-row').style.display='none';
   $('mat-cat-sel').innerHTML=S.categorias.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
@@ -762,6 +763,7 @@ async function abrirModalMaterialNoGrupo(grupoId, catId){
   if(!S.categorias.length) S.categorias=await api('GET','/categorias/')||[];
   $('mat-id').value=''; $('mat-nome').value=''; $('mat-desc').value='';
   $('mat-qtd').value=0; $('mat-un').value='un'; $('mat-valor').value='';
+  $('mat-fator').value=1;
   $('modal-mat-title').textContent='Novo material';
   $('mat-qty-un-row').style.display='none';
   $('mat-cat-sel').innerHTML=S.categorias.map(c=>
@@ -786,6 +788,7 @@ async function editarMaterial(id){
   $('mat-id').value=id; $('mat-nome').value=m.nome; $('mat-desc').value=m.descricao||'';
   $('mat-qtd').value=m.quantidade; $('mat-un').value=m.unidade;
   $('mat-valor').value=m.valor_unitario!=null?m.valor_unitario:'';
+  $('mat-fator').value=m.fator_embalagem||1;
   $('modal-mat-title').textContent='Editar material';
   $('mat-qty-un-row').style.display='grid';
   $('mat-cat-sel').innerHTML=S.categorias.map(c=>
@@ -801,7 +804,8 @@ async function salvarMaterial(){
   const valorRaw=$('mat-valor').value;
   const body={nome:$('mat-nome').value.trim(), descricao:$('mat-desc').value.trim()||null,
     grupo_id:parseInt($('mat-grp-sel').value),
-    valor_unitario: valorRaw!==''?parseFloat(valorRaw):null};
+    valor_unitario: valorRaw!==''?parseFloat(valorRaw):null,
+    fator_embalagem: parseFloat($('mat-fator').value)||1};
   if(id){
     body.quantidade=parseFloat($('mat-qtd').value)||0;
     body.unidade=$('mat-un').value.trim()||'un';
@@ -1184,7 +1188,7 @@ async function carregarImportacao(){
   $('nfe-aviso-duplicata').style.display='none';
   $('nfe-btn-confirmar').style.display='none';
   $('nfe-resultado').style.display='none';
-  $('nfe-preview-body').innerHTML='<tr><td colspan="7"><div class="empty"><span>📄</span>Carregue um XML</div></td></tr>';
+  $('nfe-preview-body').innerHTML='<tr><td colspan="9"><div class="empty"><span>📄</span>Carregue um XML</div></td></tr>';
   $('nfe-count').textContent='';
   if(S.grupo==='admin'||S.grupo==='mestre') _carregarHistoricoNfe();
 }
@@ -1301,7 +1305,7 @@ async function previewNFe(){
   $('nfe-resultado').style.display='none';
   $('nfe-aviso-duplicata').style.display='none';
   const form=new FormData(); form.append('arquivo',_nfeArquivo);
-  $('nfe-preview-body').innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Analisando…</td></tr>';
+  $('nfe-preview-body').innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Analisando…</td></tr>';
   try{
     const r=await fetch('/api/importacao/preview',{method:'POST',headers:{Authorization:`Bearer ${S.token}`},body:form});
     if(!r.ok){const e=await r.json().catch(()=>({}));toast(e.detail||'Erro ao analisar XML','error');return;}
@@ -1322,10 +1326,28 @@ async function previewNFe(){
         <td>${it.quantidade}</td><td>${it.unidade}</td>
         <td>R$ ${it.valor_unit.toFixed(2)}</td>
         <td style="text-align:center"><input type="checkbox" class="nfe-patrimonio-cb" data-idx="${idx}" checked title="Marcar como patrimônio individual"/></td>
+        <td style="padding:6px 8px;text-align:center">
+          <input type="number" class="nfe-fator-input" min="1" step="1"
+            value="${it.fator_sugerido||1}"
+            style="width:60px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;text-align:center;font-size:12px"
+            oninput="atualizarQtdRealNfe(this)"
+            data-qtd-nfe="${it.quantidade}"/>
+        </td>
+        <td style="padding:6px 8px;text-align:right;font-weight:600" class="nfe-qtd-real">
+          ${(it.quantidade*(it.fator_sugerido||1)).toLocaleString('pt-BR',{maximumFractionDigits:2})}
+        </td>
         <td style="min-width:260px;width:280px">${_nfeGrpHtml(idx)}</td>
       </tr>`).join('');
     $('nfe-btn-confirmar').style.display='block';
   }catch{toast('Falha ao enviar arquivo','error');}
+}
+
+function atualizarQtdRealNfe(input){
+  const qtdNfe=parseFloat(input.dataset.qtdNfe)||0;
+  const fator =parseFloat(input.value)||1;
+  const qtdReal=qtdNfe*fator;
+  const cel=input.closest('tr').querySelector('.nfe-qtd-real');
+  if(cel) cel.textContent=qtdReal.toLocaleString('pt-BR',{maximumFractionDigits:2});
 }
 
 async function confirmarNFe(){
@@ -1336,9 +1358,12 @@ async function confirmarNFe(){
   const grupoIds=sels.map(s=>s.value).join(',');
   const patrimonioIndices=[...document.querySelectorAll('.nfe-patrimonio-cb:checked')]
     .map(cb=>cb.dataset.idx).join(',');
+  const fatores=Array.from(document.querySelectorAll('.nfe-fator-input'))
+    .map(el=>parseFloat(el.value)||1).join(',');
   const form=new FormData(); form.append('arquivo',_nfeArquivo);
   form.append('patrimonio_indices', patrimonioIndices);
   form.append('grupo_ids', grupoIds);
+  form.append('fatores', fatores);
   try{
     const r=await fetch('/api/importacao/confirmar',
       {method:'POST',headers:{Authorization:`Bearer ${S.token}`},body:form});

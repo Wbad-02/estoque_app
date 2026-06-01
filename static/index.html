@@ -411,9 +411,9 @@
           <span id="nfe-count" style="font-size:12px;color:var(--muted);margin-left:8px"></span>
         </div>
         <table style="min-width:700px">
-          <thead><tr><th>Código</th><th>Produto</th><th>Qtd.</th><th>Un.</th><th>Vl. Unit.</th><th title="Criar unidades individuais rastreadas">Pat.</th><th>Grupo de destino</th></tr></thead>
+          <thead><tr><th>Código</th><th>Produto</th><th>Qtd.</th><th>Un.</th><th>Vl. Unit.</th><th title="Criar unidades individuais rastreadas">Pat.</th><th style="text-align:center">Fator</th><th style="text-align:right">Qtd. real</th><th>Grupo de destino</th></tr></thead>
           <tbody id="nfe-preview-body">
-            <tr><td colspan="7"><div class="empty"><span>📄</span>Carregue um XML</div></td></tr>
+            <tr><td colspan="9"><div class="empty"><span>📄</span>Carregue um XML</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -1078,6 +1078,11 @@
     </div>
     <div class="form-group"><label for="mat-valor">Valor unitário (R$) <span style="font-weight:400;font-size:11px;color:var(--muted)">— preço na época do cadastro</span></label>
       <input type="number" id="mat-valor" min="0" step="0.01" placeholder="0,00"/></div>
+    <div class="form-group">
+      <label>Fator de embalagem <span style="font-size:11px;color:var(--muted);font-weight:400">(unidades por embalagem de compra)</span></label>
+      <input type="number" id="mat-fator" min="1" step="1" value="1" placeholder="1"/>
+      <small style="color:var(--muted);font-size:11px">Ex: caixa com 6 unidades → fator 6. Deixe 1 se compra por unidade.</small>
+    </div>
     <div class="form-group"><label for="mat-cat-sel">Categoria *</label>
       <select id="mat-cat-sel" onchange="carregarGruposModal()"></select></div>
     <div class="form-group"><label for="mat-grp-sel">Grupo *</label>

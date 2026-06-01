@@ -142,6 +142,7 @@ class MaterialCreate(BaseModel):
     quantidade: float = 0.0; unidade: str = "un"; grupo_id: int
     usa_patrimonio: bool = False
     valor_unitario: Optional[float] = None
+    fator_embalagem: float = 1.0
     codigo_patrimonio: Optional[str] = None
 
     @field_validator("quantidade")
@@ -170,6 +171,7 @@ class MaterialUpdate(BaseModel):
     grupo_id: Optional[int] = None; ativo: Optional[bool] = None
     usa_patrimonio: Optional[bool] = None
     valor_unitario: Optional[float] = None
+    fator_embalagem: Optional[float] = None
     tag: Optional[str] = None
 
     @field_validator("quantidade", mode="before")
@@ -184,6 +186,7 @@ class MaterialOut(BaseModel):
     grupo: GrupoOut; ativo: bool; alerta_minimo: bool = False
     usa_patrimonio: bool = False
     valor_unitario: Optional[float] = None
+    fator_embalagem: float = 1.0
     valor_total: float = 0.0
     tag: Optional[str] = None
     criado_em: datetime; atualizado_em: datetime

@@ -209,6 +209,14 @@ def migrar():
     else:
         print("   requerimentos_itens.url já existe — ok")
 
+    # ── 20. materiais.fator_embalagem ────────────────────────────────────
+    if not coluna_existe("materiais", "fator_embalagem"):
+        cur.execute("ALTER TABLE materiais ADD COLUMN fator_embalagem REAL NOT NULL DEFAULT 1.0")
+        print("   materiais.fator_embalagem adicionada")
+        migracoes += 1
+    else:
+        print("   materiais.fator_embalagem já existe — ok")
+
     conn.commit()
     conn.close()
 

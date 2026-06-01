@@ -124,6 +124,13 @@ async def preview_xml(
         models.NfeImportada.chave == dados["chave"]
     ).first()
 
+    for item in dados["itens"]:
+        mat = db.query(models.Material).filter(
+            models.Material.ativo == True,
+            models.Material.nome.ilike(item["nome"].strip()),
+        ).first()
+        item["fator_sugerido"] = mat.fator_embalagem if mat else 1.0
+
     return {
         **dados,
         "ja_importada": ja_importada is not None,
@@ -136,6 +143,7 @@ async def confirmar_importacao(
     arquivo:             UploadFile = File(...),
     grupo_ids:           str = Form(""),
     patrimonio_indices:  str = Form(""),
+    fatores:             str = Form(""),
     db:                  Session = Depends(get_db),
     atual:               models.Usuario = Depends(requer_editor_ou_admin),
 ):
@@ -151,6 +159,14 @@ async def confirmar_importacao(
     if not ids_por_item:
         raise HTTPException(400, "Informe o grupo de destino de cada item")
 
+    fatores_lista: list[float] = []
+    for f in fatores.split(","):
+        try:
+            v = float(f.strip())
+            fatores_lista.append(max(1.0, v))
+        except (ValueError, AttributeError):
+            fatores_lista.append(1.0)
+
     conteudo = await arquivo.read(_MAX_XML_BYTES + 1)
     if len(conteudo) > _MAX_XML_BYTES:
         raise HTTPException(413, "Arquivo XML muito grande (máximo 10 MB)")
@@ -162,6 +178,9 @@ async def confirmar_importacao(
             f"Número de grupos ({len(ids_por_item)}) não corresponde "
             f"ao número de itens ({len(dados['itens'])})"
         )
+
+    while len(fatores_lista) < len(dados["itens"]):
+        fatores_lista.append(1.0)
 
     # Pré-valida todos os grupos antes de gravar qualquer coisa
     grupos_cache = {}
@@ -191,7 +210,8 @@ async def confirmar_importacao(
     for idx, item in enumerate(dados["itens"]):
         grupo_id  = ids_por_item[idx]
         nome_norm = item["nome"].strip()
-        qtd       = item["quantidade"]
+        fator     = fatores_lista[idx]
+        qtd       = item["quantidade"] * fator
 
         existente = db.query(models.Material).filter(
             models.Material.grupo_id == grupo_id,
@@ -199,7 +219,7 @@ async def confirmar_importacao(
             models.Material.nome.ilike(nome_norm),
         ).first()
 
-        valor_unit      = item["valor_unit"]
+        valor_unit = item["valor_unit"] / fator if fator > 1 else item["valor_unit"]
         usar_patrimonio = idx in indices_patrimonio
 
         if existente:

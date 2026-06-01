@@ -102,8 +102,9 @@ class Material(Base):
         total_grupo = sum(m.quantidade for m in self.grupo.materiais if m.ativo)
         return total_grupo <= minimo
 
-    valor_unitario = Column(Float, nullable=True)
-    tag            = Column(String(10), nullable=True)  # 'novo', 'usado'
+    valor_unitario  = Column(Float, nullable=True)
+    tag             = Column(String(10), nullable=True)  # 'novo', 'usado'
+    fator_embalagem = Column(Float, default=1.0, nullable=False)
 
     @property
     def ultima_retirada(self):

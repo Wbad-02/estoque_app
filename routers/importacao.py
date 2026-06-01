@@ -302,7 +302,7 @@ async def confirmar_importacao(
     for it in criados + atualizados:
         disparar_notificacao(db, "entrada", {
             "material":   it["nome"],
-            "quantidade": str(it.get("qtd") or it.get("qtd_adicionada", "")),
+            "quantidade": str(int(it.get("qtd") or it.get("qtd_adicionada") or 0)),
             "unidade":    it.get("unidade", ""),
             "usuario":    atual.nome,
             "data":       _agora_str,

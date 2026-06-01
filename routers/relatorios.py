@@ -126,9 +126,9 @@ def exportar_pdf(
             m.nome,
             m.categoria.nome if m.categoria else "—",
             m.grupo.nome,
-            str(m.quantidade),
+            str(int(m.quantidade)),
             m.unidade,
-            str(m.grupo.quantidade_minima),
+            str(int(m.grupo.quantidade_minima)),
             "ALERTA" if alerta else "OK",
         ])
 
@@ -290,7 +290,7 @@ def exportar_saidas_pdf(
             r.criado_em.strftime("%d/%m %H:%M"),
             mat.nome        if mat else "—",
             grp.nome        if grp else "—",
-            str(r.quantidade),
+            str(int(r.quantidade)),
             motivo_label.get(motivo_str, motivo_str or "—"),
             (r.observacao or "—")[:30],
             usr.nome        if usr else "Sistema",
@@ -704,7 +704,7 @@ def _nfe_pdf(dados, mes, ano):
     for r in dados:
         tdata.append([
             r["nf_numero"] or "—", r["material_nome"], r["categoria_nome"],
-            str(r["quantidade"]), r["unidade"],
+            str(int(r["quantidade"])), r["unidade"],
             f'R$ {r["subtotal"]:.2f}' if r["subtotal"] else "—",
             r["criado_em"][:10],
         ])

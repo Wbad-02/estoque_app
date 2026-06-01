@@ -108,7 +108,7 @@ def criar_solicitacao(
         if mat.quantidade < payload.quantidade:
             raise HTTPException(
                 422,
-                f"Estoque insuficiente. Disponivel: {mat.quantidade} {mat.unidade}",
+                f"Estoque insuficiente. Disponivel: {int(mat.quantidade)} {mat.unidade}",
             )
         qtd = payload.quantidade
         if qtd != int(qtd):
@@ -157,7 +157,7 @@ def criar_solicitacao(
 </p>
 <table style="width:100%;border-collapse:collapse">
   {_linha_info("Material", mat.nome, destaque=True)}
-  {_linha_info("Quantidade", f"{sol.quantidade} {mat.unidade}")}
+  {_linha_info("Quantidade", f"{int(sol.quantidade)} {mat.unidade}")}
   {_linha_info("Solicitante", sol_loaded.criador.nome if sol_loaded.criador else atual.nome)}
   {_linha_info("Motivo", sol.motivo)}
   {_linha_info("Ativo destino", ativo_nome)}
@@ -173,7 +173,7 @@ def criar_solicitacao(
 
         variaveis = {
             "material":    mat.nome,
-            "quantidade":  f"{sol.quantidade} {mat.unidade}",
+            "quantidade":  f"{int(sol.quantidade)} {mat.unidade}",
             "criador":     atual.nome,
             "motivo":      sol.motivo,
             "ativo":       ativo_nome,
@@ -230,7 +230,7 @@ def _notificar_decisao(
 </p>
 <table style="width:100%;border-collapse:collapse">
   {_linha_info("Material", mat.nome, destaque=True)}
-  {_linha_info("Quantidade", f"{sol.quantidade} {mat.unidade}")}
+  {_linha_info("Quantidade", f"{int(sol.quantidade)} {mat.unidade}")}
   {_linha_info("Status", _badge_status(status_label))}
   {_linha_info("Decidido por", atual.nome)}
   {_linha_info("Observação", observacao or "—")}
@@ -240,7 +240,7 @@ def _notificar_decisao(
 
     variaveis = {
         "material":   mat.nome,
-        "quantidade": f"{sol.quantidade} {mat.unidade}",
+        "quantidade": f"{int(sol.quantidade)} {mat.unidade}",
         "status":     status_label,
         "decididor":  atual.nome,
         "observacao": observacao or "—",
@@ -372,7 +372,7 @@ def aprovar_solicitacao(
     sol.atualizado_em = agora()
     db.commit()
     registrar_log(db, atual.id, "aprovar", "solicitacao", sol_id,
-                  f"{mat.nome} x{sol.quantidade}")
+                  f"{mat.nome} x{int(sol.quantidade)}")
 
     # ── Notifica criador sobre a aprovação ────────────────────────────────────
     try:

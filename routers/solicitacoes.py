@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, case, or_
 from sqlalchemy.orm import Session, joinedload
 import models, schemas
-from auth import get_usuario_atual, requer_editor_ou_admin, requer_admin, registrar_log
+from auth import get_usuario_atual, requer_editor_ou_admin, requer_editor_ou_admin_ou_financeiro, requer_admin, registrar_log
 from database import get_db
 from utils import sync_qty, get_app_url
 from models import agora
@@ -192,7 +192,7 @@ def criar_solicitacao(
 @router.get("/", response_model=list[schemas.SolicitacaoOut])
 def listar_solicitacoes(
     db: Session = Depends(get_db),
-    _: models.Usuario = Depends(requer_editor_ou_admin),
+    _: models.Usuario = Depends(get_usuario_atual),
 ):
     sols = (
         db.query(models.SolicitacaoEstoque)

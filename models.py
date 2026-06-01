@@ -15,10 +15,11 @@ def agora() -> datetime:
 
 
 class GrupoPermissao(str, enum.Enum):
-    mestre = "mestre"   # oculto — acima do admin
-    admin  = "admin"
-    editor = "editor"
-    viewer = "viewer"
+    mestre     = "mestre"      # oculto — acima do admin
+    admin      = "admin"
+    editor     = "editor"
+    financeiro = "financeiro"  # acesso total a pedidos/solicitações, sem editar estoque
+    viewer     = "viewer"
 
 
 class MotivoRetirada(str, enum.Enum):

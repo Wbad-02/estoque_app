@@ -92,7 +92,6 @@ def criar_material(
 
     mat = models.Material(**{k: v for k, v in payload.model_dump().items()
                              if k not in ("codigo_patrimonio",)})
-    mat.usa_patrimonio = True
     db.add(mat)
     db.flush()
 

@@ -77,7 +77,7 @@
       <span class="nav-icon">👥</span> Usuários</div>
     <div class="nav-item editor-only" onclick="navegar('importacao')" data-page="importacao" title="Importar notas fiscais eletrônicas (NF-e)">
       <span class="nav-icon">📥</span> Importar NF-e</div>
-    <div class="nav-item editor-only" onclick="navegar('requerimentos')" data-page="requerimentos" title="Pedidos de compra e solicitações de estoque">
+    <div class="nav-item" onclick="navegar('requerimentos')" data-page="requerimentos" title="Pedidos de compra e solicitações de estoque">
       <span class="nav-icon">🛒</span> Pedidos / Solicitações
       <span id="nav-badge-req" class="nav-badge" style="display:none"></span></div>
     <div class="nav-item" onclick="navegar('relatorios')" data-page="relatorios" title="Relatórios de saídas e movimentações">
@@ -106,7 +106,7 @@
       <!-- Ações rápidas -->
       <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <button class="btn btn-primary editor-only" onclick="navegar('retiradas')" title="Registrar uma saída de material">📤 Registrar saída</button>
-        <button class="btn btn-secondary editor-only" onclick="navegar('requerimentos')" title="Abrir um pedido de compra ou solicitação">🛒 Pedidos / Solicitações</button>
+        <button class="btn btn-secondary" onclick="navegar('requerimentos')" title="Abrir um pedido de compra ou solicitação">🛒 Pedidos / Solicitações</button>
         <button class="btn btn-secondary" onclick="navegar('relatorios')" title="Exportar relatórios de movimentação">📊 Relatórios</button>
         <button class="btn btn-secondary admin-only" onclick="navegar('importacao')" title="Importar nota fiscal eletrônica">📥 Importar NF-e</button>
       </div>
@@ -359,6 +359,7 @@
             <select id="usr-grupo">
               <option value="viewer">Viewer – somente leitura</option>
               <option value="editor">Editor – edição de materiais</option>
+              <option value="financeiro">Financeiro – pedidos e solicitações</option>
               <option value="admin" class="mestre-only" style="display:none">Admin – acesso total</option>
             </select></div>
           <div style="display:flex;gap:10px">
@@ -889,11 +890,14 @@
       <!-- Tabs -->
       <div class="inner-tabs" style="margin-bottom:20px">
         <div class="inner-tab active" id="tab-btn-req" onclick="switchReqTab('req')">Requerimentos de Compra <span id="tab-badge-req" class="nav-badge" style="display:none;position:relative;top:-1px;margin-left:4px"></span></div>
-        <div class="inner-tab editor-only" id="tab-btn-sol" onclick="switchReqTab('sol')">Solicitações de Estoque <span id="tab-badge-sol" class="nav-badge" style="display:none;position:relative;top:-1px;margin-left:4px"></span></div>
+        <div class="inner-tab" id="tab-btn-sol" onclick="switchReqTab('sol')">Solicitações de Estoque <span id="tab-badge-sol" class="nav-badge" style="display:none;position:relative;top:-1px;margin-left:4px"></span></div>
       </div>
 
       <!-- Panel: Requerimentos -->
       <div id="tab-panel-req">
+        <div id="req-leitura-banner" style="display:none;background:#FFF3CD;border:1px solid #FFC107;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#856404">
+          Você está no modo leitura — seu perfil não tem permissão para criar ou aprovar pedidos neste sistema.
+        </div>
         <div class="table-wrap">
           <div class="table-toolbar">
             <strong style="font-size:13px">Lista de requerimentos</strong>

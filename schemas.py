@@ -88,6 +88,14 @@ class AtualizarPerfil(BaseModel):
     """Usuário atualiza o próprio nome."""
     nome: str
 
+    @field_validator("nome")
+    @classmethod
+    def nome_valido(cls, v):
+        v = v.strip()
+        if not v:
+            raise ValueError("Nome não pode ser vazio")
+        return v
+
 # ── Categoria ─────────────────────────────────────────
 class CategoriaCreate(BaseModel):
     nome: str; descricao: Optional[str] = None

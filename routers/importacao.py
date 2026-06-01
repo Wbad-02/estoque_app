@@ -5,9 +5,12 @@ from sqlalchemy.orm import Session
 from database import get_db
 from auth import requer_admin, requer_editor_ou_admin, registrar_log
 from email_service import disparar_notificacao
+from utils import sync_qty
 import models
 
 router = APIRouter(prefix="/api/importacao", tags=["importacao"])
+
+_MAX_XML_BYTES = 10 * 1024 * 1024  # 10 MB — NF-e típica tem < 500 KB
 
 # Namespace padrão NF-e 4.00
 NS = {"nfe": "http://www.portalfiscal.inf.br/nfe"}
@@ -112,7 +115,9 @@ async def preview_xml(
     Também informa se a NF-e já foi importada anteriormente.
     Não grava nada no banco.
     """
-    conteudo = await arquivo.read()
+    conteudo = await arquivo.read(_MAX_XML_BYTES + 1)
+    if len(conteudo) > _MAX_XML_BYTES:
+        raise HTTPException(413, "Arquivo XML muito grande (máximo 10 MB)")
     dados = _parse_nfe(conteudo)
 
     ja_importada = db.query(models.NfeImportada).filter(
@@ -146,7 +151,9 @@ async def confirmar_importacao(
     if not ids_por_item:
         raise HTTPException(400, "Informe o grupo de destino de cada item")
 
-    conteudo = await arquivo.read()
+    conteudo = await arquivo.read(_MAX_XML_BYTES + 1)
+    if len(conteudo) > _MAX_XML_BYTES:
+        raise HTTPException(413, "Arquivo XML muito grande (máximo 10 MB)")
     dados    = _parse_nfe(conteudo)
 
     if len(ids_por_item) != len(dados["itens"]):
@@ -196,7 +203,8 @@ async def confirmar_importacao(
         usar_patrimonio = idx in indices_patrimonio
 
         if existente:
-            existente.quantidade += qtd
+            if not existente.usa_patrimonio:
+                existente.quantidade += qtd
             if not existente.valor_unitario:
                 existente.valor_unitario = valor_unit
             if usar_patrimonio:
@@ -244,6 +252,8 @@ async def confirmar_importacao(
                     movimentacao_saida_id=None,
                 )
                 db.add(uni)
+            db.flush()
+            sync_qty(mat, db)
 
     # ── Registrar chave para impedir reimportação ───────────────────────────
     db.add(models.NfeImportada(

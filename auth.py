@@ -105,6 +105,14 @@ def requer_editor_ou_admin(usuario: models.Usuario = Depends(get_usuario_atual))
     return usuario
 
 
+def requer_editor_ou_admin_ou_financeiro(usuario: models.Usuario = Depends(get_usuario_atual)):
+    if usuario.grupo == models.GrupoPermissao.viewer:
+        raise HTTPException(status_code=403, detail="Acesso restrito: requer perfil editor, financeiro ou admin")
+    return usuario
+
+
+
+
 def registrar_log(
     db:         Session,
     usuario_id: Optional[int],

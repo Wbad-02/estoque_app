@@ -409,20 +409,21 @@ function iniciarApp(){
   $('login-screen').style.display='none'; $('app').style.display='block';
   $('topbar').style.display='';
   $('sidebar-user').textContent=S.nome;
-  const grupoLabel={mestre:'Mestre',admin:'Administrador',editor:'Editor',viewer:'Visualizador'};
+  const grupoLabel={mestre:'Mestre',admin:'Administrador',editor:'Editor',financeiro:'Financeiro',viewer:'Visualizador'};
   const grupoDesc={
     mestre:'Acesso total ao sistema, incluindo configurações avançadas.',
     admin:'Acesso total — pode aprovar pedidos, gerenciar usuários e configurar notificações.',
     editor:'Pode registrar saídas, criar pedidos e solicitações, mas não gerencia usuários.',
+    financeiro:'Acesso total a pedidos de compra e solicitações — pode criar e aprovar sem restrição de e-mail.',
     viewer:'Acesso somente leitura — pode consultar o estoque e exportar relatórios.',
   };
   const el=$('sidebar-grupo');
-  el.textContent=grupoLabel[S.grupo]||'';
+  el.textContent=grupoLabel[S.grupo]||S.grupo||'';
   el.title=grupoDesc[S.grupo]||'';
 
   const isMestre=S.grupo==='mestre';
   const isAdmin =S.grupo==='admin'||isMestre;
-  const isEditor=S.grupo==='editor'||isAdmin;
+  const isEditor=S.grupo==='editor'||S.grupo==='financeiro'||isAdmin;
 
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isAdmin?'':'none');
   document.querySelectorAll('.editor-only').forEach(el=>el.style.display=isEditor?'':'none');
@@ -485,9 +486,9 @@ function iniciarApp(){
 // ═══════════════════════════════════════════════════
 function _paginaPermitida(p){
   const isAdmin  = S.grupo==='admin'||S.grupo==='mestre';
-  const isEditor = S.grupo==='editor'||isAdmin;
+  const isEditor = S.grupo==='editor'||S.grupo==='financeiro'||isAdmin;
   const adminOnly  = ['notificacoes','usuarios'];
-  const editorOnly = ['materiais','ativos','categorias','categ-ativos','retiradas','importacao','requerimentos'];
+  const editorOnly = ['materiais','ativos','categorias','categ-ativos','retiradas','importacao','relatorios'];
   if(adminOnly.includes(p)  && !isAdmin)  return false;
   if(editorOnly.includes(p) && !isEditor) return false;
   return true;
@@ -497,7 +498,7 @@ function _mostrarBarreiraPermissao(pagina){
   const nomes={notificacoes:'Notificações',usuarios:'Usuários',materiais:'Materiais',
     ativos:'Ativos',categorias:'Categ. de Materiais','categ-ativos':'Categ. de Ativos',
     retiradas:'Saídas de Estoque',importacao:'Importar NF-e',requerimentos:'Pedidos / Solicitações'};
-  const isEditor = S.grupo==='editor'||S.grupo==='admin'||S.grupo==='mestre';
+  const labelGrupo={admin:'Administrador',financeiro:'Financeiro',editor:'Editor',viewer:'Visualizador',mestre:'Mestre'};
   const nivelNecessario = ['notificacoes','usuarios'].includes(pagina) ? 'Administrador' : 'Editor';
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   const pEl=$('page-'+pagina);
@@ -506,7 +507,7 @@ function _mostrarBarreiraPermissao(pagina){
   pEl.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;color:var(--muted)">
     <div style="font-size:48px;margin-bottom:16px">🔒</div>
     <h2 style="color:var(--text);margin-bottom:8px">${nomes[pagina]||pagina}</h2>
-    <p style="font-size:14px;max-width:360px;line-height:1.6">Esta página requer perfil <strong>${nivelNecessario}</strong> ou superior.<br>Você está conectado como <strong>${{admin:'Administrador',editor:'Editor',viewer:'Visualizador',mestre:'Mestre'}[S.grupo]||S.grupo}</strong>.</p>
+    <p style="font-size:14px;max-width:360px;line-height:1.6">Esta página requer perfil <strong>${nivelNecessario}</strong> ou superior.<br>Você está conectado como <strong>${labelGrupo[S.grupo]||S.grupo}</strong>.</p>
     <p style="font-size:12px;margin-top:12px">Solicite ao administrador do sistema que ajuste seu nível de acesso.</p>
     <button class="btn btn-secondary" style="margin-top:20px" onclick="navegar('dashboard')">← Voltar ao Dashboard</button>
   </div>`;
@@ -2968,15 +2969,13 @@ function _atualizarBadgeReq(listaReq, listaSol){
 }
 
 async function carregarRequerimentos(){
-  const isAdmin = S.grupo === 'admin' || S.grupo === 'mestre';
-  if(isAdmin){
-    _podeCriarReq = _podeAprovarReq = true;
-  } else {
-    const emails = await api('GET', '/notificacoes/emails');
-    const emailsAtivos = (emails||[]).filter(e=>e.ativo);
-    _podeCriarReq   = emailsAtivos.some(e=>e.tipo==='requerimento'         && e.email===S.email);
-    _podeAprovarReq = emailsAtivos.some(e=>e.tipo==='requerimento_decisao' && e.email===S.email);
+  const perms = await api('GET', '/requerimentos/permissoes');
+  if(perms){
+    _podeCriarReq   = !!perms.pode_criar;
+    _podeAprovarReq = !!perms.pode_aprovar;
   }
+  const banner = $('req-leitura-banner');
+  if(banner) banner.style.display = (!_podeCriarReq && !_podeAprovarReq) ? '' : 'none';
   // Badge sempre atualizado (requerimentos + solicitações)
   const [listaReq, listaSol] = await Promise.all([
     api('GET', '/requerimentos/'),
@@ -3009,12 +3008,11 @@ function _renderRequerimentos(lista){
   // Badge já foi atualizado por carregarRequerimentos — não chamar aqui (zeraria badge de solicitações)
   const tbody = $('req-body');
   if(!lista.length){
-    const _canReq=S.grupo==='admin'||S.grupo==='editor'||S.grupo==='mestre';
     tbody.innerHTML = `<tr><td colspan="6"><div class="empty">
       <span>🛒</span>
       <strong>Nenhum pedido de compra cadastrado</strong>
       <p style="font-size:12px;margin-top:6px;font-weight:400">Crie um pedido para solicitar materiais ao financeiro ou almoxarifado.</p>
-      ${_canReq?`<button class="btn btn-primary" style="margin-top:14px" onclick="abrirNovoRequerimento()">+ Novo pedido de compra</button>`:''}
+      ${_podeCriarReq?`<button class="btn btn-primary" style="margin-top:14px" onclick="abrirNovoRequerimento()">+ Novo pedido de compra</button>`:''}
     </div></td></tr>`;
     return;
   }
@@ -3038,6 +3036,7 @@ function _renderRequerimentos(lista){
 }
 
 function abrirNovoRequerimento(){
+  if(!_podeCriarReq) return;
   $('req-titulo').value = '';
   $('req-itens-body').innerHTML = '';
   $('req-total-preview').textContent = _fmtBRL(0);
@@ -3548,15 +3547,6 @@ function switchReqTab(tab){
 
 async function carregarSolicitacoes(){
   const isAdmin = S.grupo === 'admin' || S.grupo === 'mestre';
-  if(S.grupo === 'viewer'){
-    const tbody=$('sol-body');
-    if(tbody) tbody.innerHTML=`<tr><td colspan="7"><div class="empty">
-      <span>🔒</span>
-      <strong>Acesso restrito</strong>
-      <p style="font-size:12px;margin-top:6px;font-weight:400">Solicitações de estoque requerem perfil <strong>Editor</strong> ou superior.<br>Solicite ao administrador que ajuste seu nível de acesso.</p>
-    </div></td></tr>`;
-    return;
-  }
   const lista = await api('GET', '/solicitacoes/');
   if(!lista) return;
   const tbody = $('sol-body');

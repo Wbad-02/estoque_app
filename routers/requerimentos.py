@@ -9,48 +9,39 @@ from sqlalchemy.orm import Session, joinedload
 
 import models
 import schemas
-from auth import get_usuario_atual, requer_editor_ou_admin, registrar_log
+from auth import get_usuario_atual, requer_editor_ou_admin, requer_editor_ou_admin_ou_financeiro, registrar_log
 from database import get_db
 from email_service import disparar_notificacao, _html_email, _linha_info
 from utils import get_app_url
 
 router = APIRouter(prefix="/api/requerimentos", tags=["requerimentos"])
 
+_MAX_EXCEL_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+_GRUPOS_PRIVILEGIADOS = (
+    models.GrupoPermissao.admin,
+    models.GrupoPermissao.mestre,
+    models.GrupoPermissao.financeiro,
+)
+
 
 def _requer_criador_req(
-    db:    Session        = Depends(get_db),
     atual: models.Usuario = Depends(get_usuario_atual),
 ) -> models.Usuario:
-    """Admin+ passa sempre. Editor só passa se o seu e-mail está cadastrado em 'requerimento'."""
-    if atual.grupo in (models.GrupoPermissao.admin, models.GrupoPermissao.mestre):
+    """Apenas admin, mestre e financeiro podem criar requerimentos."""
+    if atual.grupo in _GRUPOS_PRIVILEGIADOS:
         return atual
-    if atual.grupo == models.GrupoPermissao.editor:
-        existe = db.query(models.NotificacaoEmail).filter(
-            models.NotificacaoEmail.tipo  == "requerimento",
-            models.NotificacaoEmail.ativo == True,
-            models.NotificacaoEmail.email == atual.email,
-        ).first()
-        if existe:
-            return atual
-    raise HTTPException(403, "Acesso restrito: seu e-mail não está autorizado a criar requerimentos")
+    raise HTTPException(403, "Acesso restrito: apenas Financeiro, Admin ou Mestre podem criar pedidos de compra")
 
 
 def _requer_aprovador_req(
-    db:    Session        = Depends(get_db),
     atual: models.Usuario = Depends(get_usuario_atual),
 ) -> models.Usuario:
-    """Admin+ passa sempre. Editor só passa se o seu e-mail está em 'requerimento_decisao'."""
-    if atual.grupo in (models.GrupoPermissao.admin, models.GrupoPermissao.mestre):
+    """Apenas admin, mestre e financeiro podem aprovar/rejeitar requerimentos."""
+    if atual.grupo in _GRUPOS_PRIVILEGIADOS:
         return atual
-    if atual.grupo == models.GrupoPermissao.editor:
-        existe = db.query(models.NotificacaoEmail).filter(
-            models.NotificacaoEmail.tipo  == "requerimento_decisao",
-            models.NotificacaoEmail.ativo == True,
-            models.NotificacaoEmail.email == atual.email,
-        ).first()
-        if existe:
-            return atual
-    raise HTTPException(403, "Acesso restrito: seu e-mail não está autorizado a aprovar/rejeitar requerimentos")
+    raise HTTPException(403, "Acesso restrito: apenas Financeiro, Admin ou Mestre podem aprovar pedidos de compra")
 
 
 def _slugify(texto: str) -> str:
@@ -142,11 +133,23 @@ def criar_requerimento(
     return _build_out(req)
 
 
+# ── GET /permissoes — verifica se o usuário pode criar/aprovar requerimentos ───
+# IMPORTANTE: deve ficar ANTES de GET /{req_id}
+@router.get("/permissoes")
+def minhas_permissoes(
+    db: Session = Depends(get_db),
+    atual: models.Usuario = Depends(get_usuario_atual),
+):
+    """Retorna se o usuário pode criar/aprovar requerimentos — baseado apenas no grupo."""
+    privilegiado = atual.grupo in _GRUPOS_PRIVILEGIADOS
+    return {"pode_criar": privilegiado, "pode_aprovar": privilegiado}
+
+
 # ── GET / — listar ─────────────────────────────────────────────────────────────
 @router.get("/", response_model=list[schemas.RequerimentoOut])
 def listar_requerimentos(
     db: Session = Depends(get_db),
-    _: models.Usuario = Depends(requer_editor_ou_admin),
+    _: models.Usuario = Depends(get_usuario_atual),
 ):
     reqs = (
         db.query(models.Requerimento)
@@ -165,7 +168,7 @@ def listar_requerimentos(
 # IMPORTANTE: deve ficar ANTES de GET /{req_id} para evitar conflito de rota
 @router.get("/modelo-excel")
 def baixar_modelo_excel(
-    _: models.Usuario = Depends(requer_editor_ou_admin),
+    _: models.Usuario = Depends(requer_editor_ou_admin_ou_financeiro),
 ):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
@@ -269,9 +272,13 @@ def parse_excel(
         raise HTTPException(422, "Envie um arquivo .xlsx")
 
     try:
-        conteudo = arquivo.file.read()
+        conteudo = arquivo.file.read(_MAX_EXCEL_BYTES + 1)
+        if len(conteudo) > _MAX_EXCEL_BYTES:
+            raise HTTPException(413, "Arquivo Excel muito grande (máximo 5 MB)")
         wb = load_workbook(io.BytesIO(conteudo), data_only=False)
         ws = wb.active
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(422, "Arquivo Excel inválido ou corrompido")
 
@@ -324,10 +331,14 @@ def importar_excel(
         raise HTTPException(422, "Envie um arquivo .xlsx")
 
     try:
-        conteudo = arquivo.file.read()
+        conteudo = arquivo.file.read(_MAX_EXCEL_BYTES + 1)
+        if len(conteudo) > _MAX_EXCEL_BYTES:
+            raise HTTPException(413, "Arquivo Excel muito grande (máximo 5 MB)")
         # data_only=False preserva acesso a hyperlinks nas células
         wb = load_workbook(io.BytesIO(conteudo), data_only=False)
         ws = wb.active
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(422, "Arquivo Excel inválido ou corrompido")
 
@@ -417,7 +428,7 @@ def importar_excel(
 def obter_requerimento(
     req_id: int,
     db: Session = Depends(get_db),
-    _: models.Usuario = Depends(requer_editor_ou_admin),
+    _: models.Usuario = Depends(requer_editor_ou_admin_ou_financeiro),
 ):
     return _build_out(_load(req_id, db))
 
@@ -554,7 +565,7 @@ def rejeitar_requerimento(
 def exportar_excel(
     req_id: int,
     db: Session = Depends(get_db),
-    _: models.Usuario = Depends(requer_editor_ou_admin),
+    _: models.Usuario = Depends(requer_editor_ou_admin_ou_financeiro),
 ):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment

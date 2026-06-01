@@ -13,7 +13,7 @@ from middleware_seguranca import MiddlewareSeguranca, REDES_PERMITIDAS, WHITELIS
 from routers import usuarios, categorias, materiais, relatorios, grupos, importacao, retiradas, patrimonio, ativos, ativos_categorias, notificacoes, motivos, requerimentos, solicitacoes, auditoria
 import models, schemas
 
-APP_VERSION = "3.3.0"
+APP_VERSION = "4.0.0"
 
 Base.metadata.create_all(bind=engine)
 

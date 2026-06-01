@@ -33,6 +33,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 # A autenticação JWT continua ativa independente desta configuração.
 WHITELIST_IP_ATIVA: bool = os.environ.get("DESABILITAR_WHITELIST_IP", "").lower() != "true"
 
+# Defina PROXY_CONFIAVEL=true apenas quando houver um proxy reverso (nginx, Cloudflare)
+# na frente da aplicação. Sem isso, X-Forwarded-For é ignorado para evitar IP spoofing.
+_PROXY_CONFIAVEL: bool = os.environ.get("PROXY_CONFIAVEL", "").lower() == "true"
+
 REDES_PERMITIDAS: list[str] = [
     "127.0.0.1/32",      # localhost
     "::1/128",           # localhost IPv6
@@ -100,7 +104,6 @@ class MiddlewareSeguranca(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=403,
                 content={"detail": "Acesso negado: rede não autorizada"},
-                headers={"X-Blocked-IP": ip},
             )
 
         # ── 3. Rate limiting geral ────────────────────────────────
@@ -132,11 +135,13 @@ class MiddlewareSeguranca(BaseHTTPMiddleware):
     def _extrair_ip(request: Request) -> str:
         """
         Extrai o IP real do cliente.
-        Considera X-Forwarded-For se houver proxy reverso (nginx, etc.).
+        X-Forwarded-For só é considerado se PROXY_CONFIAVEL=true estiver definido,
+        evitando IP spoofing quando a aplicação está exposta diretamente à internet.
         """
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
+        if _PROXY_CONFIAVEL:
+            forwarded = request.headers.get("X-Forwarded-For")
+            if forwarded:
+                return forwarded.split(",")[0].strip()
         return request.client.host if request.client else "0.0.0.0"
 
     @staticmethod

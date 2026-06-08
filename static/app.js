@@ -455,7 +455,7 @@ function iniciarApp(){
   const hashRaw  = window.location.hash.replace('#', '').trim();
   const [hashPage, hashSub] = hashRaw.split(':');
   const paginasValidas = ['dashboard','materiais','retiradas','categorias','ativos',
-    'categ-ativos','usuarios','importacao','notificacoes','requerimentos','perfil','relatorios'];
+    'categ-ativos','usuarios','importacao','notificacoes','requerimentos','perfil','relatorios','onboarding'];
   if(hashPage === 'requerimentos' && hashSub === 'sol'){
     // Abre direto na aba de Solicitações de Estoque
     _reqTabAtual = 'sol';
@@ -487,7 +487,7 @@ function iniciarApp(){
 function _paginaPermitida(p){
   const isAdmin  = S.grupo==='admin'||S.grupo==='mestre';
   const isEditor = S.grupo==='editor'||S.grupo==='financeiro'||isAdmin;
-  const adminOnly  = ['notificacoes','usuarios'];
+  const adminOnly  = ['notificacoes','usuarios','onboarding'];
   const editorOnly = ['materiais','ativos','categorias','categ-ativos','retiradas','importacao','relatorios'];
   if(adminOnly.includes(p)  && !isAdmin)  return false;
   if(editorOnly.includes(p) && !isEditor) return false;
@@ -497,9 +497,10 @@ function _paginaPermitida(p){
 function _mostrarBarreiraPermissao(pagina){
   const nomes={notificacoes:'Notificações',usuarios:'Usuários',materiais:'Materiais',
     ativos:'Ativos',categorias:'Categ. de Materiais','categ-ativos':'Categ. de Ativos',
-    retiradas:'Saídas de Estoque',importacao:'Importar NF-e',requerimentos:'Pedidos / Solicitações'};
+    retiradas:'Saídas de Estoque',importacao:'Importar NF-e',requerimentos:'Pedidos / Solicitações',
+    onboarding:'Importar Estoque (Planilha)'};
   const labelGrupo={admin:'Administrador',financeiro:'Financeiro',editor:'Editor',viewer:'Visualizador',mestre:'Mestre'};
-  const nivelNecessario = ['notificacoes','usuarios'].includes(pagina) ? 'Administrador' : 'Editor';
+  const nivelNecessario = ['notificacoes','usuarios','onboarding'].includes(pagina) ? 'Administrador' : 'Editor';
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   const pEl=$('page-'+pagina);
   if(!pEl) return;
@@ -544,7 +545,8 @@ function navegar(p){
     notificacoes:carregarNotificacoes,
     requerimentos:carregarRequerimentos,
     perfil:carregarPerfil,
-    relatorios:carregarRelatorios})[p]?.();
+    relatorios:carregarRelatorios,
+    onboarding:carregarOnboarding})[p]?.();
 }
 
 function toggleNavGroup(grupo){
@@ -3433,6 +3435,272 @@ async function importarExcelReq(input){
   } catch {
     toast('Erro ao ler planilha', 'error');
   }
+}
+
+// ═══════════════════════════════════════════════════
+// Onboarding — Importar Estoque via Planilha
+// ═══════════════════════════════════════════════════
+function carregarOnboarding(){
+  const sec = $('page-onboarding');
+  if(!sec) return;
+
+  sec.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h2>Importar Estoque (Planilha)</h2>
+        <p style="font-size:12px;color:var(--muted);margin-top:3px">Importe o estoque inicial ou em lote a partir de uma planilha Excel (.xlsx).</p>
+      </div>
+    </div>
+
+    <!-- Passo 1: Download do template -->
+    <div class="table-wrap" style="padding:24px;margin-bottom:20px" id="ob-step1">
+      <h3 style="font-size:15px;color:var(--green);margin-bottom:4px">Passo 1 — Baixar a planilha modelo</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Faça o download do modelo, preencha e retorne aqui para o próximo passo.</p>
+      <button class="btn btn-primary" onclick="_obBaixarTemplate()">Baixar planilha modelo</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.6">
+        Preencha a aba <strong>Materiais</strong>. Não altere os cabeçalhos. Salve o arquivo e volte aqui para o próximo passo.
+      </p>
+    </div>
+
+    <!-- Passo 2: Upload e preview -->
+    <div class="table-wrap" style="padding:24px;margin-bottom:20px" id="ob-step2">
+      <h3 style="font-size:15px;color:var(--green);margin-bottom:4px">Passo 2 — Enviar planilha preenchida</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Selecione o arquivo preenchido e clique em "Analisar planilha" para visualizar o que será importado.</p>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <input type="file" id="onboarding-file" accept=".xlsx" aria-label="Selecionar planilha Excel"/>
+        <button class="btn btn-primary" onclick="_obAnalisar()">Analisar planilha</button>
+      </div>
+      <div id="ob-preview-area" style="margin-top:20px"></div>
+    </div>
+
+    <div class="copyright-footer">© Todos os direitos reservados – github.com/Wbad-02</div>
+  `;
+}
+
+function _obBaixarTemplate(){
+  _baixarBlob('/api/onboarding/template-excel', 'modelo_importacao_estoque.xlsx');
+}
+
+async function _obAnalisar(){
+  const fileInput = $('onboarding-file');
+  if(!fileInput || !fileInput.files.length){
+    toast('Selecione um arquivo .xlsx antes de analisar.', 'error');
+    return;
+  }
+
+  const area = $('ob-preview-area');
+  area.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)"><span class="btn-spinner" style="display:inline-block;margin-right:8px"></span>Analisando planilha…</div>';
+
+  const fd = new FormData();
+  fd.append('arquivo', fileInput.files[0]);
+
+  try {
+    const resp = await fetch('/api/onboarding/preview-excel', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${S.token}` },
+      body: fd,
+    });
+
+    if(!resp.ok){
+      const err = await resp.json().catch(()=>({}));
+      area.innerHTML = `<div style="background:#FDECEA;border:1px solid #F5C6C3;border-radius:8px;padding:14px 16px;font-size:13px;color:#c62828">${esc(err.detail || 'Erro ao analisar a planilha.')}</div>`;
+      return;
+    }
+
+    const dados = await resp.json();
+    _obRenderPreview(dados);
+  } catch {
+    area.innerHTML = '<div style="background:#FDECEA;border:1px solid #F5C6C3;border-radius:8px;padding:14px 16px;font-size:13px;color:#c62828">Falha de rede ao enviar o arquivo.</div>';
+  }
+}
+
+function _obRenderPreview(dados){
+  const area = $('ob-preview-area');
+  const linhas = dados.linhas_validas || [];
+  const erros  = dados.erros          || [];
+  const validas = linhas;
+
+  // Resumo
+  const catNovas  = dados.resumo?.categorias_novas ?? 0;
+  const grpNovos  = dados.resumo?.grupos_novos     ?? 0;
+  const matTotal  = validas.length;
+
+  // Tabela de linhas
+  const rows = linhas.map(l => {
+    let badge = '';
+    if(l.status === 'novo'){
+      badge = '<span style="background:#D4EDDA;color:#155724;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">Novo</span>';
+    } else if(l.status === 'duplicado'){
+      badge = '<span style="background:#FFF3CD;color:#856404;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">Duplicado</span>';
+    } else {
+      badge = `<span style="background:#FDECEA;color:#c62828;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">Erro</span>`;
+    }
+    return `<tr>
+      <td style="color:var(--muted);font-size:12px;text-align:center">${esc(l.linha ?? '')}</td>
+      <td>${esc(l.categoria ?? '')}</td>
+      <td>${esc(l.grupo ?? '')}</td>
+      <td style="font-weight:600">${esc(l.material ?? '')}</td>
+      <td style="text-align:right">${esc(l.quantidade ?? '')}</td>
+      <td>${esc(l.unidade ?? '')}</td>
+      <td style="text-align:center">${badge}</td>
+    </tr>`;
+  }).join('');
+
+  // Painel de erros
+  let errosHtml = '';
+  if(erros.length){
+    const listaErros = erros.map(e => `<li style="margin-bottom:4px">${esc(e)}</li>`).join('');
+    errosHtml = `
+      <div style="background:#FDECEA;border:1px solid #F5C6C3;border-radius:8px;padding:14px 16px;margin-bottom:16px">
+        <strong style="color:#c62828;font-size:13px">Erros encontrados (${erros.length})</strong>
+        <ul style="margin:8px 0 0;padding-left:18px;font-size:12px;color:#c62828;line-height:1.7">${listaErros}</ul>
+      </div>`;
+  }
+
+  // Bloco de confirmação (modo_duplicata + botão) — só aparece se há linhas válidas
+  let confirmacaoHtml = '';
+  if(matTotal > 0){
+    confirmacaoHtml = `
+      <div style="background:#F0F4F2;border:1px solid var(--border);border-radius:8px;padding:16px 20px;margin-top:16px">
+        <p style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">Materiais duplicados:</p>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px">
+          <input type="radio" name="onboarding-modo-duplicata" id="onboarding-modo-duplicata-ignorar" value="ignorar" checked/>
+          Ignorar (manter o existente)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:16px">
+          <input type="radio" name="onboarding-modo-duplicata" id="onboarding-modo-duplicata-atualizar" value="atualizar"/>
+          Atualizar (somar quantidade)
+        </label>
+        <button class="btn btn-primary" onclick="_obConfirmar()">Confirmar importação</button>
+      </div>`;
+  }
+
+  area.innerHTML = `
+    <div style="background:#F0F4F2;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;display:flex;gap:24px;flex-wrap:wrap">
+      <span><strong style="color:var(--green)">${catNovas}</strong> categorias novas</span>
+      <span><strong style="color:var(--green)">${grpNovos}</strong> grupos novos</span>
+      <span><strong style="color:var(--green)">${matTotal}</strong> materiais a importar</span>
+    </div>
+    ${errosHtml}
+    <div style="overflow-x:auto">
+      <table style="min-width:640px">
+        <thead><tr>
+          <th style="text-align:center">Linha</th>
+          <th>Categoria</th>
+          <th>Grupo</th>
+          <th>Material</th>
+          <th style="text-align:right">Qtd</th>
+          <th>Unidade</th>
+          <th style="text-align:center">Status</th>
+        </tr></thead>
+        <tbody>${rows || '<tr><td colspan="7"><div class="empty"><span>📄</span>Nenhuma linha encontrada</div></td></tr>'}</tbody>
+      </table>
+    </div>
+    ${confirmacaoHtml}
+  `;
+}
+
+async function _obConfirmar(){
+  const fileInput = $('onboarding-file');
+  if(!fileInput || !fileInput.files.length){
+    toast('Arquivo não encontrado. Faça o upload novamente.', 'error');
+    return;
+  }
+
+  const modoEl = document.querySelector('input[name="onboarding-modo-duplicata"]:checked');
+  const modoDuplicata = modoEl ? modoEl.value : 'ignorar';
+
+  const area = $('ob-preview-area');
+  // Preservar conteúdo existente e mostrar spinner no topo
+  area.insertAdjacentHTML('afterbegin', '<div id="ob-sending-spinner" style="padding:16px;text-align:center;color:var(--muted)"><span class="btn-spinner" style="display:inline-block;margin-right:8px"></span>Importando…</div>');
+
+  const fd = new FormData();
+  fd.append('arquivo', fileInput.files[0]);
+  fd.append('modo_duplicata', modoDuplicata);
+
+  try {
+    const resp = await fetch('/api/onboarding/importar-excel', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${S.token}` },
+      body: fd,
+    });
+
+    const spinner = $('ob-sending-spinner');
+    if(spinner) spinner.remove();
+
+    let resultado;
+    try { resultado = await resp.json(); } catch { resultado = {}; }
+
+    _obRenderResultado(resp.status, resultado);
+  } catch {
+    const spinner = $('ob-sending-spinner');
+    if(spinner) spinner.remove();
+    const area2 = $('ob-preview-area');
+    area2.insertAdjacentHTML('afterbegin', '<div style="background:#FDECEA;border:1px solid #F5C6C3;border-radius:8px;padding:14px 16px;font-size:13px;color:#c62828;margin-bottom:16px">Falha de rede ao enviar o arquivo.</div>');
+  }
+}
+
+function _obRenderResultado(status, dados){
+  const area = $('ob-preview-area');
+  if(!area) return;
+
+  let bannerClass, bannerBg, bannerBorder, bannerCor, titulo;
+  if(status === 200){
+    bannerBg = '#D4EDDA'; bannerBorder = '#C3E6CB'; bannerCor = '#155724';
+    titulo = 'Importacao concluida com sucesso';
+  } else if(status === 207){
+    bannerBg = '#FFF3CD'; bannerBorder = '#FFDDA0'; bannerCor = '#856404';
+    titulo = 'Importacao concluida com avisos';
+  } else {
+    bannerBg = '#FDECEA'; bannerBorder = '#F5C6C3'; bannerCor = '#c62828';
+    titulo = 'Erro na importacao';
+  }
+
+  const msg = dados.detalhe || dados.detail || '';
+  const totais = dados.totais || {};
+  const ignorados = dados.ignorados || [];
+  const erros = dados.erros || [];
+
+  let totaisHtml = '';
+  if(Object.keys(totais).length){
+    totaisHtml = Object.entries(totais)
+      .map(([k,v]) => `<span style="margin-right:16px"><strong>${v}</strong> ${esc(k)}</span>`)
+      .join('');
+    totaisHtml = `<p style="font-size:13px;margin-top:8px">${totaisHtml}</p>`;
+  }
+
+  let ignoradosHtml = '';
+  if(ignorados.length){
+    ignoradosHtml = `
+      <div style="margin-top:12px">
+        <strong style="font-size:12px;color:var(--muted)">Ignorados (${ignorados.length}):</strong>
+        <ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:var(--muted);line-height:1.7">
+          ${ignorados.map(i => `<li>${esc(i)}</li>`).join('')}
+        </ul>
+      </div>`;
+  }
+
+  let errosHtml = '';
+  if(erros.length){
+    errosHtml = `
+      <div style="margin-top:12px">
+        <strong style="font-size:12px;color:#c62828">Erros (${erros.length}):</strong>
+        <ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#c62828;line-height:1.7">
+          ${erros.map(e => `<li>${esc(e)}</li>`).join('')}
+        </ul>
+      </div>`;
+  }
+
+  area.innerHTML = `
+    <div style="background:${bannerBg};border:1px solid ${bannerBorder};border-radius:8px;padding:16px 20px;margin-bottom:16px">
+      <strong style="font-size:14px;color:${bannerCor}">${esc(titulo)}</strong>
+      ${msg ? `<p style="font-size:13px;color:${bannerCor};margin:4px 0 0">${esc(msg)}</p>` : ''}
+      ${totaisHtml}
+      ${ignoradosHtml}
+      ${errosHtml}
+    </div>
+    <button class="btn btn-secondary" onclick="carregarOnboarding()">Nova importacao</button>
+  `;
 }
 
 // ═══════════════════════════════════════════════════

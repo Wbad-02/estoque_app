@@ -10,7 +10,7 @@ from sqlalchemy import func
 from database import engine, get_db, Base
 from auth import verificar_senha, criar_token, hash_senha, registrar_log, get_usuario_atual
 from middleware_seguranca import MiddlewareSeguranca, REDES_PERMITIDAS, WHITELIST_IP_ATIVA
-from routers import usuarios, categorias, materiais, relatorios, grupos, importacao, retiradas, patrimonio, ativos, ativos_categorias, notificacoes, motivos, requerimentos, solicitacoes, auditoria
+from routers import usuarios, categorias, materiais, relatorios, grupos, importacao, retiradas, patrimonio, ativos, ativos_categorias, notificacoes, motivos, requerimentos, solicitacoes, auditoria, onboarding
 import models, schemas
 
 APP_VERSION = "4.0.0"
@@ -51,6 +51,7 @@ app.include_router(materiais.router)
 app.include_router(retiradas.router)
 app.include_router(relatorios.router)
 app.include_router(importacao.router)
+app.include_router(onboarding.router)
 app.include_router(patrimonio.router)
 app.include_router(ativos_categorias.router)
 app.include_router(ativos.router)

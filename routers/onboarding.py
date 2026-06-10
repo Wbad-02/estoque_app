@@ -1274,32 +1274,11 @@ async def importar_ativos_excel(
                         grupo_id=grp_map[grp_key].id,
                         valor_unitario=linha["valor_unitario"],
                         fator_embalagem=1.0,
-                        usa_patrimonio=False,
+                        usa_patrimonio=True,
                         ativo=True,
                     )
                     db.add(obj); db.flush()
-                    mov_e = models.Movimentacao(
-                        material_id=obj.id, usuario_id=atual.id,
-                        tipo="entrada", quantidade=float(linha["quantidade"]),
-                        observacao="Importacao via ativos (planilha)",
-                    )
-                    db.add(mov_e); db.flush()
-                    obj.quantidade += linha["quantidade"]
                     n_mat += 1
-                elif obj.usa_patrimonio and not linha["codigo_patrimonio"]:
-                    erros_imp.append({"linha": ln, "campo": "codigo_patrimonio",
-                        "mensagem": f"Material '{linha['nome_material']}' usa controle de patrimônio — informe codigo_patrimonio"})
-                    continue
-                else:
-                    delta = max(0, linha["quantidade"] - obj.quantidade)
-                    if delta > 0:
-                        mov_e = models.Movimentacao(
-                            material_id=obj.id, usuario_id=atual.id,
-                            tipo="entrada", quantidade=float(delta),
-                            observacao="Complemento de estoque via importacao de ativos (planilha)",
-                        )
-                        db.add(mov_e); db.flush()
-                        obj.quantidade += delta
                 mat_map[mat_key] = obj
             mat = mat_map[mat_key]
 
@@ -1337,16 +1316,17 @@ async def importar_ativos_excel(
                     observacao=linha["observacao"] or None,
                 )
             else:
-                mat.quantidade -= linha["quantidade"]
-                mov_s = models.Movimentacao(
-                    material_id=mat.id, usuario_id=atual.id,
-                    tipo="saida", quantidade=float(linha["quantidade"]),
-                    observacao="Atribuicao via importacao de ativos (planilha)",
+                unidade_pat = models.UnidadePatrimonio(
+                    material_id=mat.id,
+                    status=models.StatusUnidade.ativo,
+                    origem="importacao_ativo",
+                    tag="atribuido",
                 )
-                db.add(mov_s); db.flush()
+                db.add(unidade_pat); db.flush()
+                sync_qty(mat, db)
                 item = models.AtivoItem(
                     ativo_id=ativo.id, material_id=mat.id,
-                    unidade_id=None, quantidade=float(linha["quantidade"]),
+                    unidade_id=unidade_pat.id, quantidade=1.0,
                     observacao=linha["observacao"] or None,
                 )
 

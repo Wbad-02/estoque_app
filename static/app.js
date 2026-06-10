@@ -696,21 +696,24 @@ function renderizarMateriais(lista){
         </tr></thead><tbody>`;
     itens.forEach(m=>{
       const semEstoque = m.quantidade <= 0;
+      const emUso = m.em_uso === true;
       const tagBadge=m.tag==='novo'?'<span class="badge badge-novo" style="margin-left:5px">Novo</span>'
         :m.tag==='usado'?'<span class="badge badge-usado" style="margin-left:5px">Usado</span>'
         :m.tag==='solicitado'?'<span class="badge badge-solicitado" style="margin-left:5px">Solicitado</span>':'';
-      html+=`<tr class="${m.alerta_minimo?'row-alert':''}" style="cursor:pointer;${semEstoque?'opacity:.55;':''}\" onclick="toggleMatDetail(${m.id},this)">
+      html+=`<tr class="${m.alerta_minimo?'row-alert':''}" style="cursor:pointer;${semEstoque&&!emUso?'opacity:.55;':''}\" onclick="toggleMatDetail(${m.id},this)">
         <td style="word-break:break-word;overflow-wrap:anywhere">
           <span class="mat-expand-btn" title="Expandir">▶</span>
           <strong style="margin-left:4px">${esc(m.nome)}</strong>${tagBadge}
-          ${semEstoque?'<span style="margin-left:6px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Sem estoque</span>':''}
+          ${semEstoque&&emUso?'<span style="margin-left:6px;font-size:10px;font-weight:600;color:#3c4aa3;text-transform:uppercase;letter-spacing:.4px">Em uso</span>':semEstoque?'<span style="margin-left:6px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Sem estoque</span>':''}
           ${m.descricao?`<br><small style="color:var(--muted);margin-left:18px">${esc(m.descricao)}</small>`:''}
         </td>
         <td style="${semEstoque?'color:var(--muted)':''}">${m.quantidade} ${m.unidade}</td>
         <td>${fmt(m.criado_em)}</td>
         <td>${m.ultima_retirada?fmtDT(m.ultima_retirada):'—'}</td>
         <td>${semEstoque
-          ?'<span class="badge" style="background:#e0e0e0;color:#888">Atribuído</span>'
+          ? emUso
+            ?'<span class="badge" style="background:#e8f0fe;color:#1a237e">Em uso</span>'
+            :'<span class="badge" style="background:#e0e0e0;color:#888">Sem estoque</span>'
           :m.alerta_minimo
             ?'<span class="badge badge-alert">⚠ Alerta</span>'
             :'<span class="badge badge-ok">✓ OK</span>'}</td>
@@ -740,6 +743,10 @@ function renderizarMateriais(lista){
               <span class="lbl">Patrimônio individual</span>
               <span class="val">${m.usa_patrimonio?'Sim':'Não'}</span>
             </div>
+            ${m.em_uso&&m.ativos_em_uso&&m.ativos_em_uso.length?`<div class="mat-detail-item" style="grid-column:1/-1">
+              <span class="lbl">Em uso por</span>
+              <span class="val" style="color:#1a237e;font-weight:600">${m.ativos_em_uso.map(a=>esc(a)).join(', ')}</span>
+            </div>`:''}
           </div>`}
         </td>
       </tr>`;
@@ -2477,6 +2484,7 @@ async function carregarAtivos(){
   trocarTabAtivos('ativos');
   if(SAT.selecionado) selecionarAtivo(SAT.selecionado);
   carregarValorImobilizado();
+  _atvRenderImportacaoArea();
 }
 
 function mudarCatFiltroAtivo(){
@@ -2689,6 +2697,294 @@ function renderizarAtivosInativos(lista){
         </div>
       </div>
     </div>`).join('');
+}
+
+// =======================================================
+// Ativos -- Importacao / Exportacao via Planilha (W1-W4)
+// =======================================================
+
+function _atvRenderImportacaoArea(){
+  const isEditor = S.grupo==='admin'||S.grupo==='editor'||S.grupo==='mestre';
+  let area = $('atv-importacao-area');
+  if(!area){
+    const sec = $('page-ativos');
+    if(!sec) return;
+    const footer = sec.querySelector('.copyright-footer');
+    area = document.createElement('div');
+    area.id = 'atv-importacao-area';
+    if(footer) sec.insertBefore(area, footer);
+    else sec.appendChild(area);
+  }
+  if(!isEditor){ area.innerHTML=''; return; }
+  if(area.dataset.rendered === '1') return;
+  area.dataset.rendered = '1';
+  area.innerHTML = `
+    <div class="table-wrap" style="padding:20px 24px;margin-top:20px" id="atv-ob-wrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:4px">
+        <div>
+          <h3 style="font-size:14px;color:var(--green);margin:0">Importar / Exportar Ativos</h3>
+          <p style="font-size:12px;color:var(--muted);margin:3px 0 0">Baixe o modelo, preencha e importe em lote. Ou exporte a lista atual.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="_atvBaixarTemplate()">Baixar Planilha Modelo (Ativos)</button>
+          <button class="btn btn-secondary" onclick="_atvExportar()">Exportar Ativos (.xlsx)</button>
+          <button class="btn btn-primary" onclick="_atvAbrirImport()">Importar Ativos (Planilha)</button>
+        </div>
+      </div>
+      <div id="atv-import-panel" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div id="atv-ob-step1">
+          <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Selecione o arquivo <strong>.xlsx</strong> preenchido e clique em "Analisar planilha".</p>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <input type="file" id="atv-import-file" accept=".xlsx" aria-label="Selecionar planilha de ativos"/>
+            <button class="btn btn-primary" onclick="_atvAnalisar()">Analisar planilha</button>
+          </div>
+        </div>
+        <div id="atv-import-preview-area" style="margin-top:20px"></div>
+      </div>
+    </div>
+  `;
+}
+
+function _atvAbrirImport(){
+  const panel = $('atv-import-panel');
+  if(!panel) return;
+  const isVisible = panel.style.display !== 'none';
+  panel.style.display = isVisible ? 'none' : '';
+  if(!isVisible){
+    $('atv-import-preview-area').innerHTML = '';
+    const fi = $('atv-import-file'); if(fi) fi.value='';
+  }
+}
+
+// W1
+function _atvBaixarTemplate(){
+  _baixarBlob('/api/onboarding/ativos/template-excel', 'modelo_ativos.xlsx');
+}
+
+// W2
+function _atvExportar(){
+  _baixarBlob('/api/onboarding/ativos/exportar-excel', 'exportacao_ativos.xlsx');
+}
+
+// W3 passo 1
+async function _atvAnalisar(){
+  const fileInput = $('atv-import-file');
+  if(!fileInput || !fileInput.files.length){
+    toast('Selecione um arquivo .xlsx antes de analisar.', 'error');
+    return;
+  }
+  const area = $('atv-import-preview-area');
+  area.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)"><span class="btn-spinner" style="display:inline-block;margin-right:8px"></span>Analisando planilha...</div>';
+  const fd = new FormData();
+  fd.append('arquivo', fileInput.files[0]);
+  try {
+    const resp = await fetch('/api/onboarding/ativos/preview-excel', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${S.token}` },
+      body: fd,
+    });
+    if(!resp.ok){
+      const err = await resp.json().catch(()=>({}));
+      area.innerHTML = `<div style="background:#FDECEA;border:1px solid #F5C6C3;border-radius:8px;padding:14px 16px;font-size:13px;color:#c62828">${esc(err.detail || 'Erro ao analisar a planilha.')}</div>`;
+      return;
+    }
+    const dados = await resp.json();
+    _atvRenderPreview(dados);
+  } catch {
+    area.innerHTML = '<div style="background:#FDECEA;border:1px solid #F5C6C3;border-radius:8px;padding:14px 16px;font-size:13px;color:#c62828">Falha de rede ao enviar o arquivo.</div>';
+  }
+}
+
+// W3 passo 2
+function _atvRenderPreview(dados){
+  const area = $('atv-import-preview-area');
+  const linhas  = dados.linhas_validas || [];
+  const erros   = dados.erros          || [];
+  const resumo  = dados.resumo         || {};
+  const ativosNovos    = resumo.ativos_novos    ?? 0;
+  const materiaisNovos = resumo.materiais_novos ?? 0;
+  const comPatrimonio  = resumo.com_patrimonio  ?? 0;
+
+  function badgeStatus(status){
+    if(status === 'novo')      return '<span style="background:#D4EDDA;color:#155724;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">Novo</span>';
+    if(status === 'existente') return '<span style="background:#D1ECF1;color:#0c5460;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">Existente</span>';
+    return `<span style="background:#FDECEA;color:#c62828;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">${esc(status||'?')}</span>`;
+  }
+
+  const rows = linhas.map(l => {
+    const nomeAtivo = l.nome_ativo
+      ? `${esc(l.nome_ativo)} <span style="font-size:11px;color:var(--muted)">(${esc(l.grupo_ativo||'')} / ${esc(l.categoria_ativo||'')})</span>`
+      : '<span style="color:var(--muted);font-style:italic">—</span>';
+    const nomeMat = l.nome_material
+      ? `${esc(l.nome_material)} <span style="font-size:11px;color:var(--muted)">(${esc(l.grupo_material||'')})</span>`
+      : '<span style="color:var(--muted);font-style:italic">—</span>';
+    const patBadge = l.tem_patrimonio
+      ? '<span style="color:#155724;font-weight:600">Sim</span>'
+      : '<span style="color:var(--muted)">Nao</span>';
+    return `<tr>
+      <td style="color:var(--muted);font-size:12px;text-align:center">${esc(l.linha ?? '')}</td>
+      <td>${nomeAtivo}</td>
+      <td>${nomeMat}</td>
+      <td style="text-align:right">${esc(l.quantidade ?? '')}</td>
+      <td style="text-align:center">${patBadge}</td>
+      <td style="text-align:center">${badgeStatus(l.status_ativo)}</td>
+      <td style="text-align:center">${badgeStatus(l.status_material)}</td>
+    </tr>`;
+  }).join('');
+
+  let errosHtml = '';
+  if(erros.length){
+    const li = erros.map(e => `<li style="margin-bottom:4px">${esc(e)}</li>`).join('');
+    errosHtml = `
+      <div style="background:#FDECEA;border:1px solid #F5C6C3;border-radius:8px;padding:14px 16px;margin-bottom:16px">
+        <strong style="color:#c62828;font-size:13px">Erros encontrados (${erros.length})</strong>
+        <ul style="margin:8px 0 0;padding-left:18px;font-size:12px;color:#c62828;line-height:1.7">${li}</ul>
+      </div>`;
+  }
+
+  let confirmacaoHtml = '';
+  if(linhas.length > 0){
+    confirmacaoHtml = `
+      <div style="background:#F0F4F2;border:1px solid var(--border);border-radius:8px;padding:16px 20px;margin-top:16px">
+        <button class="btn btn-primary" onclick="_atvConfirmar()">Confirmar Importacao</button>
+      </div>`;
+  }
+
+  area.innerHTML = `
+    <div style="background:#F0F4F2;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;display:flex;gap:24px;flex-wrap:wrap">
+      <span><strong style="color:var(--green)">${ativosNovos}</strong> ativos novos</span>
+      <span><strong style="color:var(--green)">${materiaisNovos}</strong> materiais novos</span>
+      <span><strong style="color:var(--green)">${comPatrimonio}</strong> com patrimonio</span>
+    </div>
+    ${errosHtml}
+    <div style="overflow-x:auto">
+      <table style="min-width:760px">
+        <thead><tr>
+          <th style="text-align:center">Linha</th>
+          <th>Ativo</th>
+          <th>Material</th>
+          <th style="text-align:right">Qtd</th>
+          <th style="text-align:center">Patrimonio</th>
+          <th style="text-align:center">Status Ativo</th>
+          <th style="text-align:center">Status Material</th>
+        </tr></thead>
+        <tbody>${rows || '<tr><td colspan="7"><div class="empty">Nenhuma linha encontrada</div></td></tr>'}</tbody>
+      </table>
+    </div>
+    ${confirmacaoHtml}
+  `;
+}
+
+// W3 passo 3
+async function _atvConfirmar(){
+  const fileInput = $('atv-import-file');
+  if(!fileInput || !fileInput.files.length){
+    toast('Arquivo nao encontrado. Faca o upload novamente.', 'error');
+    return;
+  }
+  const area = $('atv-import-preview-area');
+  area.insertAdjacentHTML('afterbegin',
+    '<div id="atv-sending-spinner" style="padding:16px;text-align:center;color:var(--muted)"><span class="btn-spinner" style="display:inline-block;margin-right:8px"></span>Importando...</div>');
+  const fd = new FormData();
+  fd.append('arquivo', fileInput.files[0]);
+  try {
+    const resp = await fetch('/api/onboarding/ativos/importar-excel', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${S.token}` },
+      body: fd,
+    });
+    const spinner = $('atv-sending-spinner');
+    if(spinner) spinner.remove();
+    let resultado;
+    try { resultado = await resp.json(); } catch { resultado = {}; }
+    _atvRenderResultado(resp.status, resultado);
+  } catch {
+    const spinner = $('atv-sending-spinner');
+    if(spinner) spinner.remove();
+    $('atv-import-preview-area').insertAdjacentHTML('afterbegin',
+      '<div style="background:#FDECEA;border:1px solid #F5C6C3;border-radius:8px;padding:14px 16px;font-size:13px;color:#c62828;margin-bottom:16px">Falha de rede ao enviar o arquivo.</div>');
+  }
+}
+
+// W4 -- resultado com contadores estruturados
+function _atvRenderResultado(status, dados){
+  const area = $('atv-import-preview-area');
+  if(!area) return;
+  let bannerBg, bannerBorder, bannerCor, titulo;
+  if(status === 200){
+    bannerBg = '#D4EDDA'; bannerBorder = '#C3E6CB'; bannerCor = '#155724';
+    titulo = 'Importacao concluida com sucesso';
+  } else if(status === 207){
+    bannerBg = '#FFF3CD'; bannerBorder = '#FFDDA0'; bannerCor = '#856404';
+    titulo = 'Importacao concluida com avisos';
+  } else {
+    bannerBg = '#FDECEA'; bannerBorder = '#F5C6C3'; bannerCor = '#c62828';
+    titulo = 'Erro na importacao';
+  }
+  const msg    = dados.detalhe || dados.detail || '';
+  const totais = dados.totais  || {};
+  const avisos = dados.avisos  || [];
+  const erros  = dados.erros   || [];
+
+  function _tc(obj){ for(let i=1;i<arguments.length;i++){ if(obj[arguments[i]] !== undefined) return obj[arguments[i]]; } return ''; }
+  const cats   = _tc(totais,'categorias_criadas','categorias criadas');
+  const grps   = _tc(totais,'grupos_criados','grupos criados');
+  const ats    = _tc(totais,'ativos_criados','ativos criados');
+  const mats   = _tc(totais,'materiais_criados','materiais criados');
+  const atribs = _tc(totais,'atribuicoes_feitas','atribuicoes feitas','atribuicoes realizadas');
+
+  const temContadores = [cats,grps,ats,mats,atribs].some(v => v !== '');
+  let contadoresHtml = '';
+  if(temContadores){
+    contadoresHtml = `
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:13px">
+        ${cats   !== '' ? `<span><strong>${cats}</strong> categorias criadas</span>`      : ''}
+        ${grps   !== '' ? `<span><strong>${grps}</strong> grupos criados</span>`          : ''}
+        ${ats    !== '' ? `<span><strong>${ats}</strong> ativos criados</span>`           : ''}
+        ${mats   !== '' ? `<span><strong>${mats}</strong> materiais criados</span>`       : ''}
+        ${atribs !== '' ? `<span><strong>${atribs}</strong> atribuicoes realizadas</span>`: ''}
+      </div>`;
+  } else if(Object.keys(totais).length){
+    const partes = Object.entries(totais).map(([k,v])=>`<span><strong>${v}</strong> ${esc(k)}</span>`).join('');
+    contadoresHtml = `<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:13px">${partes}</div>`;
+  }
+  let avisosHtml = '';
+  if(avisos.length){
+    avisosHtml = `
+      <div style="background:#FFF3CD;border:1px solid #FFDDA0;border-radius:8px;padding:14px 16px;margin-top:12px">
+        <strong style="font-size:12px;color:#856404">Avisos (${avisos.length}):</strong>
+        <ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#856404;line-height:1.7">
+          ${avisos.map(a=>`<li>${esc(a)}</li>`).join('')}
+        </ul>
+      </div>`;
+  }
+  let errosHtml = '';
+  if(erros.length){
+    errosHtml = `
+      <div style="background:#FDECEA;border:1px solid #F5C6C3;border-radius:8px;padding:14px 16px;margin-top:12px">
+        <strong style="font-size:12px;color:#c62828">Erros (${erros.length}):</strong>
+        <ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#c62828;line-height:1.7">
+          ${erros.map(e=>`<li>${esc(e)}</li>`).join('')}
+        </ul>
+      </div>`;
+  }
+  area.innerHTML = `
+    <div style="background:${bannerBg};border:1px solid ${bannerBorder};border-radius:8px;padding:16px 20px;margin-bottom:16px">
+      <strong style="font-size:14px;color:${bannerCor}">${esc(titulo)}</strong>
+      ${msg ? `<p style="font-size:13px;color:${bannerCor};margin:4px 0 0">${esc(msg)}</p>` : ''}
+      ${contadoresHtml}
+      ${avisosHtml}
+      ${errosHtml}
+    </div>
+    <button class="btn btn-secondary" onclick="_atvNovaImportacao()">Nova importacao</button>
+  `;
+}
+
+function _atvNovaImportacao(){
+  const area = $('atv-import-preview-area');
+  if(area) area.innerHTML = '';
+  const fi = $('atv-import-file');
+  if(fi) fi.value = '';
 }
 
 // ── Modal Atribuir Material ────────────────────────

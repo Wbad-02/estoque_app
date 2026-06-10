@@ -194,6 +194,8 @@ class MaterialOut(BaseModel):
     tag: Optional[str] = None
     criado_em: datetime; atualizado_em: datetime
     ultima_retirada: Optional[datetime] = None
+    em_uso: bool = False
+    ativos_em_uso: list[str] = []
     model_config = {"from_attributes": True}
 
     @classmethod

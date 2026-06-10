@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 import models
 from auth import registrar_log, requer_admin, requer_editor_ou_admin
 from database import get_db
+from utils import sync_qty
 
 router = APIRouter(prefix="/api/onboarding", tags=["onboarding"])
 
@@ -749,3 +750,725 @@ async def importar_excel(
 
     status_code = 207 if erros_import else 200
     return JSONResponse(content=payload, status_code=status_code)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ATIVOS — template, preview, importação e exportação
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_COLUNAS_ATIVOS = [
+    "categoria_ativo", "grupo_ativo", "nome_ativo", "descricao_ativo",
+    "categoria_material", "grupo_material", "nome_material", "descricao_material",
+    "quantidade", "unidade", "valor_unitario", "codigo_patrimonio", "observacao",
+]
+
+_LARGURAS_ATIVOS = {
+    "A": 22, "B": 22, "C": 28, "D": 30,
+    "E": 22, "F": 22, "G": 28, "H": 30,
+    "I": 12, "J": 12, "K": 16, "L": 20, "M": 30,
+}
+
+
+# ── T1 — parser ────────────────────────────────────────────────────────────────
+
+def _parse_excel_ativos(file_bytes: bytes, db: Session) -> dict:
+    """
+    Lê a aba 'Ativos' a partir da linha 3.
+    Linha 1 = cabeçalho, linha 2 = exemplo.
+    Para ao encontrar A+B+C todos vazios.
+    Linhas com E+F+G todos vazios são silenciosamente ignoradas.
+    """
+    from openpyxl import load_workbook
+
+    try:
+        wb = load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
+    except Exception as exc:
+        raise HTTPException(422, f"Arquivo Excel inválido ou corrompido: {exc}")
+
+    if "Ativos" not in wb.sheetnames:
+        raise HTTPException(422, "Aba 'Ativos' não encontrada na planilha")
+
+    ws = wb["Ativos"]
+
+    linhas_validas: list[dict] = []
+    erros: list[dict] = []
+
+    # caches para evitar queries repetidas
+    _acat_cache: dict[str, Optional[models.AtivoCategoria]] = {}
+    _agrp_cache: dict[tuple, Optional[models.AtivoGrupo]] = {}
+    _ativo_cache: dict[tuple, Optional[models.Ativo]] = {}
+    _cat_cache: dict[str, Optional[models.Categoria]] = {}
+    _grp_cache: dict[tuple, Optional[models.GrupoMaterial]] = {}
+    _mat_cache: dict[tuple, Optional[models.Material]] = {}
+
+    ativos_novos: set = set()
+    ativos_existentes: set = set()
+    materiais_novos: int = 0
+    materiais_existentes: int = 0
+    com_patrimonio: int = 0
+    sem_patrimonio: int = 0
+
+    for row in ws.iter_rows(min_row=3):
+        vals = [row[i].value if i < len(row) else None for i in range(13)]
+        col = [_cell_str(v) for v in vals]
+
+        cat_ativo   = col[0]
+        grp_ativo   = col[1]
+        nome_ativo  = col[2]
+        desc_ativo  = col[3]
+        cat_mat     = col[4]
+        grp_mat     = col[5]
+        nome_mat    = col[6]
+        desc_mat    = col[7]
+        cod_patr    = col[11]
+        obs         = col[12]
+
+        # parar na primeira linha com A+B+C vazios
+        if not cat_ativo and not grp_ativo and not nome_ativo:
+            break
+
+        linha_num: int = row[0].row if row else 0
+
+        # linhas com E+F+G todos vazios → ignorar silenciosamente
+        if not cat_mat and not grp_mat and not nome_mat:
+            continue
+
+        campo_erros: list[dict] = []
+
+        # obrigatórios do ativo
+        for campo, val in [("categoria_ativo", cat_ativo), ("grupo_ativo", grp_ativo), ("nome_ativo", nome_ativo)]:
+            if not val:
+                campo_erros.append({"linha": linha_num, "campo": campo, "mensagem": "Campo obrigatório vazio"})
+
+        # obrigatórios do material
+        for campo, val in [("categoria_material", cat_mat), ("grupo_material", grp_mat), ("nome_material", nome_mat)]:
+            if not val:
+                campo_erros.append({"linha": linha_num, "campo": campo, "mensagem": "Campo obrigatório vazio"})
+
+        # quantidade
+        try:
+            quantidade = max(1, _parse_int(vals[8], 1))
+        except ValueError:
+            quantidade = 1
+
+        # unidade
+        unidade = col[9].lower() if col[9] else "un"
+        if unidade not in _UNIDADES_VALIDAS:
+            unidade = "un"
+
+        # valor_unitario
+        try:
+            valor_unitario: Optional[float] = _parse_float(vals[10], 0.0) if vals[10] is not None else None
+        except ValueError:
+            valor_unitario = None
+
+        if campo_erros:
+            erros.extend(campo_erros)
+            continue
+
+        # ── lookups de ativo ──
+        acat_key = cat_ativo.lower()
+        if acat_key not in _acat_cache:
+            _acat_cache[acat_key] = db.query(models.AtivoCategoria).filter(
+                models.AtivoCategoria.nome.ilike(cat_ativo)
+            ).first()
+        acat_obj = _acat_cache[acat_key]
+
+        agrp_key = (cat_ativo.lower(), grp_ativo.lower())
+        if agrp_key not in _agrp_cache:
+            if acat_obj:
+                _agrp_cache[agrp_key] = db.query(models.AtivoGrupo).filter(
+                    models.AtivoGrupo.categoria_id == acat_obj.id,
+                    models.AtivoGrupo.nome.ilike(grp_ativo),
+                ).first()
+            else:
+                _agrp_cache[agrp_key] = None
+        agrp_obj = _agrp_cache[agrp_key]
+
+        ativo_key = (cat_ativo.lower(), grp_ativo.lower(), nome_ativo.lower())
+        if ativo_key not in _ativo_cache:
+            if agrp_obj:
+                _ativo_cache[ativo_key] = db.query(models.Ativo).filter(
+                    models.Ativo.grupo_id == agrp_obj.id,
+                    models.Ativo.nome.ilike(nome_ativo),
+                    models.Ativo.ativo == True,
+                ).first()
+            else:
+                _ativo_cache[ativo_key] = None
+        ativo_obj = _ativo_cache[ativo_key]
+        status_ativo = "existente" if ativo_obj else "novo"
+
+        # ── lookups de material ──
+        mcat_key = cat_mat.lower()
+        if mcat_key not in _cat_cache:
+            _cat_cache[mcat_key] = db.query(models.Categoria).filter(
+                models.Categoria.nome.ilike(cat_mat)
+            ).first()
+        mcat_obj = _cat_cache[mcat_key]
+
+        mgrp_key = (cat_mat.lower(), grp_mat.lower())
+        if mgrp_key not in _grp_cache:
+            if mcat_obj:
+                _grp_cache[mgrp_key] = db.query(models.GrupoMaterial).filter(
+                    models.GrupoMaterial.categoria_id == mcat_obj.id,
+                    models.GrupoMaterial.nome.ilike(grp_mat),
+                ).first()
+            else:
+                _grp_cache[mgrp_key] = None
+        mgrp_obj = _grp_cache[mgrp_key]
+
+        mat_key = (cat_mat.lower(), grp_mat.lower(), nome_mat.lower())
+        if mat_key not in _mat_cache:
+            if mgrp_obj:
+                _mat_cache[mat_key] = db.query(models.Material).filter(
+                    models.Material.grupo_id == mgrp_obj.id,
+                    models.Material.nome.ilike(nome_mat),
+                    models.Material.ativo == True,
+                ).first()
+            else:
+                _mat_cache[mat_key] = None
+        mat_obj = _mat_cache[mat_key]
+        status_material = "existente" if mat_obj else "novo"
+
+        # material com usa_patrimonio=True e sem código → erro
+        if mat_obj and mat_obj.usa_patrimonio and not cod_patr:
+            erros.append({
+                "linha": linha_num,
+                "campo": "codigo_patrimonio",
+                "mensagem": f"Material '{nome_mat}' usa controle de patrimônio — informe codigo_patrimonio",
+            })
+            continue
+
+        tem_patrimonio = bool(cod_patr)
+
+        # contadores de resumo
+        ativo_key_resumo = (cat_ativo.lower(), grp_ativo.lower(), nome_ativo.lower())
+        if status_ativo == "novo":
+            ativos_novos.add(ativo_key_resumo)
+        else:
+            ativos_existentes.add(ativo_key_resumo)
+        if status_material == "novo":
+            materiais_novos += 1
+        else:
+            materiais_existentes += 1
+        if tem_patrimonio:
+            com_patrimonio += 1
+        else:
+            sem_patrimonio += 1
+
+        linhas_validas.append({
+            "linha":               linha_num,
+            "categoria_ativo":     cat_ativo,
+            "grupo_ativo":         grp_ativo,
+            "nome_ativo":          nome_ativo,
+            "descricao_ativo":     desc_ativo,
+            "categoria_material":  cat_mat,
+            "grupo_material":      grp_mat,
+            "nome_material":       nome_mat,
+            "descricao_material":  desc_mat,
+            "quantidade":          quantidade,
+            "unidade":             unidade,
+            "valor_unitario":      valor_unitario,
+            "codigo_patrimonio":   cod_patr,
+            "observacao":          obs,
+            "status_ativo":        status_ativo,
+            "status_material":     status_material,
+            "tem_patrimonio":      tem_patrimonio,
+        })
+
+    wb.close()
+
+    return {
+        "total_linhas": len(linhas_validas) + len(erros),
+        "linhas_validas": linhas_validas,
+        "erros": erros,
+        "resumo": {
+            "ativos_novos":          len(ativos_novos),
+            "ativos_existentes":     len(ativos_existentes),
+            "materiais_novos":       materiais_novos,
+            "materiais_existentes":  materiais_existentes,
+            "com_patrimonio":        com_patrimonio,
+            "sem_patrimonio":        sem_patrimonio,
+        },
+    }
+
+
+# ── T2 — GET /api/onboarding/ativos/template-excel ────────────────────────────
+
+@router.get("/ativos/template-excel")
+def baixar_template_ativos(
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(requer_editor_ou_admin),
+) -> StreamingResponse:
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Ativos"
+
+    fill_header  = PatternFill("solid", fgColor="1B3A2D")
+    fill_exemplo = PatternFill("solid", fgColor="E8E8E8")
+    font_header  = Font(bold=True, color="FFFFFF", size=11)
+    font_exemplo = Font(size=10, italic=True, color="666666")
+    al_center    = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for col_idx, nome in enumerate(_COLUNAS_ATIVOS, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=nome)
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = al_center
+    ws.row_dimensions[1].height = 20
+
+    exemplos = [
+        "Departamentos", "Contabil", "Ana Paula", "Analista Contábil",
+        "Informatica", "Computadores", "Notebook Dell", "Core i5 8GB",
+        1, "un", 3200.00, "TI-001", "",
+    ]
+    for col_idx, val in enumerate(exemplos, start=1):
+        cell = ws.cell(row=2, column=col_idx, value=val)
+        cell.font = font_exemplo
+        cell.fill = fill_exemplo
+
+    dv_unidade = DataValidation(
+        type="list", formula1='"un,cx,pc,m,l,kg,par,rolo"',
+        allow_blank=True, showDropDown=False, showErrorMessage=True,
+        errorTitle="Unidade inválida", error="Use: un, cx, pc, m, l, kg, par ou rolo",
+    )
+    dv_unidade.sqref = "J3:J502"
+    ws.add_data_validation(dv_unidade)
+
+    dv_qtd = DataValidation(
+        type="whole", operator="greaterThanOrEqual", formula1="1",
+        allow_blank=True, showErrorMessage=True,
+        errorTitle="Quantidade inválida", error="Informe um inteiro >= 1",
+    )
+    dv_qtd.sqref = "I3:I502"
+    ws.add_data_validation(dv_qtd)
+
+    ws.freeze_panes = "A3"
+    for col_letra, larg in _LARGURAS_ATIVOS.items():
+        ws.column_dimensions[col_letra].width = larg
+
+    # aba instruções
+    ws_inst = wb.create_sheet("Instrucoes")
+    ws_inst.protection.sheet = True
+    instrucoes = [
+        ("INSTRUÇÕES DE PREENCHIMENTO — ATIVOS", True),
+        ("", False),
+        ("COLUNAS DO ATIVO (A–D)", True),
+        ("A  categoria_ativo*   — Categoria do ativo (ex: Departamentos). Criada se não existir.", False),
+        ("B  grupo_ativo*       — Grupo dentro da categoria (ex: Contabil). Criado se não existir.", False),
+        ("C  nome_ativo*        — Nome do ativo/pessoa.", False),
+        ("D  descricao_ativo    — Descrição opcional.", False),
+        ("", False),
+        ("COLUNAS DO MATERIAL (E–M)", True),
+        ("E  categoria_material* — Categoria do material (ex: Informatica).", False),
+        ("F  grupo_material*     — Grupo do material (ex: Computadores).", False),
+        ("G  nome_material*      — Nome do material. Criado no estoque se não existir.", False),
+        ("H  descricao_material  — Descrição (usada só se o material for criado).", False),
+        ("I  quantidade          — Qtd a atribuir. Inteiro >= 1. Padrão: 1.", False),
+        ("J  unidade             — Unidade: un, cx, pc, m, l, kg, par, rolo. Padrão: un.", False),
+        ("K  valor_unitario      — Valor em reais. Opcional.", False),
+        ("L  codigo_patrimonio   — Código de patrimônio. Obrigatório se material usa rastreio.", False),
+        ("M  observacao          — Observação da atribuição.", False),
+        ("", False),
+        ("REGRAS", True),
+        ("- Não altere o cabeçalho da linha 1.", False),
+        ("- A linha 2 é apenas um exemplo — não será importada.", False),
+        ("- Preencha os dados a partir da linha 3.", False),
+        ("- Linhas com colunas E, F e G vazias são ignoradas na importação.", False),
+        ("- Linhas em branco (A+B+C vazias) interrompem a leitura.", False),
+        ("- O arquivo exportado dos ativos existentes já vem neste formato.", False),
+    ]
+    for row_idx, (texto, negrito) in enumerate(instrucoes, start=1):
+        cell = ws_inst.cell(row=row_idx, column=1, value=texto)
+        cell.font = Font(bold=negrito, size=11 if negrito else 10)
+    ws_inst.column_dimensions["A"].width = 90
+
+    # aba ativos_e_grupos
+    ws_ag = wb.create_sheet("Ativos_e_Grupos")
+    categorias_a = db.query(models.AtivoCategoria).order_by(models.AtivoCategoria.nome).all()
+    if not categorias_a:
+        ws_ag.cell(row=1, column=1, value="Nenhuma categoria de ativo cadastrada ainda.")
+    else:
+        fill_cab = PatternFill("solid", fgColor="1B3A2D")
+        font_cab = Font(bold=True, color="FFFFFF", size=11)
+        for col_idx, titulo in enumerate(["Categoria", "Grupo"], start=1):
+            cell = ws_ag.cell(row=1, column=col_idx, value=titulo)
+            cell.font = font_cab
+            cell.fill = fill_cab
+        linha_ag = 2
+        for acat in categorias_a:
+            grupos_a = db.query(models.AtivoGrupo).filter(
+                models.AtivoGrupo.categoria_id == acat.id
+            ).order_by(models.AtivoGrupo.nome).all()
+            for agrp in grupos_a:
+                ws_ag.cell(row=linha_ag, column=1, value=acat.nome)
+                ws_ag.cell(row=linha_ag, column=2, value=agrp.nome)
+                linha_ag += 1
+    ws_ag.column_dimensions["A"].width = 28
+    ws_ag.column_dimensions["B"].width = 28
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=modelo_ativos.xlsx"},
+    )
+
+
+# ── T3 — POST /api/onboarding/ativos/preview-excel ────────────────────────────
+
+@router.post("/ativos/preview-excel")
+async def preview_ativos_excel(
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(requer_editor_ou_admin),
+) -> dict:
+    contents = await arquivo.read()
+    if len(contents) > _MAX_XLSX_BYTES:
+        raise HTTPException(413, "Arquivo muito grande (máximo 5 MB)")
+    return _parse_excel_ativos(contents, db)
+
+
+# ── T4 — POST /api/onboarding/ativos/importar-excel ───────────────────────────
+
+@router.post("/ativos/importar-excel")
+async def importar_ativos_excel(
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    atual: models.Usuario = Depends(requer_admin),
+) -> JSONResponse:
+    contents = await arquivo.read()
+    if len(contents) > _MAX_XLSX_BYTES:
+        raise HTTPException(413, "Arquivo muito grande (máximo 5 MB)")
+
+    parse = _parse_excel_ativos(contents, db)
+    linhas = parse["linhas_validas"]
+
+    if not linhas and parse["erros"]:
+        raise HTTPException(422, "Planilha sem linhas válidas para importar")
+
+    # contadores
+    n_acat = n_agrp = n_ativo = n_mat = n_item = 0
+    avisos: list[dict] = []
+    erros_imp: list[dict] = []
+
+    # caches de criação
+    acat_map: dict[str, models.AtivoCategoria] = {}
+    agrp_map: dict[tuple, models.AtivoGrupo] = {}
+    ativo_map: dict[tuple, models.Ativo] = {}
+    cat_map: dict[str, models.Categoria] = {}
+    grp_map: dict[tuple, models.GrupoMaterial] = {}
+    mat_map: dict[tuple, models.Material] = {}
+    cod_cache: set[str] = set()  # códigos de patrimônio do lote atual
+
+    for linha in linhas:
+        ln = linha["linha"]
+        try:
+            # ── ETAPA A — hierarquia de ativo ──────────────────────────────
+            acat_key = linha["categoria_ativo"].lower()
+            if acat_key not in acat_map:
+                obj = db.query(models.AtivoCategoria).filter(
+                    models.AtivoCategoria.nome.ilike(linha["categoria_ativo"])
+                ).first()
+                if not obj:
+                    obj = models.AtivoCategoria(nome=linha["categoria_ativo"])
+                    db.add(obj); db.flush(); n_acat += 1
+                acat_map[acat_key] = obj
+
+            agrp_key = (linha["categoria_ativo"].lower(), linha["grupo_ativo"].lower())
+            if agrp_key not in agrp_map:
+                obj = db.query(models.AtivoGrupo).filter(
+                    models.AtivoGrupo.categoria_id == acat_map[acat_key].id,
+                    models.AtivoGrupo.nome.ilike(linha["grupo_ativo"]),
+                ).first()
+                if not obj:
+                    obj = models.AtivoGrupo(
+                        nome=linha["grupo_ativo"],
+                        categoria_id=acat_map[acat_key].id,
+                    )
+                    db.add(obj); db.flush(); n_agrp += 1
+                agrp_map[agrp_key] = obj
+
+            ativo_key = (linha["categoria_ativo"].lower(), linha["grupo_ativo"].lower(), linha["nome_ativo"].lower())
+            if ativo_key not in ativo_map:
+                obj = db.query(models.Ativo).filter(
+                    models.Ativo.grupo_id == agrp_map[agrp_key].id,
+                    models.Ativo.nome.ilike(linha["nome_ativo"]),
+                    models.Ativo.ativo == True,
+                ).first()
+                if not obj:
+                    obj = models.Ativo(
+                        nome=linha["nome_ativo"],
+                        descricao=linha["descricao_ativo"] or None,
+                        grupo_id=agrp_map[agrp_key].id,
+                    )
+                    db.add(obj); db.flush(); n_ativo += 1
+                ativo_map[ativo_key] = obj
+            ativo = ativo_map[ativo_key]
+
+            # ── ETAPA B — material no estoque ──────────────────────────────
+            cat_key = linha["categoria_material"].lower()
+            if cat_key not in cat_map:
+                obj = db.query(models.Categoria).filter(
+                    models.Categoria.nome.ilike(linha["categoria_material"])
+                ).first()
+                if not obj:
+                    obj = models.Categoria(nome=linha["categoria_material"])
+                    db.add(obj); db.flush()
+                cat_map[cat_key] = obj
+
+            grp_key = (linha["categoria_material"].lower(), linha["grupo_material"].lower())
+            if grp_key not in grp_map:
+                obj = db.query(models.GrupoMaterial).filter(
+                    models.GrupoMaterial.categoria_id == cat_map[cat_key].id,
+                    models.GrupoMaterial.nome.ilike(linha["grupo_material"]),
+                ).first()
+                if not obj:
+                    obj = models.GrupoMaterial(
+                        nome=linha["grupo_material"],
+                        categoria_id=cat_map[cat_key].id,
+                    )
+                    db.add(obj); db.flush()
+                grp_map[grp_key] = obj
+
+            mat_key = (linha["categoria_material"].lower(), linha["grupo_material"].lower(), linha["nome_material"].lower())
+            if mat_key not in mat_map:
+                obj = db.query(models.Material).filter(
+                    models.Material.grupo_id == grp_map[grp_key].id,
+                    models.Material.nome.ilike(linha["nome_material"]),
+                    models.Material.ativo == True,
+                ).first()
+                if not obj:
+                    obj = models.Material(
+                        nome=linha["nome_material"],
+                        descricao=linha["descricao_material"] or None,
+                        quantidade=0.0,
+                        unidade=linha["unidade"],
+                        grupo_id=grp_map[grp_key].id,
+                        valor_unitario=linha["valor_unitario"],
+                        fator_embalagem=1.0,
+                        usa_patrimonio=False,
+                        ativo=True,
+                    )
+                    db.add(obj); db.flush()
+                    mov_e = models.Movimentacao(
+                        material_id=obj.id, usuario_id=atual.id,
+                        tipo="entrada", quantidade=float(linha["quantidade"]),
+                        observacao="Importacao via ativos (planilha)",
+                    )
+                    db.add(mov_e); db.flush()
+                    obj.quantidade += linha["quantidade"]
+                    n_mat += 1
+                elif obj.usa_patrimonio and not linha["codigo_patrimonio"]:
+                    erros_imp.append({"linha": ln, "campo": "codigo_patrimonio",
+                        "mensagem": f"Material '{linha['nome_material']}' usa controle de patrimônio — informe codigo_patrimonio"})
+                    continue
+                else:
+                    delta = max(0, linha["quantidade"] - obj.quantidade)
+                    if delta > 0:
+                        mov_e = models.Movimentacao(
+                            material_id=obj.id, usuario_id=atual.id,
+                            tipo="entrada", quantidade=float(delta),
+                            observacao="Complemento de estoque via importacao de ativos (planilha)",
+                        )
+                        db.add(mov_e); db.flush()
+                        obj.quantidade += delta
+                mat_map[mat_key] = obj
+            mat = mat_map[mat_key]
+
+            # ── ETAPA C — duplicata de atribuição ──────────────────────────
+            duplicado = db.query(models.AtivoItem).filter(
+                models.AtivoItem.ativo_id == ativo.id,
+                models.AtivoItem.material_id == mat.id,
+                models.AtivoItem.devolvido_em == None,
+            ).first()
+            if duplicado:
+                avisos.append({"linha": ln,
+                    "mensagem": f"Material '{linha['nome_material']}' já atribuído a '{linha['nome_ativo']}' — linha ignorada"})
+                continue
+
+            # ── ETAPA D — atribuir ─────────────────────────────────────────
+            cod_patr = linha["codigo_patrimonio"]
+            if cod_patr:
+                if cod_patr in cod_cache:
+                    erros_imp.append({"linha": ln, "campo": "codigo_patrimonio",
+                        "mensagem": f"Código de patrimônio '{cod_patr}' duplicado no lote"})
+                    continue
+                cod_cache.add(cod_patr)
+                unidade_pat = models.UnidadePatrimonio(
+                    material_id=mat.id,
+                    codigo=cod_patr,
+                    status=models.StatusUnidade.ativo,
+                    origem="importacao_ativo",
+                    tag="atribuido",
+                )
+                db.add(unidade_pat); db.flush()
+                sync_qty(mat, db)
+                item = models.AtivoItem(
+                    ativo_id=ativo.id, material_id=mat.id,
+                    unidade_id=unidade_pat.id, quantidade=1.0,
+                    observacao=linha["observacao"] or None,
+                )
+            else:
+                mat.quantidade -= linha["quantidade"]
+                mov_s = models.Movimentacao(
+                    material_id=mat.id, usuario_id=atual.id,
+                    tipo="saida", quantidade=float(linha["quantidade"]),
+                    observacao="Atribuicao via importacao de ativos (planilha)",
+                )
+                db.add(mov_s); db.flush()
+                item = models.AtivoItem(
+                    ativo_id=ativo.id, material_id=mat.id,
+                    unidade_id=None, quantidade=float(linha["quantidade"]),
+                    observacao=linha["observacao"] or None,
+                )
+
+            db.add(item); db.flush()
+            n_item += 1
+
+        except Exception as exc:
+            db.rollback()
+            erros_imp.append({"linha": ln, "campo": "geral",
+                "mensagem": f"Erro inesperado: {exc}"})
+            continue
+
+    db.commit()
+
+    detalhe = (
+        f"acat={n_acat} agrp={n_agrp} ativos={n_ativo} "
+        f"materiais={n_mat} itens={n_item} "
+        f"avisos={len(avisos)} erros={len(erros_imp)}"
+    )
+    registrar_log(db, atual.id, "importacao_ativos_excel", "onboarding", None, detalhe)
+
+    payload = {
+        "sucesso": True,
+        "criados": {
+            "ativos_categorias": n_acat,
+            "ativos_grupos":     n_agrp,
+            "ativos":            n_ativo,
+            "materiais":         n_mat,
+            "ativos_itens":      n_item,
+        },
+        "avisos": avisos,
+        "erros":  erros_imp,
+    }
+    status_code = 207 if (erros_imp or avisos) else 200
+    return JSONResponse(content=payload, status_code=status_code)
+
+
+# ── T5 — GET /api/onboarding/ativos/exportar-excel ────────────────────────────
+
+@router.get("/ativos/exportar-excel")
+def exportar_ativos_excel(
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(requer_editor_ou_admin),
+) -> StreamingResponse:
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from datetime import datetime
+
+    # Query 1 — ativos COM itens atribuídos
+    itens = (
+        db.query(models.AtivoItem)
+        .filter(models.AtivoItem.devolvido_em == None)
+        .join(models.Ativo, models.AtivoItem.ativo_id == models.Ativo.id)
+        .filter(models.Ativo.ativo == True)
+        .all()
+    )
+    ids_com_itens = {item.ativo_id for item in itens}
+
+    # Query 2 — ativos SEM itens
+    q_vazios = (
+        db.query(models.Ativo)
+        .join(models.AtivoGrupo, models.Ativo.grupo_id == models.AtivoGrupo.id)
+        .join(models.AtivoCategoria, models.AtivoGrupo.categoria_id == models.AtivoCategoria.id)
+        .filter(models.Ativo.ativo == True)
+    )
+    if ids_com_itens:
+        q_vazios = q_vazios.filter(~models.Ativo.id.in_(ids_com_itens))
+    ativos_vazios = q_vazios.all()
+
+    # montar linhas
+    linhas_excel: list[dict] = []
+
+    for item in itens:
+        linhas_excel.append({
+            "categoria_ativo":    item.ativo_obj.grupo.categoria.nome,
+            "grupo_ativo":        item.ativo_obj.grupo.nome,
+            "nome_ativo":         item.ativo_obj.nome,
+            "descricao_ativo":    item.ativo_obj.descricao or "",
+            "categoria_material": item.material.grupo.categoria.nome,
+            "grupo_material":     item.material.grupo.nome,
+            "nome_material":      item.material.nome,
+            "descricao_material": item.material.descricao or "",
+            "quantidade":         int(item.quantidade),
+            "unidade":            item.material.unidade,
+            "valor_unitario":     item.material.valor_unitario or "",
+            "codigo_patrimonio":  item.unidade_patr.codigo if item.unidade_patr else "",
+            "observacao":         item.observacao or "",
+        })
+
+    for ativo in ativos_vazios:
+        linhas_excel.append({
+            "categoria_ativo":    ativo.grupo.categoria.nome,
+            "grupo_ativo":        ativo.grupo.nome,
+            "nome_ativo":         ativo.nome,
+            "descricao_ativo":    ativo.descricao or "",
+            "categoria_material": "",
+            "grupo_material":     "",
+            "nome_material":      "",
+            "descricao_material": "",
+            "quantidade":         "",
+            "unidade":            "",
+            "valor_unitario":     "",
+            "codigo_patrimonio":  "",
+            "observacao":         "",
+        })
+
+    linhas_excel.sort(key=lambda r: (
+        r["categoria_ativo"].lower(),
+        r["grupo_ativo"].lower(),
+        r["nome_ativo"].lower(),
+    ))
+
+    # gerar workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Ativos"
+
+    fill_header = PatternFill("solid", fgColor="1B3A2D")
+    font_header = Font(bold=True, color="FFFFFF", size=11)
+    al_center   = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for col_idx, nome in enumerate(_COLUNAS_ATIVOS, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=nome)
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = al_center
+
+    for row_idx, linha in enumerate(linhas_excel, start=2):
+        for col_idx, campo in enumerate(_COLUNAS_ATIVOS, start=1):
+            ws.cell(row=row_idx, column=col_idx, value=linha[campo])
+
+    ws.freeze_panes = "A2"
+    for col_letra, larg in _LARGURAS_ATIVOS.items():
+        ws.column_dimensions[col_letra].width = larg
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    data_str = datetime.now().strftime("%Y-%m-%d")
+    filename = f"exportacao_ativos_{data_str}.xlsx"
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )

@@ -45,8 +45,29 @@ def listar_materiais(
 
     saida = [_out(m) for m in materiais]
 
+    # Enriquecer com info de AtivoItem (quais ativos têm este material em uso)
+    if saida:
+        mat_ids = [o.id for o in saida]
+        itens_ativos = (
+            db.query(models.AtivoItem)
+            .filter(
+                models.AtivoItem.material_id.in_(mat_ids),
+                models.AtivoItem.devolvido_em == None,
+            )
+            .options(joinedload(models.AtivoItem.ativo_obj))
+            .all()
+        )
+        mat_to_ativos: dict[int, list[str]] = {}
+        for item in itens_ativos:
+            mat_to_ativos.setdefault(item.material_id, []).append(item.ativo_obj.nome)
+        for o in saida:
+            nomes = mat_to_ativos.get(o.id, [])
+            o.em_uso = bool(nomes)
+            o.ativos_em_uso = nomes
+
+    # materiais "em uso" (quantidade=0 mas atribuídos a ativos) sempre aparecem
     if not incluir_zerados:
-        saida = [o for o in saida if o.quantidade > 0]
+        saida = [o for o in saida if o.quantidade > 0 or o.em_uso]
 
     if apenas_alertas:
         saida = [o for o in saida if o.alerta_minimo]

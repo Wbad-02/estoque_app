@@ -131,7 +131,7 @@ class GrupoUpdate(BaseModel):
 
 class GrupoOut(BaseModel):
     id: int; nome: str; descricao: Optional[str]
-    quantidade_minima: float = 0.0; categoria_id: int
+    quantidade_minima: Optional[float] = 0.0; categoria_id: int
     categoria: CategoriaOut; criado_em: Optional[datetime] = None
     model_config = {"from_attributes": True}
 

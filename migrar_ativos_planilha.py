@@ -285,8 +285,8 @@ def _find_or_create_grupo_mat(cur, nome_grupo, cat_substr, grupos_cache):
         return fake
 
     cur.execute(
-        "INSERT INTO grupos_material (nome, categoria_id) VALUES (?,?)",
-        (nome_grupo, cat_id),
+        "INSERT INTO grupos_material (nome, categoria_id, quantidade_minima, criado_em) VALUES (?,?,0.0,?)",
+        (nome_grupo, cat_id, now_iso()),
     )
     new_id = cur.lastrowid
     grupos_cache[nome_grupo] = new_id

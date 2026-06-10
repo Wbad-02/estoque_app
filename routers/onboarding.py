@@ -92,8 +92,8 @@ def _parse_excel(file_bytes: bytes, db: Session) -> dict:
     # Indice de linha real na planilha (linha 1 = cabecalho, linha 2 = exemplo)
     # iter_rows min_row=3 => row_idx começa em 3
     for row in ws.iter_rows(min_row=3):
-        # Extrair valores das 10 colunas esperadas (A..J)
-        vals = [row[i].value if i < len(row) else None for i in range(10)]
+        # Extrair valores das 9 colunas esperadas (A..I)
+        vals = [row[i].value if i < len(row) else None for i in range(9)]
 
         col_a = _cell_str(vals[0])  # categoria
         col_b = _cell_str(vals[1])  # grupo
@@ -104,7 +104,6 @@ def _parse_excel(file_bytes: bytes, db: Session) -> dict:
         col_g = _cell_str(vals[6])  # unidade
         col_h = vals[7]             # valor_unitario
         col_i = vals[8]             # fator_embalagem
-        col_j = _cell_str(vals[9])  # usa_patrimonio
 
         # Parar na primeira linha totalmente vazia (A-D)
         if not col_a and not col_b and not _cell_str(vals[3]) and col_d == "":
@@ -253,7 +252,6 @@ def _parse_excel(file_bytes: bytes, db: Session) -> dict:
             "valor_unitario":        valor_unitario,
             "fator_embalagem":       fator_embalagem,
             "status":                status_mat,
-            "usa_patrimonio":        col_j.lower() in ("sim", "yes", "true", "1", "s", "y"),
         })
 
     wb.close()
@@ -306,7 +304,6 @@ def baixar_template_excel(
         "unidade",
         "valor_unitario",
         "fator_embalagem",
-        "usa_patrimonio",
     ]
     for col_idx, titulo in enumerate(cabecalhos, start=1):
         cell = ws_mat.cell(row=1, column=col_idx, value=titulo)
@@ -326,7 +323,6 @@ def baixar_template_excel(
         "un",
         45.90,
         1,
-        "não",
     ]
     for col_idx, valor in enumerate(exemplos, start=1):
         cell = ws_mat.cell(row=2, column=col_idx, value=valor)
@@ -363,19 +359,6 @@ def baixar_template_excel(
     dv_qtd.sqref = "F3:F502"
     ws_mat.add_data_validation(dv_qtd)
 
-    # Data validation: coluna J (usa_patrimonio) — dropdown sim/não
-    dv_patr = DataValidation(
-        type="list",
-        formula1='"sim,não"',
-        allow_blank=True,
-        showDropDown=False,
-        showErrorMessage=True,
-        errorTitle="Valor inválido",
-        error="Use: sim ou não",
-    )
-    dv_patr.sqref = "J3:J502"
-    ws_mat.add_data_validation(dv_patr)
-
     # Congelar linha 1 (cabecalho visivel ao rolar)
     ws_mat.freeze_panes = "A3"
 
@@ -390,7 +373,6 @@ def baixar_template_excel(
         "G": 12,  # unidade
         "H": 18,  # valor_unitario
         "I": 16,  # fator_embalagem
-        "J": 16,  # usa_patrimonio
     }
     for col_letra, largura in larguras.items():
         ws_mat.column_dimensions[col_letra].width = largura
@@ -420,7 +402,6 @@ def baixar_template_excel(
         ("unidade", "Unidade de medida. Valores aceitos: un, cx, pc, m, l, kg, par, rolo. Padrao: un."),
         ("valor_unitario", "Valor unitario em reais (ex: 45.90). Deixe vazio se nao souber."),
         ("fator_embalagem", "Fator de conversao de embalagem para unidades. Padrao: 1."),
-        ("usa_patrimonio", "sim = rastreia cada unidade individualmente (equipamentos: notebook, monitor). nao = controle por quantidade (consumiveis: papel, caneta). Padrao: nao."),
         (None, ""),
         ("REGRAS DE PREENCHIMENTO", ""),
         (None, "1. Nao altere o cabecalho da linha 1."),
@@ -682,22 +663,19 @@ async def importar_excel(
                     })
                     continue
                 else:
-                    # Modo "atualizar": soma quantidade, preenche campos vazios
+                    # Modo "atualizar": cria unidades individuais e preenche campos vazios
                     qtd_adicionada: int = linha["quantidade"]
                     if qtd_adicionada > 0:
-                        if existente_mat.usa_patrimonio:
-                            for _ in range(qtd_adicionada):
-                                db.add(models.UnidadePatrimonio(
-                                    material_id=existente_mat.id,
-                                    status=models.StatusUnidade.ativo,
-                                    origem="importacao_planilha",
-                                    tag="novo",
-                                    valor_unitario=linha["valor_unitario"],
-                                ))
-                            db.flush()
-                            sync_qty(existente_mat, db)
-                        else:
-                            existente_mat.quantidade = (existente_mat.quantidade or 0.0) + qtd_adicionada
+                        for _ in range(qtd_adicionada):
+                            db.add(models.UnidadePatrimonio(
+                                material_id=existente_mat.id,
+                                status=models.StatusUnidade.ativo,
+                                origem="importacao_planilha",
+                                tag="novo",
+                                valor_unitario=linha["valor_unitario"],
+                            ))
+                        db.flush()
+                        sync_qty(existente_mat, db)
                     if not existente_mat.descricao and linha["descricao"]:
                         existente_mat.descricao = linha["descricao"]
                     if not existente_mat.valor_unitario and linha["valor_unitario"]:
@@ -716,17 +694,16 @@ async def importar_excel(
                         db.add(mov)
                         db.flush()
             else:
-                # Material novo
-                usa_patr: bool = linha.get("usa_patrimonio", False)
+                # Material novo — sempre com rastreio de unidades individuais
                 novo_mat = models.Material(
                     nome=mat_nome,
                     descricao=linha["descricao"] or None,
-                    quantidade=0.0 if usa_patr else float(linha["quantidade"]),
+                    quantidade=0.0,
                     unidade=linha["unidade"],
                     grupo_id=grp_obj.id,
                     valor_unitario=linha["valor_unitario"],
                     fator_embalagem=float(linha["fator_embalagem"]),
-                    usa_patrimonio=usa_patr,
+                    usa_patrimonio=True,
                     ativo=True,
                 )
                 db.add(novo_mat)
@@ -734,18 +711,6 @@ async def importar_excel(
                 mats_criados += 1
 
                 if linha["quantidade"] > 0:
-                    mov = models.Movimentacao(
-                        material_id=novo_mat.id,
-                        usuario_id=atual.id,
-                        tipo="entrada",
-                        quantidade=float(linha["quantidade"]),
-                        valor_unitario=linha["valor_unitario"],
-                        observacao="Importacao inicial via planilha",
-                    )
-                    db.add(mov)
-                    db.flush()
-
-                if usa_patr and linha["quantidade"] > 0:
                     for _ in range(linha["quantidade"]):
                         db.add(models.UnidadePatrimonio(
                             material_id=novo_mat.id,
@@ -756,6 +721,17 @@ async def importar_excel(
                         ))
                     db.flush()
                     sync_qty(novo_mat, db)
+
+                    mov = models.Movimentacao(
+                        material_id=novo_mat.id,
+                        usuario_id=atual.id,
+                        tipo="entrada",
+                        quantidade=float(linha["quantidade"]),
+                        valor_unitario=linha["valor_unitario"],
+                        observacao="Importacao inicial via planilha",
+                    )
+                    db.add(mov)
+                    db.flush()
 
         except Exception as exc:
             db.rollback()

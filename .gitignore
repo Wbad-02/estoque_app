@@ -1,4 +1,5 @@
 # ── Banco de dados ────────────────────────────────────────────
+estoque.db
 estoque_backup_*.db
 backups/
 *.db-shm

@@ -131,8 +131,8 @@ class GrupoUpdate(BaseModel):
 
 class GrupoOut(BaseModel):
     id: int; nome: str; descricao: Optional[str]
-    quantidade_minima: float; categoria_id: int
-    categoria: CategoriaOut; criado_em: datetime
+    quantidade_minima: float = 0.0; categoria_id: int
+    categoria: CategoriaOut; criado_em: Optional[datetime] = None
     model_config = {"from_attributes": True}
 
 
@@ -192,7 +192,7 @@ class MaterialOut(BaseModel):
     fator_embalagem: float = 1.0
     valor_total: float = 0.0
     tag: Optional[str] = None
-    criado_em: datetime; atualizado_em: datetime
+    criado_em: Optional[datetime] = None; atualizado_em: Optional[datetime] = None
     ultima_retirada: Optional[datetime] = None
     em_uso: bool = False
     ativos_em_uso: list[str] = []

@@ -65,9 +65,8 @@ def listar_materiais(
             o.em_uso = bool(nomes)
             o.ativos_em_uso = nomes
 
-    # materiais "em uso" (quantidade=0 mas atribuídos a ativos) sempre aparecem
     if not incluir_zerados:
-        saida = [o for o in saida if o.quantidade > 0 or o.em_uso]
+        saida = [o for o in saida if o.quantidade > 0]
 
     if apenas_alertas:
         saida = [o for o in saida if o.alerta_minimo]

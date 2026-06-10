@@ -2922,31 +2922,27 @@ function _atvRenderResultado(status, dados){
     titulo = 'Erro na importacao';
   }
   const msg    = dados.detalhe || dados.detail || '';
-  const totais = dados.totais  || {};
+  const criados = dados.criados || {};
   const avisos = dados.avisos  || [];
   const erros  = dados.erros   || [];
 
-  function _tc(obj){ for(let i=1;i<arguments.length;i++){ if(obj[arguments[i]] !== undefined) return obj[arguments[i]]; } return ''; }
-  const cats   = _tc(totais,'categorias_criadas','categorias criadas');
-  const grps   = _tc(totais,'grupos_criados','grupos criados');
-  const ats    = _tc(totais,'ativos_criados','ativos criados');
-  const mats   = _tc(totais,'materiais_criados','materiais criados');
-  const atribs = _tc(totais,'atribuicoes_feitas','atribuicoes feitas','atribuicoes realizadas');
+  const cats   = criados.ativos_categorias ?? '';
+  const grps   = criados.ativos_grupos     ?? '';
+  const ats    = criados.ativos            ?? '';
+  const mats   = criados.materiais         ?? '';
+  const atribs = criados.ativos_itens      ?? '';
 
   const temContadores = [cats,grps,ats,mats,atribs].some(v => v !== '');
   let contadoresHtml = '';
   if(temContadores){
     contadoresHtml = `
       <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:13px">
-        ${cats   !== '' ? `<span><strong>${cats}</strong> categorias criadas</span>`      : ''}
-        ${grps   !== '' ? `<span><strong>${grps}</strong> grupos criados</span>`          : ''}
-        ${ats    !== '' ? `<span><strong>${ats}</strong> ativos criados</span>`           : ''}
-        ${mats   !== '' ? `<span><strong>${mats}</strong> materiais criados</span>`       : ''}
-        ${atribs !== '' ? `<span><strong>${atribs}</strong> atribuicoes realizadas</span>`: ''}
+        ${cats   !== '' ? `<span><strong>${cats}</strong> categorias de ativo criadas</span>` : ''}
+        ${grps   !== '' ? `<span><strong>${grps}</strong> grupos de ativo criados</span>`     : ''}
+        ${ats    !== '' ? `<span><strong>${ats}</strong> ativos criados</span>`               : ''}
+        ${mats   !== '' ? `<span><strong>${mats}</strong> materiais criados</span>`           : ''}
+        ${atribs !== '' ? `<span><strong>${atribs}</strong> atribuicoes realizadas</span>`    : ''}
       </div>`;
-  } else if(Object.keys(totais).length){
-    const partes = Object.entries(totais).map(([k,v])=>`<span><strong>${v}</strong> ${esc(k)}</span>`).join('');
-    contadoresHtml = `<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;font-size:13px">${partes}</div>`;
   }
   let avisosHtml = '';
   if(avisos.length){
@@ -2954,7 +2950,7 @@ function _atvRenderResultado(status, dados){
       <div style="background:#FFF3CD;border:1px solid #FFDDA0;border-radius:8px;padding:14px 16px;margin-top:12px">
         <strong style="font-size:12px;color:#856404">Avisos (${avisos.length}):</strong>
         <ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#856404;line-height:1.7">
-          ${avisos.map(a=>`<li>${esc(a)}</li>`).join('')}
+          ${avisos.map(a=>`<li>${a.linha?`Linha ${a.linha}: `:''}${esc(a.mensagem||String(a))}</li>`).join('')}
         </ul>
       </div>`;
   }
@@ -2964,7 +2960,7 @@ function _atvRenderResultado(status, dados){
       <div style="background:#FDECEA;border:1px solid #F5C6C3;border-radius:8px;padding:14px 16px;margin-top:12px">
         <strong style="font-size:12px;color:#c62828">Erros (${erros.length}):</strong>
         <ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#c62828;line-height:1.7">
-          ${erros.map(e=>`<li>${esc(e)}</li>`).join('')}
+          ${erros.map(e=>`<li>${e.linha?'Linha '+e.linha+(e.campo?' ('+esc(e.campo)+')':'')+': ':''}${esc(e.mensagem||String(e))}</li>`).join('')}
         </ul>
       </div>`;
   }

@@ -586,3 +586,15 @@ class SolicitacaoOut(BaseModel):
     material_nome:  str = ""
     ativo_nome:     str = ""
     model_config = {"from_attributes": True}
+
+
+# ── Relatorio Geral de Estoque ────────────────────────
+class RelatorioGeralItem(BaseModel):
+    material_id:    int
+    material_nome:  str
+    categoria_nome: str
+    grupo_nome:     str
+    unidade:        str
+    estoque:        float
+    atribuidos:     float
+    total:          float

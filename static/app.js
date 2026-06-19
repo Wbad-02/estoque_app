@@ -4005,8 +4005,60 @@ function carregarRelatorios(){
   if(sel) sel.value = String(agora.getMonth()+1);
   if(selAno) selAno.value = String(agora.getFullYear());
   $('rel-nfe-resultado').innerHTML = '';
+  carregarRelGeral();
   carregarRelRuptura();
   if(S.grupo==='admin'||S.grupo==='mestre') iniciarAuditoria();
+}
+
+// ── Relatorio: Visao Geral de Estoque ────────────────────────
+async function carregarRelGeral(){
+  const el = $('rel-geral-resultado');
+  if(!el) return;
+  el.innerHTML = '<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  const data = await api('GET','/relatorios/geral');
+  if(!data){ el.innerHTML=''; return; }
+  if(!data.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhum material encontrado.</div>';
+    return;
+  }
+  const rows = data.map(r=>{
+    const atr = r.atribuidos > 0
+      ? `<span style="color:#1565c0;font-weight:600">( ${Number(r.atribuidos).toLocaleString('pt-BR',{maximumFractionDigits:0})} atribuido${r.atribuidos!==1?'s':''} )</span>`
+      : '<span style="color:var(--muted)">( 0 atribuidos )</span>';
+    return `<tr>
+      <td>${esc(r.material_nome)}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(r.categoria_nome)}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(r.grupo_nome)}</td>
+      <td style="text-align:right">${Number(r.estoque).toLocaleString('pt-BR',{maximumFractionDigits:0})} ${esc(r.unidade)}</td>
+      <td style="text-align:right;font-weight:700">${Number(r.total).toLocaleString('pt-BR',{maximumFractionDigits:0})} ${esc(r.unidade)}</td>
+      <td style="text-align:right">${atr}</td>
+    </tr>`;
+  }).join('');
+  const totEstoque = data.reduce((a,r)=>a+r.estoque,0);
+  const totAtrib   = data.reduce((a,r)=>a+r.atribuidos,0);
+  const totGeral   = data.reduce((a,r)=>a+r.total,0);
+  el.innerHTML=`<div style="max-height:440px;overflow-y:auto;overflow-x:auto">
+    <table style="min-width:620px">
+      <thead><tr>
+        <th>Material</th><th>Categoria</th><th>Grupo</th>
+        <th style="text-align:right">Em estoque</th>
+        <th style="text-align:right">Total</th>
+        <th style="text-align:right">Atribuidos</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr style="background:var(--bg)">
+        <td colspan="3" style="padding:10px 14px;font-weight:700;font-size:13px">Totais</td>
+        <td style="padding:10px 14px;text-align:right;font-weight:700;font-size:13px">${Number(totEstoque).toLocaleString('pt-BR',{maximumFractionDigits:0})}</td>
+        <td style="padding:10px 14px;text-align:right;font-weight:700;font-size:13px">${Number(totGeral).toLocaleString('pt-BR',{maximumFractionDigits:0})}</td>
+        <td style="padding:10px 14px;text-align:right;font-weight:700;font-size:13px;color:#1565c0">${Number(totAtrib).toLocaleString('pt-BR',{maximumFractionDigits:0})} atribuidos</td>
+      </tr></tfoot>
+    </table>
+  </div>`;
+}
+
+function exportarGeral(tipo){
+  _downloadRel(`/api/relatorios/geral/${tipo}`,
+    `visao_geral.${tipo==='excel'?'xlsx':'pdf'}`);
 }
 
 async function carregarRelatorioNfe(){

@@ -691,6 +691,26 @@
         </div>
       </div>
 
+      <!-- Seção: Visão Geral -->
+      <p class="rel-section-label">Visao Geral</p>
+      <div style="margin-bottom:28px">
+        <div class="table-wrap rel-card">
+          <h3>Estoque consolidado</h3>
+          <p>Total de cada material (estoque + atribuidos a ativos), com destaque para itens em uso.</p>
+          <div class="rel-filter-row">
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Acao</label>
+              <button class="btn btn-primary" onclick="carregarRelGeral()">Consultar</button>
+            </div>
+          </div>
+          <div class="rel-actions" style="margin-top:8px">
+            <button class="btn btn-primary" onclick="exportarGeral('excel')" title="Baixar Excel">⬇ Excel</button>
+            <button class="btn btn-secondary" onclick="exportarGeral('pdf')" title="Baixar PDF">⬇ PDF</button>
+          </div>
+          <div id="rel-geral-resultado" style="margin-top:12px"></div>
+        </div>
+      </div>
+
       <!-- Seção: Estoque -->
       <p class="rel-section-label">Estoque</p>
       <div class="rel-card-grid">

@@ -628,7 +628,181 @@ def _dados_solicitacoes_material(db):
     return resultado
 
 
+def _dados_relatorio_geral(db: Session):
+    from sqlalchemy import func as _f
+    atribuidos_map = {
+        r.material_id: float(r.total or 0)
+        for r in db.query(
+            models.AtivoItem.material_id,
+            _f.sum(models.AtivoItem.quantidade).label("total"),
+        )
+        .filter(models.AtivoItem.devolvido_em.is_(None))
+        .group_by(models.AtivoItem.material_id)
+        .all()
+    }
+    mats = _obter_materiais(db, apenas_alertas=False)
+    resultado = []
+    for m in mats:
+        estoque = float(m.quantidade)
+        atribuidos = atribuidos_map.get(m.id, 0.0)
+        resultado.append({
+            "material_id":    m.id,
+            "material_nome":  m.nome,
+            "categoria_nome": m.grupo.categoria.nome if m.grupo and m.grupo.categoria else "",
+            "grupo_nome":     m.grupo.nome if m.grupo else "",
+            "unidade":        m.unidade,
+            "estoque":        estoque,
+            "atribuidos":     atribuidos,
+            "total":          estoque + atribuidos,
+        })
+    return resultado
+
+
 # ── Endpoints JSON ────────────────────────────────────────────
+
+@router.get("/geral")
+def relatorio_geral(
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(get_usuario_atual),
+):
+    return _dados_relatorio_geral(db)
+
+
+@router.get("/geral/excel")
+def exportar_geral_excel(
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(get_usuario_atual),
+):
+    dados = _dados_relatorio_geral(db)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Visao Geral"
+
+    header_fill = PatternFill("solid", fgColor="1E3A34")
+    header_font = Font(bold=True, color="FFFFFF")
+    atrib_fill  = PatternFill("solid", fgColor="DBEAFE")
+
+    headers    = ["Material", "Categoria", "Grupo", "Em Estoque", "Atribuídos", "Total", "Unidade"]
+    col_widths = [30, 18, 18, 12, 12, 10, 10]
+    for col_idx, (h, w) in enumerate(zip(headers, col_widths), 1):
+        cell = ws.cell(row=1, column=col_idx, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+        ws.column_dimensions[cell.column_letter].width = w
+
+    for row_idx, r in enumerate(dados, 2):
+        row_data = [
+            r["material_nome"], r["categoria_nome"], r["grupo_nome"],
+            r["estoque"], r["atribuidos"], r["total"], r["unidade"],
+        ]
+        for col_idx, value in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.alignment = Alignment(horizontal="center" if col_idx != 1 else "left")
+            if r["atribuidos"] > 0:
+                cell.fill = atrib_fill
+
+    tot_row = len(dados) + 2
+    ws.cell(row=tot_row, column=1, value="TOTAL").font = Font(bold=True)
+    ws.cell(row=tot_row, column=4, value=sum(r["estoque"] for r in dados)).font = Font(bold=True)
+    ws.cell(row=tot_row, column=5, value=sum(r["atribuidos"] for r in dados)).font = Font(bold=True)
+    ws.cell(row=tot_row, column=6, value=sum(r["total"] for r in dados)).font = Font(bold=True)
+    for c in range(1, 8):
+        ws.cell(row=tot_row, column=c).alignment = Alignment(horizontal="center" if c != 1 else "left")
+
+    ws.freeze_panes = "A2"
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f"visao_geral_{_agora_br().strftime('%Y%m%d_%H%M')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get("/geral/pdf")
+def exportar_geral_pdf(
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(get_usuario_atual),
+):
+    dados = _dados_relatorio_geral(db)
+    output = io.BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm)
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "title_geral", parent=styles["Title"],
+        fontSize=16, textColor=colors.HexColor("#1E3A34"),
+    )
+    sub_style = ParagraphStyle(
+        "sub_geral", parent=styles["Normal"],
+        fontSize=9, textColor=colors.grey,
+    )
+
+    elements = []
+    elements.append(Paragraph("Relatório Geral — Estoque + Atribuídos", title_style))
+    elements.append(Paragraph(
+        f"Gerado em {_agora_br().strftime('%d/%m/%Y às %H:%M')}",
+        sub_style,
+    ))
+    elements.append(Spacer(1, 0.5*cm))
+
+    table_data = [["Material", "Categoria", "Grupo", "Estoque", "Atrib.", "Total", "Un."]]
+    for r in dados:
+        table_data.append([
+            r["material_nome"], r["categoria_nome"], r["grupo_nome"],
+            str(int(r["estoque"])), str(int(r["atribuidos"])),
+            str(int(r["total"])), r["unidade"],
+        ])
+    table_data.append([
+        "TOTAL", "", "",
+        str(int(sum(r["estoque"] for r in dados))),
+        str(int(sum(r["atribuidos"] for r in dados))),
+        str(int(sum(r["total"] for r in dados))),
+        "",
+    ])
+
+    col_widths_pdf = [5*cm, 3*cm, 3*cm, 2*cm, 2*cm, 1.8*cm, 1.5*cm]
+    table = Table(table_data, colWidths=col_widths_pdf, repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E3A34")),
+        ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
+        ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",   (0, 0), (-1, -1), 9),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#F5F5F5")]),
+        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#E8E8E8")),
+        ("FONTNAME",   (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("GRID",       (0, 0), (-1, -1), 0.3, colors.HexColor("#CCCCCC")),
+        ("VALIGN",     (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+    ]))
+
+    for row_idx, r in enumerate(dados, 1):
+        if r["atribuidos"] > 0:
+            table.setStyle(TableStyle([
+                ("BACKGROUND", (4, row_idx), (4, row_idx), colors.HexColor("#DBEAFE")),
+                ("TEXTCOLOR",  (4, row_idx), (4, row_idx), colors.HexColor("#1565C0")),
+            ]))
+
+    elements.append(table)
+    elements.append(Spacer(1, 0.3*cm))
+    elements.append(Paragraph(
+        f"Total: {len(dados)} material(is) · © Todos os direitos reservados – github.com/Wbad-02",
+        sub_style,
+    ))
+
+    doc.build(elements)
+    output.seek(0)
+    filename = f"visao_geral_{_agora_br().strftime('%Y%m%d_%H%M')}.pdf"
+    return StreamingResponse(
+        output,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
 
 @router.get("/entradas-nfe")
 def relatorio_entradas_nfe(

@@ -8,6 +8,53 @@ function esc(str){
   return _escDiv.innerHTML;
 }
 
+/**
+ * renderTable — gerador de tabelas HTML reutilizável.
+ *
+ * @param {Object} opts
+ * @param {Array<{label:string, align?:string}>} opts.headers - colunas
+ * @param {Array<Array>} opts.rows - dados (cada inner array = uma linha)
+ * @param {Array<{label:string, align?:string, colspan?:number}>} [opts.footer] - rodapé
+ * @param {Function} [opts.rowAttrs] - (row, i) => string de atributos extras na <tr>
+ * @param {Function} [opts.cellRender] - (val, colIdx, row) => html customizado da célula
+ * @param {number} [opts.maxHeight=440] - altura máxima com scroll
+ * @param {number} [opts.minWidth=560] - largura mínima da tabela
+ * @returns {string} HTML completo com wrapper de scroll
+ */
+function renderTable(opts){
+  const mh = opts.maxHeight||440, mw = opts.minWidth||560;
+  let html = `<div style="max-height:${mh}px;overflow-y:auto;overflow-x:auto">`;
+  html += `<table style="min-width:${mw}px">`;
+  html += '<thead><tr>';
+  for(const h of opts.headers){
+    const align = h.align ? `text-align:${h.align}` : '';
+    html += `<th${align ? ` style="${align}"` : ''}>${esc(h.label)}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+  (opts.rows||[]).forEach((row, ri) => {
+    const attrs = opts.rowAttrs ? opts.rowAttrs(row, ri) : '';
+    html += `<tr${attrs ? ' '+attrs : ''}>`;
+    row.forEach((val, ci) => {
+      const align = opts.headers[ci]?.align ? `text-align:${opts.headers[ci].align}` : '';
+      const content = opts.cellRender ? opts.cellRender(val, ci, row) : esc(val);
+      html += `<td style="padding:6px 10px;${align}">${content}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  if(opts.footer){
+    html += '<tfoot><tr style="background:var(--bg)">';
+    for(const f of opts.footer){
+      const align = f.align ? `text-align:${f.align}` : '';
+      const cs = f.colspan ? ` colspan="${f.colspan}"` : '';
+      html += `<td${cs} style="padding:10px 14px;font-weight:700;font-size:13px;${align}">${f.label}</td>`;
+    }
+    html += '</tr></tfoot>';
+  }
+  html += '</table></div>';
+  return html;
+}
+
 // ═══════════════════════════════════════════════════
 // Searchable Select — componente reutilizável
 // ═══════════════════════════════════════════════════
@@ -1472,28 +1519,132 @@ async function confirmarNFe(){
 // Relatórios
 // ═══════════════════════════════════════════════════
 function exportar(tipo,alertas){
+  toast('Gerando relatório…','info');
   fetch(`/api/relatorios/${tipo}?apenas_alertas=${alertas}`,{headers:{Authorization:`Bearer ${S.token}`}})
     .then(r=>r.blob()).then(blob=>{
       const link=document.createElement('a');
       link.href=URL.createObjectURL(blob);
       link.download=`estoque_${Date.now()}.${tipo==='excel'?'xlsx':'pdf'}`;
       link.click(); URL.revokeObjectURL(link.href);
+      toast('Download concluído!','success');
     }).catch(()=>toast('Erro ao gerar relatório','error'));
 }
 
 
-
-
-
 function exportarAtivos(tipo){
   const status=$('rel-ativos-status')?.value||'ativo';
+  toast('Gerando relatório…','info');
   fetch(`/api/relatorios/ativos/${tipo}?status=${status}`,{headers:{Authorization:`Bearer ${S.token}`}})
     .then(r=>r.blob()).then(blob=>{
       const link=document.createElement('a');
       link.href=URL.createObjectURL(blob);
       link.download=`ativos_${Date.now()}.${tipo==='excel'?'xlsx':'pdf'}`;
       link.click(); URL.revokeObjectURL(link.href);
+      toast('Download concluído!','success');
     }).catch(()=>toast('Erro ao gerar relatório','error'));
+}
+
+async function carregarRelAtivos(){
+  const el = $('rel-ativos-resultado');
+  if(!el) return;
+  const status = $('rel-ativos-status')?.value || 'ativo';
+  el.innerHTML = '<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  const data = await api('GET', `/relatorios/ativos?status=${status}`);
+  if(!data){ el.innerHTML=''; return; }
+  const cats = Object.keys(data);
+  if(!cats.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhum ativo encontrado.</div>';
+    return;
+  }
+  let html = '';
+  for(const cat of cats.sort()){
+    html += `<div style="margin-bottom:20px">`;
+    html += `<div style="font-size:14px;font-weight:700;color:var(--green);padding:8px 12px;background:#E8F0ED;border-radius:6px;margin-bottom:8px">${esc(cat)}</div>`;
+    const grupos = data[cat];
+    for(const grp of Object.keys(grupos).sort()){
+      html += `<div style="margin-left:16px;margin-bottom:14px">`;
+      html += `<div style="font-size:13px;font-weight:600;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:6px">${esc(grp)}</div>`;
+      for(const ativo of grupos[grp]){
+        const qtd = ativo.materiais.length;
+        const badge = qtd > 0
+          ? `<span style="font-size:11px;color:#1565c0;font-weight:600;margin-left:6px">(${qtd} ${qtd===1?'material':'materiais'})</span>`
+          : `<span style="font-size:11px;color:var(--muted);margin-left:6px">(sem materiais)</span>`;
+        html += `<div style="margin-left:16px;margin-bottom:10px">`;
+        html += `<div style="font-size:13px;font-weight:600;color:#333;padding:4px 0">${esc(ativo.nome)}${badge}</div>`;
+        if(ativo.descricao) html += `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">${esc(ativo.descricao)}</div>`;
+        if(qtd > 0){
+          html += `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:560px">`;
+          html += `<thead><tr style="background:#F5F5F5;text-align:left">`;
+          html += `<th style="padding:6px 8px;font-weight:600">Material</th>`;
+          html += `<th style="padding:6px 8px;font-weight:600">Categoria / Grupo</th>`;
+          html += `<th style="padding:6px 8px;font-weight:600;text-align:center">Patrimônio</th>`;
+          html += `<th style="padding:6px 8px;font-weight:600;text-align:center">Data</th>`;
+          html += `<th style="padding:6px 8px;font-weight:600">Observação</th>`;
+          html += `</tr></thead><tbody>`;
+          for(const m of ativo.materiais){
+            html += `<tr style="border-bottom:1px solid #eee">`;
+            html += `<td style="padding:5px 8px">${esc(m.nome)}</td>`;
+            html += `<td style="padding:5px 8px;color:var(--muted);font-size:11px">${esc(m.categoria_grupo)}</td>`;
+            html += `<td style="padding:5px 8px;text-align:center;font-family:monospace;font-size:11px">${esc(m.codigo_patrimonio)}</td>`;
+            html += `<td style="padding:5px 8px;text-align:center">${esc(m.data_atribuicao)}</td>`;
+            html += `<td style="padding:5px 8px;color:var(--muted);font-size:11px">${esc(m.observacao)}</td>`;
+            html += `</tr>`;
+          }
+          html += `</tbody></table></div>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  el.innerHTML = `<div style="max-height:440px;overflow-y:auto;overflow-x:auto">${html}</div>`;
+}
+
+async function carregarRelValorImobilizado(){
+  const el = $('rel-vim-resultado');
+  if(!el) return;
+  el.innerHTML = '<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  const data = await api('GET', '/relatorios/valor-imobilizado');
+  if(!data){ el.innerHTML=''; return; }
+  const itens = data.itens || [];
+  if(!itens.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhum material atribuído encontrado.</div>';
+    return;
+  }
+  const fmt = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  let html = `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:660px">`;
+  html += `<thead><tr style="background:#F5F5F5;text-align:left">`;
+  html += `<th style="padding:6px 8px;font-weight:600">Ativo</th>`;
+  html += `<th style="padding:6px 8px;font-weight:600">Cat./Grupo Ativo</th>`;
+  html += `<th style="padding:6px 8px;font-weight:600">Material</th>`;
+  html += `<th style="padding:6px 8px;font-weight:600;text-align:center">Patrimônio</th>`;
+  html += `<th style="padding:6px 8px;font-weight:600;text-align:right">Valor Unit.</th>`;
+  html += `<th style="padding:6px 8px;font-weight:600;text-align:right">Valor Total</th>`;
+  html += `</tr></thead><tbody>`;
+  let prevAtivo = '';
+  for(const i of itens){
+    const showAtivo = i.ativo_nome !== prevAtivo;
+    prevAtivo = i.ativo_nome;
+    html += `<tr style="border-bottom:1px solid #eee">`;
+    html += `<td style="padding:5px 8px;font-weight:${showAtivo?'600':'400'}">${showAtivo?esc(i.ativo_nome):''}</td>`;
+    html += `<td style="padding:5px 8px;color:var(--muted);font-size:11px">${showAtivo?esc(i.ativo_categoria+' / '+i.ativo_grupo):''}</td>`;
+    html += `<td style="padding:5px 8px">${esc(i.material_nome)}</td>`;
+    html += `<td style="padding:5px 8px;text-align:center;font-family:monospace;font-size:11px">${esc(i.codigo_patrimonio)}</td>`;
+    html += `<td style="padding:5px 8px;text-align:right">${fmt(i.valor_unitario)}</td>`;
+    html += `<td style="padding:5px 8px;text-align:right;font-weight:600">${fmt(i.valor_total)}</td>`;
+    html += `</tr>`;
+  }
+  html += `</tbody><tfoot><tr style="background:#E8F0ED;font-weight:700">`;
+  html += `<td colspan="5" style="padding:8px;text-align:right">TOTAL IMOBILIZADO</td>`;
+  html += `<td style="padding:8px;text-align:right">${fmt(data.total)}</td>`;
+  html += `</tr></tfoot></table></div>`;
+  el.innerHTML = `<div style="max-height:440px;overflow-y:auto;overflow-x:auto">${html}</div>`;
+}
+
+function exportarValorImobilizado(tipo){
+  const url = `/api/relatorios/valor-imobilizado/${tipo}`;
+  _downloadRel(url, `valor_imobilizado_${Date.now()}.${tipo==='excel'?'xlsx':'pdf'}`);
 }
 
 function exportarNotificacoes(tipo){
@@ -1507,6 +1658,7 @@ function exportarNotificacoes(tipo){
 }
 
 function _downloadRel(url, filename){
+  toast('Gerando relatório…','info');
   fetch(url,{headers:{Authorization:`Bearer ${S.token}`}})
     .then(r=>{if(!r.ok) throw r; return r.blob();})
     .then(blob=>{
@@ -1514,6 +1666,7 @@ function _downloadRel(url, filename){
       link.href=URL.createObjectURL(blob);
       link.download=filename;
       link.click(); URL.revokeObjectURL(link.href);
+      toast('Download concluído!','success');
     }).catch(()=>toast('Erro ao gerar relatório','error'));
 }
 
@@ -2068,12 +2221,14 @@ function exportarSaidas(tipo){
   if(inicio) url += `data_inicio=${inicio}&`;
   if(fim)    url += `data_fim=${fim}&`;
 
+  toast('Gerando relatório…','info');
   fetch(url, {headers:{Authorization:`Bearer ${S.token}`}})
     .then(r=>r.blob()).then(blob=>{
       const link=document.createElement('a');
       link.href=URL.createObjectURL(blob);
       link.download=`saidas_${Date.now()}.${tipo==='excel'?'xlsx':'pdf'}`;
       link.click(); URL.revokeObjectURL(link.href);
+      toast('Download concluído!','success');
     }).catch(()=>toast('Erro ao gerar relatório','error'));
 }
 
@@ -3998,16 +4153,441 @@ function _obRenderResultado(status, dados){
 // ═══════════════════════════════════════════════════
 // Relatórios
 // ═══════════════════════════════════════════════════
-function carregarRelatorios(){
+let _relAbaAtiva = 'estoque';
+
+function trocarAbaRel(aba){
+  _relAbaAtiva = aba;
+  const section = $('page-relatorios');
+  const abas = ['estoque','movimentacoes','nfe','cadastros','planejamento','auditoria'];
+  section?.querySelectorAll('#rel-tabs .inner-tab').forEach((el,i)=>{
+    el.classList.toggle('active', abas[i]===aba);
+  });
+  abas.forEach(a=>{
+    const pane = $(`rel-pane-${a}`);
+    if(pane) pane.classList.toggle('active', a===aba);
+  });
+  if(aba==='estoque'){ carregarRelGeral(); carregarGraficoCategorias(); }
+  if(aba==='planejamento') carregarRelRuptura();
+  if(aba==='auditoria' && (S.grupo==='admin'||S.grupo==='mestre')) iniciarAuditoria();
+  _salvarFiltrosRel();
+}
+
+const _REL_FILTROS_KEY = 'rel_filtros';
+function _salvarFiltrosRel(){
+  const dados = {
+    aba: _relAbaAtiva,
+    nfeMes: $('rel-nfe-mes')?.value,
+    nfeAno: $('rel-nfe-ano')?.value,
+    saidaMotivo: $('rel-saida-motivo')?.value,
+    saidaInicio: $('rel-saida-inicio')?.value,
+    saidaFim: $('rel-saida-fim')?.value,
+    ativosStatus: $('rel-ativos-status')?.value,
+    rupturaMeses: $('rel-ruptura-meses')?.value,
+  };
+  sessionStorage.setItem(_REL_FILTROS_KEY, JSON.stringify(dados));
+}
+function _restaurarFiltrosRel(){
+  try { return JSON.parse(sessionStorage.getItem(_REL_FILTROS_KEY)); } catch { return null; }
+}
+
+// ── Relatório: Entradas ──────────
+async function carregarRelEntradas(){
+  const inicio = $('rel-entrada-inicio')?.value || '';
+  const fim    = $('rel-entrada-fim')?.value || '';
+  const el = $('rel-entradas-resultado');
+  el.innerHTML = '<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  let url = '/relatorios/entradas?';
+  if(inicio) url += `data_inicio=${inicio}&`;
+  if(fim)    url += `data_fim=${fim}&`;
+  const data = await api('GET', url);
+  if(!data){ el.innerHTML=''; return; }
+  if(!data.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhuma entrada encontrada no período.</div>';
+    return;
+  }
+  const totalGeral = data.reduce((acc,r)=>acc+(r.subtotal||0),0);
+  el.innerHTML = `
+    <div style="max-height:440px;overflow-y:auto;overflow-x:auto;margin-top:16px">
+      <table style="min-width:780px">
+        <thead><tr>
+          <th>Data</th><th>Material</th><th>Cat/Grupo</th>
+          <th style="text-align:right">Qtd</th><th>Unidade</th>
+          <th>Origem</th><th>NF-e</th>
+          <th style="text-align:right">Valor Unit.</th>
+          <th style="text-align:right">Subtotal</th>
+        </tr></thead>
+        <tbody>
+          ${data.map(r=>{
+            const dt = r.data || r.criado_em || '';
+            const dtFmt = dt ? new Date(dt).toLocaleDateString('pt-BR') : '—';
+            return `<tr>
+              <td style="font-size:12px;white-space:nowrap">${esc(dtFmt)}</td>
+              <td>${esc(r.material_nome||r.material||'')}</td>
+              <td style="font-size:12px;color:var(--muted)">${esc(r.categoria_nome||r.grupo||'')}</td>
+              <td style="text-align:right">${Number(r.quantidade||0).toLocaleString('pt-BR',{maximumFractionDigits:2})}</td>
+              <td>${esc(r.unidade||'')}</td>
+              <td style="font-size:12px">${esc(r.origem||'—')}</td>
+              <td style="font-size:12px">${esc(r.nf_numero||r.nfe||'—')}</td>
+              <td style="text-align:right">${(r.valor_unitario||0)>0?Number(r.valor_unitario).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'—'}</td>
+              <td style="text-align:right;font-weight:600">${(r.subtotal||0)>0?Number(r.subtotal).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+        <tfoot><tr style="background:var(--bg)">
+          <td colspan="8" style="padding:10px 14px;font-weight:700;font-size:13px">Total</td>
+          <td style="padding:10px 14px;text-align:right;font-weight:700;font-size:13px">${totalGeral.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+}
+
+function exportarEntradas(tipo){
+  const inicio = $('rel-entrada-inicio')?.value || '';
+  const fim    = $('rel-entrada-fim')?.value || '';
+  let url = `/api/relatorios/entradas/${tipo}?`;
+  if(inicio) url += `data_inicio=${inicio}&`;
+  if(fim)    url += `data_fim=${fim}&`;
+  _downloadRel(url, `entradas_${Date.now()}.${tipo==='excel'?'xlsx':'pdf'}`);
+}
+
+// ── Relatório: Requerimentos de compra ──────────
+async function carregarRelRequerimentos(){
+  const inicio = $('rel-req-inicio')?.value || '';
+  const fim    = $('rel-req-fim')?.value || '';
+  const el = $('rel-req-resultado');
+  el.innerHTML = '<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  let url = '/relatorios/requerimentos?';
+  if(inicio) url += `data_inicio=${inicio}&`;
+  if(fim)    url += `data_fim=${fim}&`;
+  const resp = await api('GET', url);
+  if(!resp){ el.innerHTML=''; return; }
+  const reqs = resp.requerimentos || [];
+  const totais = resp.totais || {};
+  if(!reqs.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhum requerimento encontrado no período.</div>';
+    return;
+  }
+  const rows = reqs.map(r=>{
+    const dt = r.data || r.criado_em || '';
+    const dtFmt = dt ? new Date(dt).toLocaleDateString('pt-BR') : '—';
+    return `<tr>
+      <td>${esc(r.titulo||'')}</td>
+      <td>${esc(r.status||'')}</td>
+      <td>${esc(r.criado_por||'')}</td>
+      <td>${esc(r.aprovado_por||'—')}</td>
+      <td style="text-align:right">${r.itens!=null?r.itens:'—'}</td>
+      <td style="text-align:right">${(r.valor_total||0)>0?Number(r.valor_total).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'—'}</td>
+      <td style="font-size:12px;white-space:nowrap">${esc(dtFmt)}</td>
+    </tr>`;
+  }).join('');
+  const fmtCur = v => (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  el.innerHTML = `
+    <div style="max-height:440px;overflow-y:auto;overflow-x:auto;margin-top:16px">
+      <table style="min-width:700px">
+        <thead><tr>
+          <th>Título</th><th>Status</th><th>Criado por</th><th>Aprovado por</th>
+          <th style="text-align:right">Itens</th>
+          <th style="text-align:right">Valor Total</th>
+          <th>Data</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:16px">
+      <div style="background:var(--bg);border-radius:var(--radius);padding:12px 18px;min-width:140px">
+        <div style="font-size:12px;color:var(--muted)">Total</div>
+        <div style="font-size:18px;font-weight:700">${totais.total!=null?totais.total:'—'}</div>
+      </div>
+      <div style="background:var(--bg);border-radius:var(--radius);padding:12px 18px;min-width:140px">
+        <div style="font-size:12px;color:var(--muted)">Aprovados</div>
+        <div style="font-size:18px;font-weight:700;color:#2e7d32">${totais.aprovados!=null?totais.aprovados:'—'}</div>
+      </div>
+      <div style="background:var(--bg);border-radius:var(--radius);padding:12px 18px;min-width:140px">
+        <div style="font-size:12px;color:var(--muted)">Rejeitados</div>
+        <div style="font-size:18px;font-weight:700;color:#c62828">${totais.rejeitados!=null?totais.rejeitados:'—'}</div>
+      </div>
+      <div style="background:var(--bg);border-radius:var(--radius);padding:12px 18px;min-width:140px">
+        <div style="font-size:12px;color:var(--muted)">Aguardando</div>
+        <div style="font-size:18px;font-weight:700;color:#e65100">${totais.aguardando!=null?totais.aguardando:'—'}</div>
+      </div>
+      <div style="background:var(--bg);border-radius:var(--radius);padding:12px 18px;min-width:170px">
+        <div style="font-size:12px;color:var(--muted)">Valor aprovado</div>
+        <div style="font-size:18px;font-weight:700">${fmtCur(totais.valor_aprovado)}</div>
+      </div>
+    </div>`;
+}
+
+function exportarRequerimentos(tipo){
+  const inicio = $('rel-req-inicio')?.value || '';
+  const fim    = $('rel-req-fim')?.value || '';
+  let url = `/api/relatorios/requerimentos/${tipo}?`;
+  if(inicio) url += `data_inicio=${inicio}&`;
+  if(fim)    url += `data_fim=${fim}&`;
+  _downloadRel(url, `requerimentos_${Date.now()}.${tipo==='excel'?'xlsx':'pdf'}`);
+}
+
+// ── Relatório: NF-e por fornecedor ──────────
+async function carregarRelFornecedores(){
+  const el = $('rel-fornecedores-resultado');
+  el.innerHTML = '<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  const data = await api('GET', '/relatorios/nfe-fornecedores');
+  if(!data){ el.innerHTML=''; return; }
+  if(!data.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhum fornecedor encontrado.</div>';
+    return;
+  }
+  const rows = data.map(r=>{
+    const dt = r.ultima_importacao || '';
+    const dtFmt = dt ? new Date(dt).toLocaleDateString('pt-BR') : '—';
+    return `<tr>
+      <td>${esc(r.fornecedor||'')}</td>
+      <td style="text-align:right">${r.nfe_importadas!=null?r.nfe_importadas:'—'}</td>
+      <td style="font-size:12px;white-space:nowrap">${esc(dtFmt)}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `
+    <div style="max-height:440px;overflow-y:auto;overflow-x:auto;margin-top:16px">
+      <table style="min-width:400px">
+        <thead><tr>
+          <th>Fornecedor</th>
+          <th style="text-align:right">NF-e Importadas</th>
+          <th>Última Importação</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function exportarFornecedores(tipo){
+  _downloadRel(`/api/relatorios/nfe-fornecedores/${tipo}`,
+    `nfe_fornecedores_${Date.now()}.${tipo==='excel'?'xlsx':'pdf'}`);
+}
+
+// ── KPIs do topo dos relatórios ──────────────────────────
+
+
+// ── Gráfico de categorias (barras CSS) ──────────────────
+async function carregarGraficoCategorias(){
+  const el = $('rel-grafico-categorias');
+  if(!el) return;
+  el.innerHTML = '<div style="color:var(--muted)">Carregando…</div>';
+  const mats = await api('GET','/materiais/');
+  if(!mats||!mats.length){ el.innerHTML='<div style="color:var(--muted)">Nenhum material encontrado.</div>'; return; }
+  const agrup = {};
+  mats.forEach(m=>{
+    const cat = m.grupo && m.grupo.categoria ? m.grupo.categoria.nome : 'Sem categoria';
+    agrup[cat] = (agrup[cat]||0) + (m.quantidade||0);
+  });
+  const entries = Object.entries(agrup).sort((a,b)=>b[1]-a[1]);
+  const max = entries[0] ? entries[0][1] : 1;
+  el.innerHTML = entries.map(([cat,qtd])=>{
+    const pct = max > 0 ? (qtd/max)*100 : 0;
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:13px;font-weight:600">${esc(cat)}</span>
+        <span style="font-size:12px;color:var(--muted)">${Math.round(qtd)} itens</span>
+      </div>
+      <div style="background:#EEF3F0;border-radius:4px;height:22px;overflow:hidden">
+        <div style="background:var(--green);height:100%;border-radius:4px;width:${pct.toFixed(1)}%;transition:width .5s"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Relatório ABC/Pareto ────────────────────────────────
+async function carregarRelAbc(){
+  const el = $('rel-abc-resultado');
+  if(!el) return;
+  el.innerHTML = '<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  const data = await api('GET','/relatorios/abc');
+  if(!data){ el.innerHTML=''; return; }
+  const itens = data.itens || [];
+  if(!itens.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhum dado encontrado.</div>';
+    return;
+  }
+  const fmt = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  const rows = itens.map(r=>{
+    const badgeCls = r.classe==='A'?'badge-ok':r.classe==='B'?'badge-pendente':'badge-viewer';
+    return `<tr>
+      <td>${esc(r.material_nome)}</td>
+      <td class="hide-mobile">${esc(r.categoria)}</td>
+      <td class="hide-mobile">${esc(r.grupo)}</td>
+      <td style="text-align:right">${r.qtd_saidas}</td>
+      <td style="text-align:right">${fmt(r.valor_consumido)}</td>
+      <td style="text-align:right">${r.percentual.toFixed(1)}%</td>
+      <td style="text-align:right">${r.percentual_acumulado.toFixed(1)}%</td>
+      <td><span class="badge ${badgeCls}">${esc(r.classe)}</span></td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `
+    <div style="max-height:440px;overflow-y:auto;overflow-x:auto;margin-top:16px">
+      <table style="min-width:700px">
+        <thead><tr>
+          <th>Material</th>
+          <th class="hide-mobile">Categoria</th>
+          <th class="hide-mobile">Grupo</th>
+          <th style="text-align:right">Qtd Saídas</th>
+          <th style="text-align:right">Valor Consumido</th>
+          <th style="text-align:right">%</th>
+          <th style="text-align:right">% Acum.</th>
+          <th>Classe</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function exportarAbc(tipo){
+  _downloadRel(`/api/relatorios/abc/${tipo}`,
+    `abc_pareto_${Date.now()}.${tipo==='excel'?'xlsx':'pdf'}`);
+}
+
+// ── Relatório Patrimônio/Inventário ─────────────────────
+async function carregarRelPatrimonio(){
+  const el = $('rel-patrimonio-resultado');
+  if(!el) return;
+  el.innerHTML = '<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  const status = $('rel-patrimonio-status')?.value || 'ativo';
+  const data = await api('GET',`/relatorios/patrimonio?status=${status}`);
+  if(!data){ el.innerHTML=''; return; }
+  const itens = data.unidades || [];
+  if(!itens.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhuma unidade patrimonial encontrada.</div>';
+    return;
+  }
+  const fmt = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  const statusMap = {
+    'disponível': {badge:'badge-ok', label:'Disponível'},
+    'atribuído':  {badge:'badge-colab', label:'Atribuído'},
+    'retirado':   {badge:'badge-defeito', label:'Retirado'},
+  };
+  const rows = itens.map(r=>{
+    const st = statusMap[r.status] || {badge:'badge-alert', label:r.status};
+    const atrib = r.atribuido_a && r.atribuido_a !== '—' ? esc(r.atribuido_a) : '—';
+    return `<tr>
+      <td style="font-family:monospace;font-size:11px">${esc(r.codigo)}</td>
+      <td>${esc(r.material_nome)}</td>
+      <td class="hide-mobile">${esc(r.categoria)} / ${esc(r.grupo)}</td>
+      <td><span class="badge ${st.badge}">${st.label}</span></td>
+      <td>${atrib}</td>
+      <td class="hide-mobile">${esc(r.origem)}</td>
+      <td style="text-align:right">${r.valor_unitario ? fmt(r.valor_unitario) : '—'}</td>
+      <td class="hide-mobile">${esc(r.criado_em)}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `
+    <div style="max-height:440px;overflow-y:auto;overflow-x:auto;margin-top:16px">
+      <table style="min-width:800px">
+        <thead><tr>
+          <th>Código</th>
+          <th>Material</th>
+          <th class="hide-mobile">Categoria/Grupo</th>
+          <th>Status</th>
+          <th>Atribuído a</th>
+          <th class="hide-mobile">Origem</th>
+          <th style="text-align:right">Valor</th>
+          <th class="hide-mobile">Data</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function exportarPatrimonio(tipo){
+  const status = $('rel-patrimonio-status')?.value || 'ativo';
+  _downloadRel(`/api/relatorios/patrimonio/${tipo}?status=${status}`,
+    `patrimonio_${Date.now()}.${tipo==='excel'?'xlsx':'pdf'}`);
+}
+
+// ── Relatório Atividade por Usuário ─────────────────────
+async function carregarRelAtividade(){
+  const el = $('rel-atividade-resultado');
+  if(!el) return;
+  el.innerHTML = '<div style="padding:16px;color:var(--muted)">Carregando…</div>';
+  const meses = $('rel-atividade-meses')?.value || '3';
+  const data = await api('GET',`/relatorios/atividade-usuarios?meses=${meses}`);
+  if(!data){ el.innerHTML=''; return; }
+  const usuarios = data.usuarios || [];
+  if(!usuarios.length){
+    el.innerHTML='<div style="padding:16px;color:var(--muted)">Nenhuma atividade encontrada no período.</div>';
+    return;
+  }
+  const rows = usuarios.map(r=>`<tr>
+    <td>${esc(r.usuario_nome)}</td>
+    <td style="text-align:right">${r.total_acoes}</td>
+    <td style="text-align:right">${r.entradas}</td>
+    <td style="text-align:right">${r.saidas}</td>
+    <td class="hide-mobile">${esc(r.ultima_acao)}</td>
+  </tr>`).join('');
+  el.innerHTML = `
+    <div style="max-height:440px;overflow-y:auto;overflow-x:auto;margin-top:16px">
+      <table style="min-width:500px">
+        <thead><tr>
+          <th>Usuário</th>
+          <th style="text-align:right">Total Ações</th>
+          <th style="text-align:right">Entradas</th>
+          <th style="text-align:right">Saídas</th>
+          <th class="hide-mobile">Última Ação</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function exportarAtividade(tipo){
+  const meses = $('rel-atividade-meses')?.value || '3';
+  _downloadRel(`/api/relatorios/atividade-usuarios/${tipo}?meses=${meses}`,
+    `atividade_usuarios_${Date.now()}.${tipo==='excel'?'xlsx':'pdf'}`);
+}
+
+async function carregarRelatorios(){
   const agora = new Date();
   const sel = $('rel-nfe-mes');
   const selAno = $('rel-nfe-ano');
-  if(sel) sel.value = String(agora.getMonth()+1);
-  if(selAno) selAno.value = String(agora.getFullYear());
+  if(selAno){
+    const anoAtual = agora.getFullYear();
+    selAno.innerHTML = '';
+    for(let a = anoAtual - 2; a <= anoAtual; a++){
+      const opt = document.createElement('option');
+      opt.value = String(a);
+      opt.textContent = String(a);
+      if(a === anoAtual) opt.selected = true;
+      selAno.appendChild(opt);
+    }
+  }
   $('rel-nfe-resultado').innerHTML = '';
-  carregarRelGeral();
-  carregarRelRuptura();
-  if(S.grupo==='admin'||S.grupo==='mestre') iniciarAuditoria();
+
+  const selMotivo = $('rel-saida-motivo');
+  if(selMotivo){
+    const motivos = await api('GET','/motivos/');
+    if(motivos){
+      selMotivo.innerHTML = '<option value="">Todos os motivos</option>';
+      (motivos.padrao||[]).forEach(m=>{
+        selMotivo.innerHTML += `<option value="${esc(m.nome)}">${esc(m.label||m.nome)}</option>`;
+      });
+      (motivos.customizados||[]).forEach(m=>{
+        selMotivo.innerHTML += `<option value="${esc(m.nome)}">${esc(m.nome)}</option>`;
+      });
+    }
+  }
+
+  const saved = _restaurarFiltrosRel();
+  if(saved){
+    if(sel && saved.nfeMes) sel.value = saved.nfeMes;
+    if(selAno && saved.nfeAno) selAno.value = saved.nfeAno;
+    if(selMotivo && saved.saidaMotivo) selMotivo.value = saved.saidaMotivo;
+    if($('rel-saida-inicio') && saved.saidaInicio) $('rel-saida-inicio').value = saved.saidaInicio;
+    if($('rel-saida-fim') && saved.saidaFim) $('rel-saida-fim').value = saved.saidaFim;
+    if($('rel-ativos-status') && saved.ativosStatus) $('rel-ativos-status').value = saved.ativosStatus;
+    if($('rel-ruptura-meses') && saved.rupturaMeses) $('rel-ruptura-meses').value = saved.rupturaMeses;
+    _relAbaAtiva = saved.aba || 'estoque';
+  } else {
+    if(sel) sel.value = String(agora.getMonth()+1);
+    _relAbaAtiva = 'estoque';
+  }
+
+  trocarAbaRel(_relAbaAtiva);
 }
 
 // ── Relatorio: Visao Geral de Estoque ────────────────────────
@@ -4204,6 +4784,18 @@ async function iniciarAuditoria(){
     selE.innerHTML='<option value="">Todas</option>'+
       opcoes.entidades.map(e=>`<option value="${e}">${esc(e)}</option>`).join('');
   }
+}
+
+function exportarAuditoria(tipo){
+  let url = `/api/auditoria/${tipo}?`;
+  const u=$('aud-usuario')?.value, a=$('aud-acao')?.value, e=$('aud-entidade')?.value;
+  const di=$('aud-inicio')?.value, df=$('aud-fim')?.value;
+  if(u) url+=`usuario_id=${u}&`;
+  if(a) url+=`acao=${a}&`;
+  if(e) url+=`entidade=${e}&`;
+  if(di) url+=`data_inicio=${di}&`;
+  if(df) url+=`data_fim=${df}&`;
+  _downloadRel(url, `auditoria_${Date.now()}.${tipo==='excel'?'xlsx':'pdf'}`);
 }
 
 async function carregarRelAuditoria(offset){

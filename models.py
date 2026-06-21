@@ -150,17 +150,17 @@ class UnidadePatrimonio(Base):
 class Movimentacao(Base):
     __tablename__ = "movimentacoes"
     id             = Column(Integer, primary_key=True, index=True)
-    material_id    = Column(Integer, ForeignKey("materiais.id"), nullable=False)
+    material_id    = Column(Integer, ForeignKey("materiais.id"), nullable=False, index=True)
     usuario_id     = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     unidade_id     = Column(Integer, ForeignKey("unidades_patrimonio.id", ondelete="SET NULL"), nullable=True)
-    tipo           = Column(String(10), nullable=False)           # "entrada" | "saida"
+    tipo           = Column(String(10), nullable=False, index=True)
     quantidade     = Column(Float, nullable=False)
-    motivo         = Column(String(100), nullable=True)            # só para saídas
+    motivo         = Column(String(100), nullable=True)
     observacao     = Column(Text, nullable=True)
-    valor_unitario = Column(Float, nullable=True)                 # valor na época da entrada
-    tag            = Column(String(10), nullable=True)            # "novo" | "usado" (lotes)
+    valor_unitario = Column(Float, nullable=True)
+    tag            = Column(String(10), nullable=True)
     nf_numero      = Column(String(50), nullable=True)
-    criado_em      = Column(DateTime, default=agora)
+    criado_em      = Column(DateTime, default=agora, index=True)
     material = relationship("Material", back_populates="movimentacoes")
     usuario  = relationship("Usuario",  back_populates="movimentacoes")
 
@@ -207,7 +207,7 @@ class AtivoItem(Base):
     quantidade   = Column(Float, default=1.0)
     observacao   = Column(Text, nullable=True)
     atribuido_em = Column(DateTime, default=agora)
-    devolvido_em = Column(DateTime, nullable=True)
+    devolvido_em = Column(DateTime, nullable=True, index=True)
     ativo_obj    = relationship("Ativo", back_populates="itens")
     material     = relationship("Material")
     unidade_patr = relationship("UnidadePatrimonio", foreign_keys=[unidade_id])

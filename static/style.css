@@ -13,7 +13,7 @@
   --surface:#FFFFFF;
   --border:#DDE3E1;
   --text:#1A2420;
-  --muted:#5A716B;
+  --muted:#4A5E59;
   --danger:#C0392B;
   --warn-bg:#FFF8E1;
   --warn:#7A5A00;
@@ -22,6 +22,7 @@
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
+input[type="date"]{user-select:none;-webkit-user-select:none;caret-color:transparent}
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
 
 /* ── Banner de atualização ── */

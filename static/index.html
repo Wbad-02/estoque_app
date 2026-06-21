@@ -687,153 +687,433 @@
       <div class="page-header">
         <div>
           <h2>Relatórios</h2>
-          <p style="font-size:12px;color:var(--muted);margin-top:3px">Exporte relatórios de saídas e movimentações em formato Excel ou PDF.</p>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Exporte relatórios de estoque, movimentações e cadastros em Excel ou PDF.</p>
         </div>
       </div>
 
-      <!-- Seção: Visão Geral -->
-      <p class="rel-section-label">Visao Geral</p>
-      <div style="margin-bottom:28px">
-        <div class="table-wrap rel-card">
-          <h3>Estoque consolidado</h3>
-          <p>Total de cada material (estoque + atribuidos a ativos), com destaque para itens em uso.</p>
+      <!-- Inner tabs -->
+      <div class="inner-tabs" id="rel-tabs">
+        <div class="inner-tab active" onclick="trocarAbaRel('estoque')">Estoque</div>
+        <div class="inner-tab" onclick="trocarAbaRel('movimentacoes')">Movimentações</div>
+        <div class="inner-tab" onclick="trocarAbaRel('nfe')">Notas Fiscais</div>
+        <div class="inner-tab" onclick="trocarAbaRel('cadastros')">Cadastros</div>
+        <div class="inner-tab" onclick="trocarAbaRel('planejamento')">Planejamento</div>
+        <div class="inner-tab admin-only" onclick="trocarAbaRel('auditoria')">Auditoria</div>
+      </div>
+
+
+      <!-- Aba: Estoque -->
+      <div class="inner-tab-pane active" id="rel-pane-estoque">
+        <div style="margin-bottom:28px">
+          <div class="table-wrap rel-card">
+            <h3>Estoque consolidado</h3>
+            <p>Total de cada material (estoque + atribuidos a ativos), com destaque para itens em uso.</p>
+            <div class="rel-filter-row">
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Ação</label>
+                <button class="btn btn-primary" onclick="carregarRelGeral()">Consultar</button>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Download</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-gold" onclick="exportarGeral('excel')" title="Baixar Excel">⬇ Excel</button>
+                  <button class="btn btn-secondary" onclick="exportarGeral('pdf')" title="Baixar PDF">⬇ PDF</button>
+                </div>
+              </div>
+            </div>
+            <div id="rel-geral-resultado" style="margin-top:12px"></div>
+          </div>
+        </div>
+
+        <div class="rel-card-grid">
+          <div class="table-wrap rel-card">
+            <h3>Estoque completo</h3>
+            <p>Todos os materiais ativos com categorias, grupos e quantidades.</p>
+            <div class="rel-filter-row">
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Download</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-primary" onclick="exportar('excel',false)" title="Exportar Excel">⬇ Excel</button>
+                  <button class="btn btn-secondary" onclick="exportar('pdf',false)" title="Exportar PDF">⬇ PDF</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap rel-card">
+            <h3 style="color:var(--warn)">Apenas alertas</h3>
+            <p>Itens abaixo ou igual ao mínimo do grupo.</p>
+            <div class="rel-filter-row">
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Download</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-gold" onclick="exportar('excel',true)" title="Exportar Excel">⬇ Excel</button>
+                  <button class="btn btn-secondary" onclick="exportar('pdf',true)" title="Exportar PDF">⬇ PDF</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap rel-card" style="margin-top:20px;margin-bottom:28px">
+          <h3>Distribuição por categoria</h3>
+          <p>Quantidade de materiais em estoque agrupados por categoria.</p>
+          <div id="rel-grafico-categorias" style="padding:16px"></div>
+        </div>
+
+        <div class="table-wrap rel-card" style="margin-bottom:28px">
+          <h3>Classificação ABC</h3>
+          <p>Ranking de materiais por valor consumido nos últimos 12 meses (Pareto).</p>
           <div class="rel-filter-row">
-            <div class="rel-filter-item" style="justify-content:flex-end">
-              <label style="visibility:hidden">Acao</label>
-              <button class="btn btn-primary" onclick="carregarRelGeral()">Consultar</button>
-            </div>
-          </div>
-          <div class="rel-actions" style="margin-top:8px">
-            <button class="btn btn-primary" onclick="exportarGeral('excel')" title="Baixar Excel">⬇ Excel</button>
-            <button class="btn btn-secondary" onclick="exportarGeral('pdf')" title="Baixar PDF">⬇ PDF</button>
-          </div>
-          <div id="rel-geral-resultado" style="margin-top:12px"></div>
-        </div>
-      </div>
-
-      <!-- Seção: Estoque -->
-      <p class="rel-section-label">Estoque</p>
-      <div class="rel-card-grid">
-        <div class="table-wrap rel-card">
-          <h3>Estoque completo</h3>
-          <p>Todos os materiais ativos com categorias, grupos e quantidades.</p>
-          <div class="rel-actions">
-            <button class="btn btn-primary" onclick="exportar('excel',false)" title="Exportar estoque completo para Excel">⬇ Excel</button>
-            <button class="btn btn-secondary" onclick="exportar('pdf',false)" title="Exportar estoque completo para PDF">⬇ PDF</button>
-          </div>
-        </div>
-        <div class="table-wrap rel-card">
-          <h3 style="color:var(--warn)">Apenas alertas</h3>
-          <p>Itens abaixo ou igual ao mínimo do grupo.</p>
-          <div class="rel-actions">
-            <button class="btn btn-gold" onclick="exportar('excel',true)" title="Exportar itens em alerta para Excel">⬇ Excel</button>
-            <button class="btn btn-secondary" onclick="exportar('pdf',true)" title="Exportar itens em alerta para PDF">⬇ PDF</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Seção: Movimentações -->
-      <p class="rel-section-label">Movimentações</p>
-      <div style="margin-bottom:28px">
-        <div class="table-wrap rel-card">
-          <h3>Saídas</h3>
-          <p>Histórico de saídas com filtros por motivo e período.</p>
-          <div class="rel-filter-row">
-            <div class="rel-filter-item">
-              <label for="rel-saida-motivo">Motivo</label>
-              <select id="rel-saida-motivo" style="min-width:190px">
-                <option value="">Todos os motivos</option>
-                <option value="colaborador">Atribuído a colaborador</option>
-                <option value="defeito">Defeito / Ruim</option>
-              </select>
-            </div>
-            <div class="rel-filter-item">
-              <label for="rel-saida-inicio">Data início</label>
-              <input type="date" id="rel-saida-inicio"/>
-            </div>
-            <div class="rel-filter-item">
-              <label for="rel-saida-fim">Data fim</label>
-              <input type="date" id="rel-saida-fim"/>
-            </div>
-            <div class="rel-actions" style="padding-top:20px">
-              <button class="btn btn-primary" onclick="exportarSaidas('excel')" title="Exportar saídas para Excel">⬇ Excel</button>
-              <button class="btn btn-secondary" onclick="exportarSaidas('pdf')" title="Exportar saídas para PDF">⬇ PDF</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Seção: Notas Fiscais -->
-      <p class="rel-section-label">Notas Fiscais</p>
-      <div style="margin-bottom:28px">
-        <div class="table-wrap rel-card">
-          <h3>Materiais por NF-e</h3>
-          <p>Entradas cadastradas via importação de NF-e, filtradas por mês e ano.</p>
-          <div class="rel-filter-row">
-            <div class="rel-filter-item">
-              <label for="rel-nfe-mes">Mês</label>
-              <select id="rel-nfe-mes" style="min-width:140px">
-                <option value="1">Janeiro</option><option value="2">Fevereiro</option>
-                <option value="3">Março</option><option value="4">Abril</option>
-                <option value="5">Maio</option><option value="6">Junho</option>
-                <option value="7">Julho</option><option value="8">Agosto</option>
-                <option value="9">Setembro</option><option value="10">Outubro</option>
-                <option value="11">Novembro</option><option value="12">Dezembro</option>
-              </select>
-            </div>
-            <div class="rel-filter-item">
-              <label for="rel-nfe-ano">Ano</label>
-              <select id="rel-nfe-ano" style="min-width:100px">
-                <option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option>
-              </select>
-            </div>
             <div class="rel-filter-item" style="justify-content:flex-end">
               <label style="visibility:hidden">Ação</label>
-              <button class="btn btn-primary" onclick="carregarRelatorioNfe()">Consultar</button>
+              <button class="btn btn-primary" onclick="carregarRelAbc()">Consultar</button>
             </div>
             <div class="rel-filter-item" style="justify-content:flex-end">
               <label style="visibility:hidden">Download</label>
               <div style="display:flex;gap:6px">
-                <button class="btn btn-gold" onclick="exportarNfe('excel')" title="Baixar Excel">⬇ Excel</button>
-                <button class="btn btn-secondary" onclick="exportarNfe('pdf')" title="Baixar PDF">⬇ PDF</button>
+                <button class="btn btn-gold" onclick="exportarAbc('excel')" title="Baixar Excel">⬇ Excel</button>
+                <button class="btn btn-secondary" onclick="exportarAbc('pdf')" title="Baixar PDF">⬇ PDF</button>
               </div>
             </div>
           </div>
-          <div id="rel-nfe-resultado" style="margin-top:12px"></div>
+          <div id="rel-abc-resultado" style="margin-top:12px"></div>
         </div>
       </div>
 
-      <!-- Seção: Cadastros -->
-      <p class="rel-section-label">Cadastros</p>
-      <div class="rel-card-grid">
-        <div class="table-wrap rel-card">
-          <h3>Ativos</h3>
-          <p>Lista de ativos com materiais atribuídos.</p>
-          <div class="form-group" style="margin-bottom:14px">
-            <label for="rel-ativos-status">Filtrar por status</label>
-            <select id="rel-ativos-status">
-              <option value="ativo">Apenas ativos</option>
-              <option value="inativo">Apenas inativos</option>
-              <option value="all">Todos</option>
-            </select>
+      <!-- Aba: Movimentações -->
+      <div class="inner-tab-pane" id="rel-pane-movimentacoes">
+        <div style="margin-bottom:28px">
+          <div class="table-wrap rel-card">
+            <h3>Saídas</h3>
+            <p>Histórico de saídas com filtros por motivo e período.</p>
+            <div class="rel-filter-row">
+              <div class="rel-filter-item">
+                <label for="rel-saida-motivo">Motivo</label>
+                <select id="rel-saida-motivo" style="min-width:190px">
+                  <option value="">Todos os motivos</option>
+                  <option value="colaborador">Atribuído a colaborador</option>
+                  <option value="defeito">Defeito / Ruim</option>
+                </select>
+              </div>
+              <div class="rel-filter-item">
+                <label for="rel-saida-inicio">Data início</label>
+                <input type="date" id="rel-saida-inicio" onclick="this.showPicker()" onkeydown="event.preventDefault()" style="cursor:pointer"/>
+              </div>
+              <div class="rel-filter-item">
+                <label for="rel-saida-fim">Data fim</label>
+                <input type="date" id="rel-saida-fim" onclick="this.showPicker()" onkeydown="event.preventDefault()" style="cursor:pointer"/>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Download</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-gold" onclick="exportarSaidas('excel')" title="Exportar Excel">⬇ Excel</button>
+                  <button class="btn btn-secondary" onclick="exportarSaidas('pdf')" title="Exportar PDF">⬇ PDF</button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="rel-actions">
-            <button class="btn btn-primary" onclick="exportarAtivos('excel')" title="Exportar ativos para Excel">⬇ Excel</button>
-            <button class="btn btn-secondary" onclick="exportarAtivos('pdf')" title="Exportar ativos para PDF">⬇ PDF</button>
+        </div>
+
+        <div style="margin-bottom:28px">
+          <div class="table-wrap rel-card">
+            <h3>Entradas</h3>
+            <p>Histórico de todas as entradas (manuais e via NF-e).</p>
+            <div class="rel-filter-row">
+              <div class="rel-filter-item">
+                <label for="rel-entrada-inicio">Data início</label>
+                <input type="date" id="rel-entrada-inicio" onclick="this.showPicker()" onkeydown="event.preventDefault()" style="cursor:pointer"/>
+              </div>
+              <div class="rel-filter-item">
+                <label for="rel-entrada-fim">Data fim</label>
+                <input type="date" id="rel-entrada-fim" onclick="this.showPicker()" onkeydown="event.preventDefault()" style="cursor:pointer"/>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Ação</label>
+                <button class="btn btn-primary" onclick="carregarRelEntradas()">Consultar</button>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Download</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-gold" onclick="exportarEntradas('excel')" title="Exportar Excel">⬇ Excel</button>
+                  <button class="btn btn-secondary" onclick="exportarEntradas('pdf')" title="Exportar PDF">⬇ PDF</button>
+                </div>
+              </div>
+            </div>
+            <div id="rel-entradas-resultado" style="margin-top:12px"></div>
           </div>
         </div>
       </div>
 
-      <!-- Seção: Planejamento -->
-      <p class="rel-section-label">Planejamento</p>
-      <div style="margin-bottom:28px">
-        <div class="table-wrap rel-card">
-          <h3>Consumo médio &amp; previsão de ruptura</h3>
-          <p>Estima o consumo médio mensal por material e projeta quantos dias de cobertura restam no estoque.</p>
+      <!-- Aba: Notas Fiscais -->
+      <div class="inner-tab-pane" id="rel-pane-nfe">
+        <div style="margin-bottom:28px">
+          <div class="table-wrap rel-card">
+            <h3>Materiais por NF-e</h3>
+            <p>Entradas cadastradas via importação de NF-e, filtradas por mês e ano.</p>
+            <div class="rel-filter-row">
+              <div class="rel-filter-item">
+                <label for="rel-nfe-mes">Mês</label>
+                <select id="rel-nfe-mes" style="min-width:140px">
+                  <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                  <option value="3">Março</option><option value="4">Abril</option>
+                  <option value="5">Maio</option><option value="6">Junho</option>
+                  <option value="7">Julho</option><option value="8">Agosto</option>
+                  <option value="9">Setembro</option><option value="10">Outubro</option>
+                  <option value="11">Novembro</option><option value="12">Dezembro</option>
+                </select>
+              </div>
+              <div class="rel-filter-item">
+                <label for="rel-nfe-ano">Ano</label>
+                <select id="rel-nfe-ano" style="min-width:100px"></select>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Ação</label>
+                <button class="btn btn-primary" onclick="carregarRelatorioNfe()">Consultar</button>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Download</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-gold" onclick="exportarNfe('excel')" title="Baixar Excel">⬇ Excel</button>
+                  <button class="btn btn-secondary" onclick="exportarNfe('pdf')" title="Baixar PDF">⬇ PDF</button>
+                </div>
+              </div>
+            </div>
+            <div id="rel-nfe-resultado" style="margin-top:12px"></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:28px">
+          <div class="table-wrap rel-card">
+            <h3>NF-e por fornecedor</h3>
+            <p>Resumo de notas fiscais importadas agrupadas por fornecedor.</p>
+            <div class="rel-filter-row">
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Ação</label>
+                <button class="btn btn-primary" onclick="carregarRelFornecedores()">Consultar</button>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Download</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-gold" onclick="exportarFornecedores('excel')" title="Exportar Excel">⬇ Excel</button>
+                  <button class="btn btn-secondary" onclick="exportarFornecedores('pdf')" title="Exportar PDF">⬇ PDF</button>
+                </div>
+              </div>
+            </div>
+            <div id="rel-fornecedores-resultado" style="margin-top:12px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aba: Cadastros -->
+      <div class="inner-tab-pane" id="rel-pane-cadastros">
+        <div class="table-wrap rel-card" style="margin-bottom:28px">
+          <h3>Ativos — Visão hierárquica</h3>
+          <p>Ativos organizados por categoria e grupo, com todos os materiais atribuídos a cada um.</p>
           <div class="rel-filter-row">
             <div class="rel-filter-item">
-              <label for="rel-ruptura-meses">Período de análise</label>
-              <select id="rel-ruptura-meses" style="min-width:170px">
+              <label for="rel-ativos-status">Filtrar por status</label>
+              <select id="rel-ativos-status">
+                <option value="ativo">Apenas ativos</option>
+                <option value="inativo">Apenas inativos</option>
+                <option value="all">Todos</option>
+              </select>
+            </div>
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Ação</label>
+              <button class="btn btn-primary" onclick="carregarRelAtivos()">Consultar</button>
+            </div>
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Download</label>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-gold" onclick="exportarAtivos('excel')" title="Exportar Excel">⬇ Excel</button>
+                <button class="btn btn-secondary" onclick="exportarAtivos('pdf')" title="Exportar PDF">⬇ PDF</button>
+              </div>
+            </div>
+          </div>
+          <div id="rel-ativos-resultado" style="margin-top:12px"></div>
+        </div>
+
+        <div class="table-wrap rel-card" style="margin-bottom:28px">
+          <h3>Valor imobilizado</h3>
+          <p>Valor monetário dos materiais atribuídos a ativos — detalhado por ativo e material.</p>
+          <div class="rel-filter-row">
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Ação</label>
+              <button class="btn btn-primary" onclick="carregarRelValorImobilizado()">Consultar</button>
+            </div>
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Download</label>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-gold" onclick="exportarValorImobilizado('excel')" title="Baixar Excel">⬇ Excel</button>
+                <button class="btn btn-secondary" onclick="exportarValorImobilizado('pdf')" title="Baixar PDF">⬇ PDF</button>
+              </div>
+            </div>
+          </div>
+          <div id="rel-vim-resultado" style="margin-top:12px"></div>
+        </div>
+
+        <div class="table-wrap rel-card" style="margin-bottom:28px">
+          <h3>Inventário de patrimônio</h3>
+          <p>Relação de todas as unidades patrimoniais rastreadas individualmente.</p>
+          <div class="rel-filter-row">
+            <div class="rel-filter-item">
+              <label for="rel-patrimonio-status">Status</label>
+              <select id="rel-patrimonio-status">
+                <option value="ativo" selected>Ativos</option>
+                <option value="retirado">Retirados</option>
+                <option value="todos">Todos</option>
+              </select>
+            </div>
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Ação</label>
+              <button class="btn btn-primary" onclick="carregarRelPatrimonio()">Consultar</button>
+            </div>
+            <div class="rel-filter-item" style="justify-content:flex-end">
+              <label style="visibility:hidden">Download</label>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-gold" onclick="exportarPatrimonio('excel')" title="Baixar Excel">⬇ Excel</button>
+                <button class="btn btn-secondary" onclick="exportarPatrimonio('pdf')" title="Baixar PDF">⬇ PDF</button>
+              </div>
+            </div>
+          </div>
+          <div id="rel-patrimonio-resultado" style="margin-top:12px"></div>
+        </div>
+      </div>
+
+      <!-- Aba: Planejamento -->
+      <div class="inner-tab-pane" id="rel-pane-planejamento">
+        <div style="margin-bottom:28px">
+          <div class="table-wrap rel-card">
+            <h3>Consumo médio &amp; previsão de ruptura</h3>
+            <p>Estima o consumo médio mensal por material e projeta quantos dias de cobertura restam no estoque.</p>
+            <div class="rel-filter-row">
+              <div class="rel-filter-item">
+                <label for="rel-ruptura-meses">Período de análise</label>
+                <select id="rel-ruptura-meses" style="min-width:170px">
+                  <option value="1">Último mês</option>
+                  <option value="3" selected>Últimos 3 meses</option>
+                  <option value="6">Últimos 6 meses</option>
+                  <option value="12">Último ano</option>
+                </select>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Ação</label>
+                <button class="btn btn-primary" onclick="carregarRelRuptura()">Consultar</button>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Download</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-gold" onclick="exportarConsumeMedio('excel')" title="Baixar Excel">⬇ Excel</button>
+                  <button class="btn btn-secondary" onclick="exportarConsumeMedio('pdf')" title="Baixar PDF">⬇ PDF</button>
+                </div>
+              </div>
+            </div>
+            <div id="rel-ruptura-resultado" style="margin-top:12px"></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:28px">
+          <div class="table-wrap rel-card">
+            <h3>Volume de solicitações por material</h3>
+            <p>Ranking dos materiais mais solicitados com taxa de aprovação e situação atual.</p>
+            <div class="rel-filter-row">
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Ação</label>
+                <button class="btn btn-primary" onclick="carregarRelSolicitacoes()">Consultar</button>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Download</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-gold" onclick="exportarSolicitacoesRel('excel')" title="Baixar Excel">⬇ Excel</button>
+                  <button class="btn btn-secondary" onclick="exportarSolicitacoesRel('pdf')" title="Baixar PDF">⬇ PDF</button>
+                </div>
+              </div>
+            </div>
+            <div id="rel-sol-resultado" style="margin-top:12px"></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:28px">
+          <div class="table-wrap rel-card">
+            <h3>Requerimentos de compra</h3>
+            <p>Consolidado de requerimentos com totais por status e valor.</p>
+            <div class="rel-filter-row">
+              <div class="rel-filter-item">
+                <label for="rel-req-inicio">Data início</label>
+                <input type="date" id="rel-req-inicio" onclick="this.showPicker()" onkeydown="event.preventDefault()" style="cursor:pointer"/>
+              </div>
+              <div class="rel-filter-item">
+                <label for="rel-req-fim">Data fim</label>
+                <input type="date" id="rel-req-fim" onclick="this.showPicker()" onkeydown="event.preventDefault()" style="cursor:pointer"/>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Ação</label>
+                <button class="btn btn-primary" onclick="carregarRelRequerimentos()">Consultar</button>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Download</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-gold" onclick="exportarRequerimentos('excel')" title="Exportar Excel">⬇ Excel</button>
+                  <button class="btn btn-secondary" onclick="exportarRequerimentos('pdf')" title="Exportar PDF">⬇ PDF</button>
+                </div>
+              </div>
+            </div>
+            <div id="rel-req-resultado" style="margin-top:12px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aba: Auditoria (admin only) -->
+      <div class="inner-tab-pane admin-only" id="rel-pane-auditoria">
+        <div style="margin-bottom:28px">
+          <div class="table-wrap rel-card">
+            <h3>Log de auditoria</h3>
+            <p>Histórico completo de todas as ações registradas no sistema.</p>
+            <div class="rel-filter-row" style="flex-wrap:wrap;gap:12px">
+              <div class="rel-filter-item">
+                <label for="aud-usuario">Usuário</label>
+                <select id="aud-usuario" style="min-width:160px"><option value="">Todos</option></select>
+              </div>
+              <div class="rel-filter-item">
+                <label for="aud-acao">Ação</label>
+                <select id="aud-acao" style="min-width:130px"><option value="">Todas</option></select>
+              </div>
+              <div class="rel-filter-item">
+                <label for="aud-entidade">Entidade</label>
+                <select id="aud-entidade" style="min-width:130px"><option value="">Todas</option></select>
+              </div>
+              <div class="rel-filter-item">
+                <label for="aud-inicio">Data início</label>
+                <input type="date" id="aud-inicio" onclick="this.showPicker()" onkeydown="event.preventDefault()" style="cursor:pointer"/>
+              </div>
+              <div class="rel-filter-item">
+                <label for="aud-fim">Data fim</label>
+                <input type="date" id="aud-fim" onclick="this.showPicker()" onkeydown="event.preventDefault()" style="cursor:pointer"/>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Ação</label>
+                <button class="btn btn-primary" onclick="carregarRelAuditoria(0)">Consultar</button>
+              </div>
+              <div class="rel-filter-item" style="justify-content:flex-end">
+                <label style="visibility:hidden">Download</label>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-gold" onclick="exportarAuditoria('excel')" title="Baixar Excel">⬇ Excel</button>
+                  <button class="btn btn-secondary" onclick="exportarAuditoria('pdf')" title="Baixar PDF">⬇ PDF</button>
+                </div>
+              </div>
+            </div>
+            <div id="rel-auditoria-resultado" style="margin-top:12px"></div>
+            <div id="rel-auditoria-paginacao" style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"></div>
+          </div>
+        </div>
+
+        <div class="table-wrap rel-card admin-only" style="margin-bottom:28px">
+          <h3>Atividade por usuário</h3>
+          <p>Ranking de usuários por volume de ações no sistema.</p>
+          <div class="rel-filter-row">
+            <div class="rel-filter-item">
+              <label for="rel-atividade-meses">Período</label>
+              <select id="rel-atividade-meses">
                 <option value="1">Último mês</option>
                 <option value="3" selected>Últimos 3 meses</option>
                 <option value="6">Últimos 6 meses</option>
@@ -842,77 +1122,17 @@
             </div>
             <div class="rel-filter-item" style="justify-content:flex-end">
               <label style="visibility:hidden">Ação</label>
-              <button class="btn btn-primary" onclick="carregarRelRuptura()">Consultar</button>
+              <button class="btn btn-primary" onclick="carregarRelAtividade()">Consultar</button>
             </div>
             <div class="rel-filter-item" style="justify-content:flex-end">
               <label style="visibility:hidden">Download</label>
               <div style="display:flex;gap:6px">
-                <button class="btn btn-gold" onclick="exportarConsumeMedio('excel')" title="Baixar Excel">⬇ Excel</button>
-                <button class="btn btn-secondary" onclick="exportarConsumeMedio('pdf')" title="Baixar PDF">⬇ PDF</button>
+                <button class="btn btn-gold" onclick="exportarAtividade('excel')" title="Baixar Excel">⬇ Excel</button>
+                <button class="btn btn-secondary" onclick="exportarAtividade('pdf')" title="Baixar PDF">⬇ PDF</button>
               </div>
             </div>
           </div>
-          <div id="rel-ruptura-resultado" style="margin-top:12px"></div>
-        </div>
-      </div>
-
-      <!-- Seção: Análise de Solicitações -->
-      <p class="rel-section-label">Análise de Solicitações</p>
-      <div style="margin-bottom:28px">
-        <div class="table-wrap rel-card">
-          <h3>Volume de solicitações por material</h3>
-          <p>Ranking dos materiais mais solicitados com taxa de aprovação e situação atual.</p>
-          <div class="rel-filter-row">
-            <div class="rel-filter-item" style="justify-content:flex-end">
-              <label style="visibility:hidden">Ação</label>
-              <button class="btn btn-primary" onclick="carregarRelSolicitacoes()">Consultar</button>
-            </div>
-            <div class="rel-filter-item" style="justify-content:flex-end">
-              <label style="visibility:hidden">Download</label>
-              <div style="display:flex;gap:6px">
-                <button class="btn btn-gold" onclick="exportarSolicitacoesRel('excel')" title="Baixar Excel">⬇ Excel</button>
-                <button class="btn btn-secondary" onclick="exportarSolicitacoesRel('pdf')" title="Baixar PDF">⬇ PDF</button>
-              </div>
-            </div>
-          </div>
-          <div id="rel-sol-resultado" style="margin-top:12px"></div>
-        </div>
-      </div>
-
-      <!-- Seção: Auditoria (admin only) -->
-      <p class="rel-section-label admin-only">Auditoria</p>
-      <div class="admin-only" style="margin-bottom:28px">
-        <div class="table-wrap rel-card">
-          <h3>Log de auditoria</h3>
-          <p>Histórico completo de todas as ações registradas no sistema.</p>
-          <div class="rel-filter-row" style="flex-wrap:wrap;gap:12px">
-            <div class="rel-filter-item">
-              <label for="aud-usuario">Usuário</label>
-              <select id="aud-usuario" style="min-width:160px"><option value="">Todos</option></select>
-            </div>
-            <div class="rel-filter-item">
-              <label for="aud-acao">Ação</label>
-              <select id="aud-acao" style="min-width:130px"><option value="">Todas</option></select>
-            </div>
-            <div class="rel-filter-item">
-              <label for="aud-entidade">Entidade</label>
-              <select id="aud-entidade" style="min-width:130px"><option value="">Todas</option></select>
-            </div>
-            <div class="rel-filter-item">
-              <label for="aud-inicio">Data início</label>
-              <input type="date" id="aud-inicio"/>
-            </div>
-            <div class="rel-filter-item">
-              <label for="aud-fim">Data fim</label>
-              <input type="date" id="aud-fim"/>
-            </div>
-            <div class="rel-filter-item" style="justify-content:flex-end">
-              <label style="visibility:hidden">Ação</label>
-              <button class="btn btn-primary" onclick="carregarRelAuditoria(0)">Consultar</button>
-            </div>
-          </div>
-          <div id="rel-auditoria-resultado" style="margin-top:12px"></div>
-          <div id="rel-auditoria-paginacao" style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"></div>
+          <div id="rel-atividade-resultado" style="margin-top:12px"></div>
         </div>
       </div>
 
